@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审核后台 · geogame</title>
+<script src="https://unpkg.com/alpinejs@3/dist/cdn.min.js" defer></script>
+<style>
+  body { background: #16110c; color: #e9dfc9; font-family: -apple-system, "PingFang SC", sans-serif; margin: 0; padding: 24px; }
+  h1 { font-size: 20px; letter-spacing: 4px; }
+  .bar { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+  input, select { background: #211a13; border: 1px solid #4b4231; color: #e9dfc9; padding: 8px 12px; border-radius: 6px; }
+  button { background: transparent; border: 1px solid #4b4231; color: #d8c9a8; padding: 8px 18px; border-radius: 6px; cursor: pointer; }
+  button.ok { background: #f5a33c; border-color: #f5a33c; color: #2a1c05; font-weight: 600; }
+  button.no { border-color: #8a4444; color: #e08484; }
+  .card { display: flex; gap: 16px; background: #211a13; border: 1px solid #322818; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .card img { width: 260px; height: 200px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+  .meta { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .coords { color: #f5a33c; font-size: 13px; letter-spacing: 1px; }
+  .story { color: #cabfa8; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+  .dim { color: #a2937b; font-size: 12px; }
+  .actions { display: flex; gap: 10px; margin-top: auto; }
+  .empty { color: #a2937b; text-align: center; margin-top: 80px; }
+</style>
+</head>
+<body x-data="admin()" x-init="load(); loadFb()">
+  <h1>审核后台</h1>
+  <div class="bar">
+    <input type="password" placeholder="管理口令" x-model="token" @change="save(); load()">
+    <select x-model="status" @change="load()">
+      <option value="pending">待审核</option>
+      <option value="live">已上线</option>
+      <option value="rejected">已拒绝</option>
+    </select>
+    <button @click="load()">刷新</button>
+    <span class="dim" x-text="msg"></span>
+  </div>
+
+  <template x-for="p in photos" :key="p.id">
+    <div class="card">
+      <img :src="p.url" @click="window.open(p.url)">
+      <div class="meta">
+        <span class="dim" x-text="'#' + p.id + ' · 上传者 ' + p.uploader_id + ' · ' + p.created_at.slice(0,19).replace('T',' ') + ' UTC'"></span>
+        <span class="coords" x-text="p.lat.toFixed(4) + ', ' + p.lng.toFixed(4)"></span>
+        <span class="story" x-text="p.story || '(无故事)'"></span>
+        <div class="actions" x-show="status === 'pending'">
+          <button class="ok" @click="approve(p.id)">通过</button>
+          <button class="no" @click="reject(p.id)">拒绝</button>
+        </div>
+      </div>
+    </div>
+  </template>
+  <div class="empty" x-show="photos.length === 0">这一栏是空的</div>
+
+  <h1 style="margin-top:40px">用户反馈</h1>
+  <div class="bar">
+    <button @click="loadFb()">刷新反馈</button>
+    <span class="dim" x-text="fbs.length + ' 条未处理'"></span>
+  </div>
+  <template x-for="f in fbs" :key="f.id">
+    <div class="card">
+      <div class="meta">
+        <span class="dim" x-text="'#' + f.id + ' · 用户 ' + f.user_id + ' · ' + f.created_at.slice(0,19).replace('T',' ') + ' UTC' + (f.contact ? ' · ' + f.contact : '')"></span>
+        <span class="story" x-text="f.content"></span>
+        <div class="actions">
+          <button class="ok" @click="closeFb(f.id)">已处理</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+<script>
+function admin() {
+  return {
+    token: localStorage.getItem('admin_token') || '',
+    status: 'pending',
+    photos: [],
+    fbs: [],
+    msg: '',
+    save() { localStorage.setItem('admin_token', this.token) },
+    headers() { return { 'X-Admin-Token': this.token, 'Content-Type': 'application/json' } },
+    async loadFb() {
+      const r = await fetch('/api/v1/admin/feedback?status=open', { headers: this.headers() })
+      this.fbs = r.ok ? await r.json() : []
+    },
+    async closeFb(id) {
+      await fetch(`/api/v1/admin/feedback/${id}/close`, { method: 'POST', headers: this.headers() })
+      this.loadFb()
+    },
+    async load() {
+      this.msg = ''
+      const r = await fetch(`/api/v1/admin/photos?status=${this.status}`, { headers: this.headers() })
+      if (!r.ok) { this.photos = []; this.msg = '口令错误或服务异常 (' + r.status + ')'; return }
+      this.photos = await r.json()
+    },
+    async approve(id) {
+      const r = await fetch(`/api/v1/admin/photos/${id}/approve`, { method: 'POST', headers: this.headers() })
+      this.msg = r.ok ? `#${id} 已上线` : '操作失败'
+      this.load()
+    },
+    async reject(id) {
+      const reason = prompt('拒绝理由(会展示给上传者):', '画质过低或缺少可辨认的地点线索')
+      if (reason === null) return
+      const r = await fetch(`/api/v1/admin/photos/${id}/reject`, {
+        method: 'POST', headers: this.headers(), body: JSON.stringify({ reason })
+      })
+      this.msg = r.ok ? `#${id} 已拒绝` : '操作失败'
+      this.load()
+    },
+  }
+}
+</script>
+</body>
+</html>

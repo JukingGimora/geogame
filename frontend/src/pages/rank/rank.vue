@@ -1,0 +1,153 @@
+<template>
+  <view class="rank">
+    <text class="g-title">{{ t('rank.title') }}</text>
+    <view class="tabs">
+      <view class="tab" :class="{ active: board === 'best_run' }" @tap="switchBoard('best_run')">
+        {{ t('rank.bestRun') }}
+      </view>
+      <view class="tab" :class="{ active: board === 'points' }" @tap="switchBoard('points')">
+        {{ t('rank.points') }}
+      </view>
+    </view>
+
+    <view v-if="data && data.top.length === 0" class="empty">{{ t('rank.empty') }}</view>
+    <view v-for="row in data?.top ?? []" :key="row.rank" class="row" :class="{ me: row.is_me }">
+      <text class="pos g-stamp">{{ row.rank }}</text>
+      <view class="user-cell">
+        <image v-if="row.avatar_url" class="avatar" :src="row.avatar_url" mode="aspectFill" />
+        <view v-else class="avatar placeholder" />
+        <text class="nick">{{ row.nickname }}{{ row.is_me ? t('rank.meSuffix') : '' }}</text>
+      </view>
+      <text class="val g-stamp">{{ row.value }}</text>
+    </view>
+
+    <view v-if="data && data.me.rank && !inTop" class="row me footer-me">
+      <text class="pos g-stamp">{{ data.me.rank }}</text>
+      <view class="user-cell">
+        <image v-if="data.me.avatar_url" class="avatar" :src="data.me.avatar_url" mode="aspectFill" />
+        <view v-else class="avatar placeholder" />
+        <text class="nick">{{ t('rank.me') }}</text>
+      </view>
+      <text class="val g-stamp">{{ data.me.value }}</text>
+    </view>
+    <view v-if="data && data.me.rank === null" class="empty">{{ t('rank.notRanked') }}</view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { api } from '../../api'
+import { t } from '../../locale'
+
+type Board = 'best_run' | 'points'
+
+interface RankRow {
+  rank: number
+  nickname: string
+  avatar_url?: string
+  value: number
+  is_me: boolean
+}
+
+const board = ref<Board>('best_run')
+const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; avatar_url?: string } } | null>(null)
+
+const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
+
+async function load() {
+  data.value = await api.leaderboard(board.value)
+}
+
+function switchBoard(b: Board) {
+  if (board.value === b) return
+  board.value = b
+  data.value = null
+  load()
+}
+
+onShow(load)
+</script>
+
+<style scoped>
+.rank {
+  min-height: 100vh;
+  background: #16110c;
+  padding: 90rpx 24rpx 40rpx;
+  box-sizing: border-box;
+}
+.tabs {
+  display: flex;
+  gap: 12rpx;
+  margin: 24rpx 0;
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border: 1px solid #4b4231;
+  border-radius: 8rpx;
+  color: #a2937b;
+  font-size: 26rpx;
+}
+.tab.active {
+  background: #f5a33c;
+  border-color: #f5a33c;
+  color: #2a1c05;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  background: #211a13;
+  border: 1px solid #322818;
+  border-radius: 8rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+.row.me {
+  border-color: #f5a33c;
+}
+.footer-me {
+  margin-top: 28rpx;
+}
+.pos {
+  width: 70rpx;
+  font-size: 30rpx;
+}
+.user-cell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
+.avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #16110c;
+  border: 1px solid #4b4231;
+  flex-shrink: 0;
+}
+.avatar.placeholder {
+  background: linear-gradient(135deg, #4b4231, #16110c);
+}
+.nick {
+  flex: 1;
+  color: #e9dfc9;
+  font-size: 28rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.val {
+  font-size: 30rpx;
+}
+.empty {
+  color: #a2937b;
+  text-align: center;
+  margin-top: 120rpx;
+  font-size: 28rpx;
+}
+</style>
