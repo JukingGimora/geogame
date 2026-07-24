@@ -6,7 +6,7 @@
     :longitude="center.lng"
     :scale="scale"
     :markers="markerList"
-    @longpress="onLongpress"
+    @tap="onTap"
   ></map>
 </template>
 
@@ -34,13 +34,13 @@ const markerList = computed(() =>
     latitude: m.lat,
     longitude: m.lng,
     iconPath: '/static/marker-pick.png',
-    width: 28,
-    height: 28,
-    anchor: { x: 0.5, y: 0.5 },
+    width: 38,
+    height: 38,
+    anchor: { x: 0.5, y: 1 },
   })),
 )
 
-function onLongpress(e: any) {
+function onTap(e: any) {
   const { latitude, longitude } = e.detail
   if (typeof latitude === 'number' && typeof longitude === 'number') {
     emit('pick', { lat: Math.round(latitude * 1e4) / 1e4, lng: Math.round(longitude * 1e4) / 1e4 })
