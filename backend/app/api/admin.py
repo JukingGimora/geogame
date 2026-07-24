@@ -2,12 +2,13 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_session
-from app.models import Event, Feedback, Hint, Photo, Region, User
+from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, User
 from app.services.ai_stub import fake_ai_guess, real_ai_guess
 from app.services.auth import require_admin
 from app.storage import storage
@@ -53,6 +54,19 @@ async def approve_photo(photo_id: int, session: AsyncSession = Depends(get_sessi
         await real_ai_guess(session, photo)
     await session.commit()
     return {"id": photo.id, "status": photo.status}
+
+
+@router.delete("/photos/{photo_id}")
+async def delete_photo(photo_id: int, session: AsyncSession = Depends(get_session)):
+    photo = await session.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(404, "photo_not_found")
+    await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id))
+    await session.execute(sa_delete(AIGuess).where(AIGuess.photo_id == photo_id))
+    storage.delete(photo.file_key)
+    await session.delete(photo)
+    await session.commit()
+    return {"id": photo_id, "deleted": True}
 
 
 @router.get("/feedback")

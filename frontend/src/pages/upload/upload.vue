@@ -9,17 +9,28 @@
     </view>
 
     <text class="section">{{ t('upload.pickLocation') }}</text>
+    <!-- #ifdef MP-WEIXIN -->
+    <text class="map-hint">{{ t('upload.tapMapHint') }}</text>
+    <NativeMapPicker :height="480" :markers="markers" @pick="onPick" />
+    <!-- #endif -->
+    <!-- #ifndef MP-WEIXIN -->
     <ChinaMap :height="480" :interactive="true" :markers="markers" @pick="onPick" />
+    <!-- #endif -->
 
     <textarea class="story" v-model="story" :placeholder="t('upload.story')" maxlength="2000" />
 
-    <button class="g-btn primary" :disabled="submitting" @tap="submit">{{ t('upload.submit') }}</button>
+    <button class="g-btn primary" :disabled="submitting" @tap="submit">
+      {{ submitting ? t('upload.submitting') : t('upload.submit') }}
+    </button>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import ChinaMap from '../../components/ChinaMap.vue'
+// #ifdef MP-WEIXIN
+import NativeMapPicker from '../../components/NativeMapPicker.vue'
+// #endif
 import { api } from '../../api'
 import { t } from '../../locale'
 import type { LngLat } from '../../lib/geo'
@@ -117,6 +128,10 @@ async function submit() {
 .section {
   color: #a2937b;
   font-size: 26rpx;
+}
+.map-hint {
+  color: #6f8a63;
+  font-size: 22rpx;
 }
 .story {
   width: 100%;

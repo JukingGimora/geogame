@@ -12,6 +12,7 @@
       @touchmove="onWaTouchMove"
       @touchend="onWaTouchEnd"
     ></canvas>
+    <text class="debug-overlay">{{ debugInfo }}</text>
     <!-- #endif -->
     <view class="cmap-zoom">
       <view class="cmap-btn" @tap="zoomBy(1.5)">＋</view>
@@ -41,6 +42,7 @@ const emit = defineEmits<{ pick: [p: LngLat] }>()
 
 const canvasId = `cmap-${Math.random().toString(36).slice(2, 8)}`
 const view = ref<MapView>({ scale: 1, panX: 0, panY: 0 })
+const debugInfo = ref('')
 
 let ctx: CanvasRenderingContext2D | null = null
 let cssW = 0
@@ -207,12 +209,14 @@ function onWaTouchStart(e: any) {
   waMoved = false
   waPinchDist = 0
   beginInteracting()
+  debugInfo.value = `start touches=${e.touches.length}`
 }
 
 function onWaTouchMove(e: any) {
   if (e.touches.length === 2) {
     const d = Math.hypot(e.touches[0].x - e.touches[1].x, e.touches[0].y - e.touches[1].y)
     if (waPinchDist > 0) zoomBy(d / waPinchDist)
+    debugInfo.value = `pinch d=${d.toFixed(0)} prev=${waPinchDist.toFixed(0)} scale=${view.value.scale.toFixed(2)}`
     waPinchDist = d
     waMoved = true
     waLastX = e.touches[0].x
@@ -227,6 +231,7 @@ function onWaTouchMove(e: any) {
   view.value.panY += dy
   waLastX = touch.x
   waLastY = touch.y
+  debugInfo.value = `move touches=${e.touches.length} dx=${dx.toFixed(0)} dy=${dy.toFixed(0)}`
   throttledRender()
 }
 
@@ -238,6 +243,7 @@ function onWaTouchEnd(e: any) {
   } else if (waMoved) {
     render()
   }
+  debugInfo.value += ` | end touches=${e.touches.length}`
   scheduleSettle()
 }
 
@@ -253,7 +259,7 @@ function setupWeapp() {
       if (!node) return
       cssW = res[0].width
       cssH = res[0].height
-      dpr = uni.getSystemInfoSync().pixelRatio
+      dpr = Math.min(2, uni.getSystemInfoSync().pixelRatio)
       node.width = cssW * dpr
       node.height = cssH * dpr
       backingW = node.width

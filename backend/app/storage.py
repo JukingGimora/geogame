@@ -35,6 +35,11 @@ class LocalStorage:
     def url(self, file_key: str) -> str:
         return f"/uploads/{file_key}"
 
+    def delete(self, file_key: str) -> None:
+        path = settings.upload_path / file_key
+        if path.exists():
+            path.unlink()
+
 
 class OSSStorage:
     def __init__(self) -> None:
@@ -52,6 +57,9 @@ class OSSStorage:
 
     def url(self, file_key: str) -> str:
         return f"{self._public_base}/{file_key}"
+
+    def delete(self, file_key: str) -> None:
+        self._bucket.delete_object(file_key)
 
 
 def _build_storage():

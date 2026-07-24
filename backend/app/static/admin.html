@@ -47,6 +47,9 @@
           <button class="ok" @click="approve(p.id)">通过</button>
           <button class="no" @click="reject(p.id)">拒绝</button>
         </div>
+        <div class="actions">
+          <button class="no" @click="del(p.id)">删除</button>
+        </div>
       </div>
     </div>
   </template>
@@ -105,6 +108,12 @@ function admin() {
         method: 'POST', headers: this.headers(), body: JSON.stringify({ reason })
       })
       this.msg = r.ok ? `#${id} 已拒绝` : '操作失败'
+      this.load()
+    },
+    async del(id) {
+      if (!confirm(`确定永久删除 #${id}？文件和数据库记录都会被删掉，不可恢复。`)) return
+      const r = await fetch(`/api/v1/admin/photos/${id}`, { method: 'DELETE', headers: this.headers() })
+      this.msg = r.ok ? `#${id} 已删除` : '删除失败'
       this.load()
     },
   }

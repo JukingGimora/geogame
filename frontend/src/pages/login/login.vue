@@ -1,5 +1,5 @@
 <template>
-  <view class="login" :style="{ paddingTop: `${topOffset + 48}px` }">
+  <view v-if="ready" class="login" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view class="header">
       <text class="g-title">{{ t('login.title') }}</text>
     </view>
@@ -63,6 +63,7 @@ const topOffset = ref(0)
 const avatar = ref('')
 const nickname = ref('')
 const agreed = ref(true)
+const ready = ref(false)
 
 const canLogin = computed(() => {
   return nickname.value.trim() && agreed.value
@@ -79,6 +80,7 @@ onMounted(() => {
   }
   if (savedNick) nickname.value = savedNick
   if (savedAvatar) avatar.value = savedAvatar
+  ready.value = true
 })
 
 function onChooseAvatar(e: any) {

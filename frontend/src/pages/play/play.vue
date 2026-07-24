@@ -24,7 +24,13 @@
       <button v-if="phase === 'view'" class="g-btn primary" @tap="phase = 'pick'">{{ t('play.placeFlag') }}</button>
 
       <view v-if="phase === 'pick'" class="picker">
+        <!-- #ifdef MP-WEIXIN -->
+        <text class="map-hint">{{ t('upload.tapMapHint') }}</text>
+        <NativeMapPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
         <ChinaMap :height="pickMapHeight" :interactive="true" :markers="pickMarkers" @pick="onPick" />
+        <!-- #endif -->
         <view class="row">
           <button class="g-btn" @tap="phase = 'view'">{{ t('play.cancelFlag') }}</button>
           <button class="g-btn primary" :disabled="!picked" @tap="confirmGuess">{{ t('play.confirmFlag') }}</button>
@@ -56,6 +62,10 @@
           <text class="story-from">{{ t('play.storyFrom', { name: result.uploader.nickname }) }}</text>
           <text class="story-text">{{ result.story }}</text>
         </view>
+        <!-- #ifdef MP-WEIXIN -->
+        <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('play.share') }}</button>
+        <!-- #endif -->
+
         <button class="g-btn primary" @tap="nextRound">
           {{ isLastRound ? t('play.finish') : t('play.next') }}
         </button>
@@ -72,8 +82,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import ChinaMap from '../../components/ChinaMap.vue'
+// #ifdef MP-WEIXIN
+import NativeMapPicker from '../../components/NativeMapPicker.vue'
+// #endif
 import { api, BASE_URL } from '../../api'
 import { t, tList } from '../../locale'
 import { addFogPoint } from '../../lib/fogStore'
@@ -177,6 +190,17 @@ async function nextRound() {
 function backHome() {
   uni.reLaunch({ url: '/pages/map/map' })
 }
+
+function onShareTap() {
+  logEvent('share_click', 'round', recapRoundId ?? undefined)
+}
+
+onShareAppMessage(() => ({
+  title: result.value?.ai?.beaten
+    ? t('play.shareTitleWon', { score: result.value.score })
+    : t('play.shareTitleDefault', { score: result.value?.score ?? 0 }),
+  path: '/pages/map/map',
+}))
 </script>
 
 <style scoped>
@@ -242,6 +266,12 @@ function backHome() {
   border-radius: 12rpx;
   padding: 6rpx;
   background: #0f0c08;
+}
+.map-hint {
+  display: block;
+  color: #6f8a63;
+  font-size: 22rpx;
+  padding: 8rpx 6rpx 4rpx;
 }
 .row {
   display: flex;
