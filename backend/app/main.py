@@ -41,6 +41,11 @@ app.include_router(play.router, prefix=API)
 app.include_router(admin.router, prefix=API)
 
 app.mount("/uploads", StaticFiles(directory=str(settings.upload_path)), name="uploads")
+app.mount(
+    "/h5test",
+    StaticFiles(directory=str(Path(__file__).parent / "static" / "h5test"), html=True),
+    name="h5test",
+)
 
 
 @app.get("/admin")

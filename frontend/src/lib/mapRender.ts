@@ -87,6 +87,7 @@ export function drawMap(
     fogPoints?: FogPoint[] | null
     showLabels?: boolean
     requestDetail?: (adcode: number) => void
+    skipDetail?: boolean
   } = {},
 ) {
   if (width < 1 || height < 1) return
@@ -121,7 +122,7 @@ export function drawMap(
     }
   }
 
-  if (view.scale >= CITY_SCALE) {
+  if (view.scale >= CITY_SCALE && !opts.skipDetail) {
     drawDetailLevels(ctx, proj, width, height, view, opts)
   }
 

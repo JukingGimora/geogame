@@ -2,14 +2,14 @@
   <view class="upload">
     <text class="g-title">{{ t('upload.title') }}</text>
 
-    <view class="photo-box" @tap="choose">
-      <image v-if="filePath && previewable" class="preview" :src="filePath" mode="aspectFill" />
+    <view class="photo-box" :style="{ height: boxHeight + 'rpx' }" @tap="choose">
+      <image v-if="filePath && previewable" class="preview" :src="filePath" mode="aspectFit" />
       <text v-else-if="filePath" class="placeholder">{{ t('upload.noPreview', { name: fileName }) }}</text>
       <text v-else class="placeholder">{{ t('upload.choose') }}</text>
     </view>
 
     <text class="section">{{ t('upload.pickLocation') }}</text>
-    <ChinaMap :height="300" :interactive="true" :markers="markers" @pick="onPick" />
+    <ChinaMap :height="480" :interactive="true" :markers="markers" @pick="onPick" />
 
     <textarea class="story" v-model="story" :placeholder="t('upload.story')" maxlength="2000" />
 
@@ -30,9 +30,13 @@ const fileName = ref('')
 const story = ref('')
 const location = ref<LngLat | null>(null)
 const submitting = ref(false)
+const boxHeight = ref(600)
 
 const markers = computed<MapMarker[]>(() => (location.value ? [{ ...location.value, kind: 'pick' }] : []))
 const previewable = computed(() => !/\.(heic|heif|tif|tiff)$/i.test(fileName.value))
+
+const BOX_CONTENT_WIDTH_RPX = 702
+const BOX_MIN_HEIGHT_RPX = 300
 
 function choose() {
   uni.chooseImage({
@@ -42,6 +46,16 @@ function choose() {
       filePath.value = res.tempFilePaths[0]
       const file = (res.tempFiles as Array<{ name?: string }>)?.[0]
       fileName.value = file?.name || ''
+      uni.getImageInfo({
+        src: filePath.value,
+        success: (info) => {
+          const ratio = info.width / info.height
+          boxHeight.value = Math.max(BOX_MIN_HEIGHT_RPX, Math.round(BOX_CONTENT_WIDTH_RPX / ratio))
+        },
+        fail: () => {
+          boxHeight.value = 600
+        },
+      })
     },
   })
 }
@@ -85,7 +99,6 @@ async function submit() {
   display: none;
 }
 .photo-box {
-  height: 320rpx;
   background: #211a13;
   border-radius: 12rpx;
   display: flex;

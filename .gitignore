@@ -7,3 +7,4 @@ test_uploads/
 node_modules/
 .env
 backend/geodata/
+backend/app/static/h5test/

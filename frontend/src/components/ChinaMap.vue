@@ -4,7 +4,14 @@
     <view class="cmap-host"></view>
     <!-- #endif -->
     <!-- #ifdef MP-WEIXIN -->
-    <canvas :id="canvasId" type="2d" class="cmap-canvas"></canvas>
+    <canvas
+      :id="canvasId"
+      type="2d"
+      class="cmap-canvas"
+      @touchstart="onWaTouchStart"
+      @touchmove="onWaTouchMove"
+      @touchend="onWaTouchEnd"
+    ></canvas>
     <!-- #endif -->
     <view class="cmap-zoom">
       <view class="cmap-btn" @tap="zoomBy(1.5)">＋</view>
@@ -42,6 +49,9 @@ let dpr = 1
 let backingW = 0
 let backingH = 0
 
+let interacting = false
+let settleTimer: ReturnType<typeof setTimeout> | null = null
+
 function render() {
   if (!ctx) return
   ctx.setTransform(backingW / cssW, 0, 0, backingH / cssH, 0, 0)
@@ -49,15 +59,42 @@ function render() {
     markers: props.markers,
     fogPoints: props.fogPoints,
     showLabels: props.showLabels,
-    requestDetail: (adcode) => ensureBoundary(adcode, render),
+    requestDetail: (adcode) => ensureBoundary(adcode, scheduleRender),
+    skipDetail: interacting,
   })
+}
+
+let renderScheduled = false
+function scheduleRender() {
+  if (interacting) return // 交互中加载完的边界数据不用立刻重绘,skipDetail反正不画它,等scheduleSettle统一补上
+  if (renderScheduled) return
+  renderScheduled = true
+  setTimeout(() => {
+    renderScheduled = false
+    render()
+  }, 80)
+}
+
+function beginInteracting() {
+  interacting = true
+  if (settleTimer) clearTimeout(settleTimer)
+}
+
+function scheduleSettle() {
+  if (settleTimer) clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => {
+    interacting = false
+    render()
+  }, 150)
 }
 
 function zoomBy(factor: number) {
   const next = Math.min(MAX_SCALE, Math.max(1, view.value.scale * factor))
   const ratio = next / view.value.scale
   view.value = { scale: next, panX: view.value.panX * ratio, panY: view.value.panY * ratio }
+  interacting = true
   render()
+  scheduleSettle()
 }
 
 watch(() => [props.markers, props.fogPoints], render, { deep: true })
@@ -103,6 +140,7 @@ function setupH5() {
     moved = false
     lastX = e.clientX
     lastY = e.clientY
+    beginInteracting()
   })
   canvas.addEventListener('pointermove', (e) => {
     if (!dragging) return
@@ -121,6 +159,7 @@ function setupH5() {
       const r = canvas.getBoundingClientRect()
       emitPick(e.clientX - r.left, e.clientY - r.top)
     }
+    scheduleSettle()
   })
   canvas.addEventListener('pointerleave', () => (dragging = false))
   canvas.addEventListener(
@@ -148,6 +187,60 @@ function setupH5() {
 // #endif
 
 // #ifdef MP-WEIXIN
+let waLastX = 0
+let waLastY = 0
+let waMoved = false
+let waPinchDist = 0
+let waLastRenderAt = 0
+
+function throttledRender() {
+  const now = Date.now()
+  if (now - waLastRenderAt < 32) return
+  waLastRenderAt = now
+  render()
+}
+
+function onWaTouchStart(e: any) {
+  const touch = e.touches[0]
+  waLastX = touch.x
+  waLastY = touch.y
+  waMoved = false
+  waPinchDist = 0
+  beginInteracting()
+}
+
+function onWaTouchMove(e: any) {
+  if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].x - e.touches[1].x, e.touches[0].y - e.touches[1].y)
+    if (waPinchDist > 0) zoomBy(d / waPinchDist)
+    waPinchDist = d
+    waMoved = true
+    waLastX = e.touches[0].x
+    waLastY = e.touches[0].y
+    return
+  }
+  const touch = e.touches[0]
+  const dx = touch.x - waLastX
+  const dy = touch.y - waLastY
+  if (Math.abs(dx) + Math.abs(dy) > 3) waMoved = true
+  view.value.panX += dx
+  view.value.panY += dy
+  waLastX = touch.x
+  waLastY = touch.y
+  throttledRender()
+}
+
+function onWaTouchEnd(e: any) {
+  waPinchDist = 0
+  if (!waMoved && props.interactive) {
+    const touch = e.changedTouches?.[0]
+    if (touch) emitPick(touch.x, touch.y)
+  } else if (waMoved) {
+    render()
+  }
+  scheduleSettle()
+}
+
 function setupWeapp() {
   const inst = getCurrentInstance()
   uni
