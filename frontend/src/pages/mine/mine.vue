@@ -7,7 +7,7 @@
     <view v-if="photos.length === 0" class="empty">{{ t('mine.empty') }}</view>
 
     <view v-for="p in photos" :key="p.id" class="card">
-      <image class="thumb" :src="photoUrl(p.url)" mode="aspectFill" />
+      <image class="thumb" :src="photoUrl(p.url)" mode="aspectFill" @tap="previewPhoto(p)" />
       <view class="meta">
         <text class="status" :class="p.status">{{ statusText[p.status] }}</text>
         <text v-if="p.reject_reason" class="reason">{{ p.reject_reason }}</text>
@@ -121,6 +121,11 @@ async function sendFb() {
 
 function photoUrl(path: string): string {
   return path.startsWith('http') ? path : BASE_URL + path
+}
+
+function previewPhoto(p: any) {
+  const urls = photos.value.map((x) => photoUrl(x.url))
+  uni.previewImage({ urls, current: photoUrl(p.url) })
 }
 </script>
 

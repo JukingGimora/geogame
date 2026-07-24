@@ -10,7 +10,6 @@
 
     <text class="section">{{ t('upload.pickLocation') }}</text>
     <!-- #ifdef MP-WEIXIN -->
-    <text class="map-hint">{{ t('upload.tapMapHint') }}</text>
     <NativeMapPicker :height="480" :markers="markers" @pick="onPick" />
     <!-- #endif -->
     <!-- #ifndef MP-WEIXIN -->
@@ -128,10 +127,6 @@ async function submit() {
 .section {
   color: #a2937b;
   font-size: 26rpx;
-}
-.map-hint {
-  color: #6f8a63;
-  font-size: 22rpx;
 }
 .story {
   width: 100%;

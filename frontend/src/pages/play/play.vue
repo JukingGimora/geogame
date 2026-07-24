@@ -25,7 +25,6 @@
 
       <view v-if="phase === 'pick'" class="picker">
         <!-- #ifdef MP-WEIXIN -->
-        <text class="map-hint">{{ t('upload.tapMapHint') }}</text>
         <NativeMapPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
@@ -266,12 +265,6 @@ onShareAppMessage(() => ({
   border-radius: 12rpx;
   padding: 6rpx;
   background: #0f0c08;
-}
-.map-hint {
-  display: block;
-  color: #6f8a63;
-  font-size: 22rpx;
-  padding: 8rpx 6rpx 4rpx;
 }
 .row {
   display: flex;

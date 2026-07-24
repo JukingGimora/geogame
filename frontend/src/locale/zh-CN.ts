@@ -60,7 +60,6 @@ export default {
     title: '安放一段记忆',
     choose: '选择照片',
     pickLocation: '在地图上标记拍摄地',
-    tapMapHint: '长按地图上的位置完成标记（双击是放大）',
     story: '写下它的故事（可选）',
     submit: '提交（人工审核后上线）',
     submitting: '上传中…',
