@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_session
 from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, User
-from app.services.ai_stub import fake_ai_guess, real_ai_guess
+from app.services.ai_stub import fake_ai_guess, real_ai_guess, real_ai_hint
 from app.services.auth import require_admin
 from app.storage import storage
 
@@ -166,6 +166,15 @@ async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
             if macro:
                 session.add(Hint(photo_id=photo.id, level=3, content=f"在{macro.name}地区", source="system"))
             session.add(Hint(photo_id=photo.id, level=4, content=f"在{province.name}", source="system"))
+
+    hint2_content = None
+    if not settings.fake_ai:
+        hint2_content = await real_ai_hint(photo)
     session.add(
-        Hint(photo_id=photo.id, level=2, content="注意画面里的植被与建筑样式(开发桩:正式版由AI生成,审核可改)", source="ai")
+        Hint(
+            photo_id=photo.id,
+            level=2,
+            content=hint2_content or "注意画面里的植被与建筑样式(开发桩:正式版由AI生成,审核可改)",
+            source="ai",
+        )
     )

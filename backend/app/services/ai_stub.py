@@ -29,6 +29,14 @@ AI_PROMPT = (
     '{"reasoning": "推理独白文本", "lat": 纬度小数, "lng": 经度小数, "confidence": 0到100的整数}'
 )
 
+HINT_PROMPT = (
+    "你在玩一个看图猜中国地点的游戏,这是给玩家的一条付费提示,不是最终答案。"
+    "仔细观察这张照片,只描述你注意到的一个具体视觉线索"
+    "(比如某种植被、建筑风格、地形样式、气候特征等),用中文写1到2句话,语气像善意提醒。"
+    "不要提到具体地名、省份或坐标,不要下结论说这是哪里。"
+    "直接输出这句话本身,不要有多余的引号、前缀或解释。"
+)
+
 
 async def fake_ai_guess(session: AsyncSession, photo: Photo) -> AIGuess:
     offset_km = random.uniform(30, 600)
@@ -107,3 +115,30 @@ async def real_ai_guess(session: AsyncSession, photo: Photo) -> AIGuess | None:
     )
     session.add(guess)
     return guess
+
+
+async def real_ai_hint(photo: Photo) -> str | None:
+    """提示②专用的单独调用——只要一条软性观察线索,不能像 real_ai_guess 那样带坐标/结论(会变相剧透)。"""
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{settings.ai_base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.ai_api_key}"},
+                json={
+                    "model": settings.ai_model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": HINT_PROMPT},
+                                {"type": "image_url", "image_url": {"url": _image_url(photo)}},
+                            ],
+                        }
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            text = resp.json()["choices"][0]["message"]["content"].strip()
+    except (httpx.HTTPError, KeyError, IndexError):
+        return None
+    return text[:255] or None

@@ -34,8 +34,8 @@ const markerList = computed(() =>
     latitude: m.lat,
     longitude: m.lng,
     iconPath: '/static/marker-pick.png',
-    width: 38,
-    height: 38,
+    width: 26,
+    height: 26,
     anchor: { x: 0.5, y: 1 },
   })),
 )
