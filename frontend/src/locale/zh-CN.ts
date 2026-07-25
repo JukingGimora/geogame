@@ -34,6 +34,7 @@ export default {
     rank: '排行榜',
     points: '积分',
     noPhotos: '题库还没有照片，先上传几张吧',
+    allPlayed: '库里的照片你都玩过了，等新图上线吧',
   },
   play: {
     round: '第 {n} 关',

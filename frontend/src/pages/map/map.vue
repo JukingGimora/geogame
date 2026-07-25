@@ -44,8 +44,13 @@ async function startRun() {
     const run = await api.createRun()
     uni.navigateTo({ url: `/pages/play/play?runId=${run.run_id}` })
   } catch (e: any) {
-    if (e?.status === 409) uni.showToast({ title: t('map.noPhotos'), icon: 'none' })
-    else uni.showToast({ title: '网络异常', icon: 'none' })
+    if (e?.status === 409 && e?.data?.detail === 'all_photos_played') {
+      uni.showToast({ title: t('map.allPlayed'), icon: 'none' })
+    } else if (e?.status === 409) {
+      uni.showToast({ title: t('map.noPhotos'), icon: 'none' })
+    } else {
+      uni.showToast({ title: '网络异常', icon: 'none' })
+    }
   }
 }
 

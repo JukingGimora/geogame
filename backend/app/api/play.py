@@ -46,17 +46,10 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     photos = (
         await session.scalars(q.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(ROUNDS_PER_RUN))
     ).all()
-    if len(photos) < ROUNDS_PER_RUN:
-        # 没玩过的不够凑一轮了(库存被这个用户玩穿)——用玩过的补足,好过直接没得玩
-        seen = {p.id for p in photos}
-        extra = (
-            await session.scalars(
-                q.where(Photo.id.notin_(seen)).order_by(func.random()).limit(ROUNDS_PER_RUN - len(photos))
-            )
-        ).all()
-        photos = list(photos) + list(extra)
     if not photos:
-        raise HTTPException(409, "no_photos_available")
+        # 区分"库里真没图"和"库里有图但这个用户全玩过了",前端提示不一样
+        total_live = await session.scalar(select(func.count()).select_from(q.subquery()))
+        raise HTTPException(409, "all_photos_played" if total_live else "no_photos_available")
     run = Run(user_id=user.id, region_id=body.region_id)
     session.add(run)
     await session.flush()
