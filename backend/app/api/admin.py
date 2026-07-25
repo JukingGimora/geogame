@@ -148,6 +148,12 @@ async def stats(session: AsyncSession = Depends(get_session)):
     sharers = await session.scalar(
         select(func.count(func.distinct(Event.user_id))).where(Event.event_type == "share_click")
     )
+    profile_hint_viewers = await session.scalar(
+        select(func.count(func.distinct(Event.user_id))).where(Event.event_type == "profile_hint_view")
+    )
+    profile_hint_clickers = await session.scalar(
+        select(func.count(func.distinct(Event.user_id))).where(Event.event_type == "profile_hint_click")
+    )
     total_events = await session.scalar(select(func.count()).select_from(Event))
 
     return {
@@ -161,6 +167,11 @@ async def stats(session: AsyncSession = Depends(get_session)):
             "recap_viewers": recap_viewers or 0,
             "sharers": sharers or 0,
             "rate": round((sharers or 0) / recap_viewers, 4) if recap_viewers else None,
+        },
+        "profile_hint_rate": {
+            "viewers": profile_hint_viewers or 0,
+            "clickers": profile_hint_clickers or 0,
+            "rate": round((profile_hint_clickers or 0) / profile_hint_viewers, 4) if profile_hint_viewers else None,
         },
         "total_events": total_events,
     }

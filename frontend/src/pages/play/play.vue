@@ -74,6 +74,10 @@
     <view v-if="finished && run" class="finale">
       <text class="finale-label">{{ t('play.total') }}</text>
       <text class="finale-score">{{ run.total_score }}</text>
+      <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
+        <text>{{ t('rank.profileHint') }}</text>
+        <text class="hint-arrow">›</text>
+      </view>
       <button class="g-btn primary" @tap="backHome">{{ t('play.backHome') }}</button>
     </view>
   </view>
@@ -90,6 +94,7 @@ import { api, BASE_URL } from '../../api'
 import { t, tList } from '../../locale'
 import { addFogPoint } from '../../lib/fogStore'
 import { logEvent } from '../../lib/analytics'
+import { useProfileHint } from '../../lib/profileHint'
 import type { LngLat } from '../../lib/geo'
 import type { MapMarker } from '../../lib/mapRender'
 
@@ -103,6 +108,7 @@ const picked = ref<LngLat | null>(null)
 const result = ref<any>(null)
 const unlockedContents = ref<{ level: number; content: string }[]>([])
 const finished = ref(false)
+const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('finale')
 const pickMapHeight = Math.round(uni.getSystemInfoSync().windowHeight * 0.35)
 let recapRoundId: number | null = null
 let recapShownAt = 0
@@ -183,6 +189,7 @@ async function nextRound() {
   if (!current.value) {
     finished.value = true
     logEvent('run_finished', 'run', runId, { total_score: run.value.total_score })
+    checkProfile()
   }
 }
 
@@ -359,5 +366,22 @@ onShareAppMessage(() => ({
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
   color: #f5a33c;
   font-size: 110rpx;
+}
+.hint-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #2a2110;
+  border: 1px solid #f5a33c;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  color: #f5a33c;
+  font-size: 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+.hint-arrow {
+  font-size: 28rpx;
+  margin-left: 12rpx;
 }
 </style>

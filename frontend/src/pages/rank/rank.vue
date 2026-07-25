@@ -43,6 +43,7 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api } from '../../api'
 import { t } from '../../locale'
+import { useProfileHint } from '../../lib/profileHint'
 
 type Board = 'best_run' | 'points'
 
@@ -56,7 +57,7 @@ interface RankRow {
 
 const board = ref<Board>('best_run')
 const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; avatar_url?: string } } | null>(null)
-const showProfileHint = ref(false)
+const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('rank')
 
 const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
 
@@ -64,24 +65,11 @@ async function load() {
   data.value = await api.leaderboard(board.value)
 }
 
-async function checkProfile() {
-  try {
-    const me = await api.me()
-    showProfileHint.value = me.nickname === '旅行者' && !me.avatar_url
-  } catch {
-    showProfileHint.value = false
-  }
-}
-
 function switchBoard(b: Board) {
   if (board.value === b) return
   board.value = b
   data.value = null
   load()
-}
-
-function goProfile() {
-  uni.navigateTo({ url: '/pages/login/login' })
 }
 
 onShow(() => {
