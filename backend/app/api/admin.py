@@ -11,6 +11,7 @@ from app.db import get_session
 from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, User
 from app.services.ai_stub import fake_ai_guess, real_ai_guess, real_ai_hint
 from app.services.auth import require_admin
+from app.services.geo import resolve_city
 from app.storage import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -34,7 +35,9 @@ async def pending_photos(status: str = "pending", session: AsyncSession = Depend
             province = await session.get(Region, p.region_id)
             if province:
                 macro = await session.get(Region, province.parent_id) if province.parent_id else None
-                region_name = f"{macro.name}·{province.name}" if macro else province.name
+                city = await resolve_city(province.name, p.lat, p.lng)
+                parts = [n for n in (macro.name if macro else None, province.name, city) if n]
+                region_name = "·".join(parts)
         result.append(
             {
                 "id": p.id,

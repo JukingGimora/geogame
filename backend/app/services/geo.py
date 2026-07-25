@@ -1,9 +1,26 @@
 """区域树种子与归属。V0 用省级质心最近邻做归属(开发桩);上线前换逆地理编码 Provider。"""
+import json
+from pathlib import Path
+
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Region
 from app.services.scoring import haversine_km
+
+GEODATA_DIR = Path(__file__).resolve().parents[2] / "geodata"
+DATAV_URL = "https://geo.datav.aliyun.com/areas_v3/bound/{code}.json"
+
+PROVINCE_ADCODE = {
+    "北京": 110000, "天津": 120000, "河北": 130000, "山西": 140000, "内蒙古": 150000,
+    "辽宁": 210000, "吉林": 220000, "黑龙江": 230000, "上海": 310000, "江苏": 320000,
+    "浙江": 330000, "安徽": 340000, "福建": 350000, "江西": 360000, "山东": 370000,
+    "河南": 410000, "湖北": 420000, "湖南": 430000, "广东": 440000, "广西": 450000,
+    "海南": 460000, "重庆": 500000, "四川": 510000, "贵州": 520000, "云南": 530000,
+    "西藏": 540000, "陕西": 610000, "甘肃": 620000, "青海": 630000, "宁夏": 640000,
+    "新疆": 650000, "台湾": 710000, "香港": 810000, "澳门": 820000,
+}
 
 MACRO_OF = {
     "北京": "华北", "天津": "华北", "河北": "华北", "山西": "华北", "内蒙古": "华北",
@@ -63,6 +80,73 @@ async def nearest_province(session: AsyncSession, lat: float, lng: float) -> Reg
     if not provinces:
         return None
     return min(provinces, key=lambda r: haversine_km(lat, lng, r.lat, r.lng))
+
+
+async def _load_geodata(adcode: int) -> dict | None:
+    """跟 api/geo.py 共用同一份缓存目录:缺失时下载一次永久缓存,不重复造轮子。"""
+    GEODATA_DIR.mkdir(exist_ok=True)
+    path = GEODATA_DIR / f"{adcode}.json"
+    if not path.exists():
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                r = await client.get(DATAV_URL.format(code=f"{adcode}_full"))
+                if r.status_code != 200:
+                    r = await client.get(DATAV_URL.format(code=adcode))
+                if r.status_code != 200:
+                    return None
+                path.write_bytes(r.content)
+        except httpx.HTTPError:
+            return None
+    return json.loads(path.read_text())
+
+
+def _point_in_ring(lng: float, lat: float, ring: list) -> bool:
+    inside = False
+    j = len(ring) - 1
+    for i, (xi, yi) in enumerate(p[:2] for p in ring):
+        xj, yj = ring[j][0], ring[j][1]
+        if (yi > lat) != (yj > lat):
+            x_intersect = (xj - xi) * (lat - yi) / (yj - yi) + xi
+            if lng < x_intersect:
+                inside = not inside
+        j = i
+    return inside
+
+
+def _point_in_polygon(lng: float, lat: float, polygon: list) -> bool:
+    if not polygon or not _point_in_ring(lng, lat, polygon[0]):
+        return False
+    return not any(_point_in_ring(lng, lat, hole) for hole in polygon[1:])
+
+
+def _point_in_geometry(lng: float, lat: float, geometry: dict) -> bool:
+    if geometry["type"] == "Polygon":
+        return _point_in_polygon(lng, lat, geometry["coordinates"])
+    if geometry["type"] == "MultiPolygon":
+        return any(_point_in_polygon(lng, lat, poly) for poly in geometry["coordinates"])
+    return False
+
+
+async def resolve_city(province_name: str, lat: float, lng: float) -> str | None:
+    """省级质心归属基础上再细化到市——点在多边形判断,几何数据跟地图渲染共用同一份缓存,不额外调用任何API。"""
+    adcode = PROVINCE_ADCODE.get(province_name)
+    if not adcode:
+        return None
+    data = await _load_geodata(adcode)
+    if not data:
+        return None
+    for feat in data["features"]:
+        if _point_in_geometry(lng, lat, feat["geometry"]):
+            return feat["properties"]["name"]
+    best, best_d = None, float("inf")
+    for feat in data["features"]:
+        center = feat["properties"].get("center")
+        if not center:
+            continue
+        d = haversine_km(lat, lng, center[1], center[0])
+        if d < best_d:
+            best, best_d = feat["properties"]["name"], d
+    return best
 
 
 async def macro_of_province(session: AsyncSession, province: Region) -> Region | None:
