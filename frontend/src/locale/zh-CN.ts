@@ -22,8 +22,6 @@ export default {
     nickPlaceholder: '请输入你的昵称',
     agree: '我同意用户协议和隐私政策',
     enter: '保存',
-    wechatLogin: '微信一键登录',
-    wechatFailed: '微信登录失败',
     skip: '暂不设置',
   },
   map: {

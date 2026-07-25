@@ -41,12 +41,6 @@
         {{ t('login.enter') }}
       </button>
 
-      <!-- #ifdef MP-WEIXIN -->
-      <button class="g-btn" @tap="doWechatLogin">
-        {{ t('login.wechatLogin') }}
-      </button>
-      <!-- #endif -->
-
       <button class="g-btn" @tap="skipLogin">
         {{ t('login.skip') }}
       </button>
@@ -81,36 +75,31 @@ function onChooseAvatar(e: any) {
   avatar.value = tempFilePath
 }
 
-async function doLogin() {
-  if (!canLogin.value) return
-  const nick = nickname.value.trim()
-  try {
-    await api.updateProfile(nick, avatar.value || undefined)
-    uni.setStorageSync('geogame_nickname', nick)
-    if (avatar.value) uni.setStorageSync('geogame_avatar', avatar.value)
-    uni.setStorageSync('geogame_logged_in', '1')
-    leave()
-  } catch {
-    uni.showToast({ title: '登录失败', icon: 'none' })
-  }
-}
-
-async function doWechatLogin() {
+async function linkWechatSilently() {
+  // #ifdef MP-WEIXIN
   try {
     const loginRes: any = await new Promise((resolve, reject) => {
       uni.login({ provider: 'weixin', success: resolve, fail: reject })
     })
-    let res = await api.wechatLogin(loginRes.code)
-    const nick = nickname.value.trim()
-    if (nick || avatar.value) {
-      res = { ...res, user: await api.updateProfile(nick || undefined, avatar.value || undefined) }
-    }
+    await api.wechatLogin(loginRes.code)
+  } catch {
+    // 静默绑定失败不影响头像昵称保存,换设备找回账号这个附加能力就是少一次而已
+  }
+  // #endif
+}
+
+async function doLogin() {
+  if (!canLogin.value) return
+  const nick = nickname.value.trim()
+  try {
+    await linkWechatSilently()
+    const profile = await api.updateProfile(nick, avatar.value || undefined)
+    uni.setStorageSync('geogame_nickname', profile.nickname)
+    if (profile.avatar_url) uni.setStorageSync('geogame_avatar', profile.avatar_url)
     uni.setStorageSync('geogame_logged_in', '1')
-    if (res.user?.nickname) uni.setStorageSync('geogame_nickname', res.user.nickname)
-    if (res.user?.avatar_url) uni.setStorageSync('geogame_avatar', res.user.avatar_url)
     leave()
   } catch {
-    uni.showToast({ title: t('login.wechatFailed'), icon: 'none' })
+    uni.showToast({ title: '登录失败', icon: 'none' })
   }
 }
 
