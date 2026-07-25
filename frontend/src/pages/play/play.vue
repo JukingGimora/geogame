@@ -109,7 +109,7 @@ const result = ref<any>(null)
 const unlockedContents = ref<{ level: number; content: string }[]>([])
 const finished = ref(false)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('finale')
-const pickMapHeight = Math.round(uni.getSystemInfoSync().windowHeight * 0.35)
+const pickMapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.35)
 let recapRoundId: number | null = null
 let recapShownAt = 0
 
@@ -131,7 +131,7 @@ const resultMarkers = computed<MapMarker[]>(() => {
 })
 
 onLoad(async (query) => {
-  topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
+  topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   const runId = Number(query?.runId)
   run.value = await api.getRun(runId)
 })

@@ -27,10 +27,10 @@ import type { FogPoint } from '../../lib/mapRender'
 const me = ref<{ nickname: string; points: number; avatar_url?: string } | null>(null)
 const fogPoints = ref<FogPoint[]>([])
 const topOffset = ref(0)
-const mapHeight = Math.round(uni.getSystemInfoSync().windowHeight * 0.62)
+const mapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.62)
 
 onMounted(async () => {
-  topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
+  topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   fogPoints.value = loadFogPoints()
   try {
     me.value = await api.me()

@@ -30,7 +30,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 let audio: UniApp.InnerAudioContext | null = null
 
 onMounted(() => {
-  topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
+  topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   const seen = uni.getStorageSync('geogame_seen_opening')
   const interval = seen ? 250 : 2000
 

@@ -69,7 +69,7 @@ const canLogin = computed(() => {
 })
 
 onMounted(() => {
-  topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
+  topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   const savedNick = uni.getStorageSync('geogame_nickname')
   const savedAvatar = uni.getStorageSync('geogame_avatar')
   if (savedNick) nickname.value = savedNick

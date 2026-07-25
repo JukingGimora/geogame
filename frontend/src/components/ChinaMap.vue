@@ -256,7 +256,7 @@ function setupWeapp() {
       if (!node) return
       cssW = res[0].width
       cssH = res[0].height
-      dpr = Math.min(2, uni.getSystemInfoSync().pixelRatio)
+      dpr = Math.min(2, uni.getWindowInfo().pixelRatio)
       node.width = cssW * dpr
       node.height = cssH * dpr
       backingW = node.width

@@ -87,7 +87,7 @@ function editProfile() {
 }
 
 onMounted(async () => {
-  topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
+  topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   photos.value = await api.myPhotos()
   me.value = await api.me()
 })
