@@ -100,7 +100,11 @@ async function doWechatLogin() {
     const loginRes: any = await new Promise((resolve, reject) => {
       uni.login({ provider: 'weixin', success: resolve, fail: reject })
     })
-    const res = await api.wechatLogin(loginRes.code)
+    let res = await api.wechatLogin(loginRes.code)
+    const nick = nickname.value.trim()
+    if (nick || avatar.value) {
+      res = { ...res, user: await api.updateProfile(nick || undefined, avatar.value || undefined) }
+    }
     uni.setStorageSync('geogame_logged_in', '1')
     if (res.user?.nickname) uni.setStorageSync('geogame_nickname', res.user.nickname)
     if (res.user?.avatar_url) uni.setStorageSync('geogame_avatar', res.user.avatar_url)

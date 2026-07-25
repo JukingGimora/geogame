@@ -60,7 +60,10 @@ export const api = {
     request('POST', '/api/v1/auth/profile', { nickname, avatar_url: avatarUrl }),
   wechatLogin: async (code: string): Promise<any> => {
     if (!token) await guestLogin()
-    return rawRequest('POST', '/api/v1/auth/wechat', { code })
+    const res = await rawRequest('POST', '/api/v1/auth/wechat', { code })
+    token = res.token
+    uni.setStorageSync(TOKEN_KEY, token)
+    return res
   },
   regions: () => request('GET', '/api/v1/regions'),
   createRun: (regionId?: number) => request('POST', '/api/v1/runs', { region_id: regionId ?? null }),
