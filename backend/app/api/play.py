@@ -32,6 +32,12 @@ class HintIn(BaseModel):
 
 @router.post("/runs")
 async def create_run(body: RunIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    unfinished = await session.scalar(
+        select(Run).where(Run.user_id == user.id, Run.status == "playing").order_by(Run.id.desc())
+    )
+    if unfinished:
+        return await run_state(unfinished.id, user, session)
+
     q = select(Photo).where(Photo.status == "live")
     if body.region_id:
         region = await session.get(Region, body.region_id)
