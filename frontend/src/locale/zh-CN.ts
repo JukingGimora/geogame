@@ -71,6 +71,7 @@ export default {
   },
   rank: {
     title: '排行榜',
+    profileHint: '设置昵称头像或绑定微信，换设备也能找回你的排名和积分',
     bestRun: '最佳一轮',
     points: '被理解积分',
     empty: '还没有人上榜',

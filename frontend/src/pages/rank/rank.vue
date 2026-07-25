@@ -1,6 +1,10 @@
 <template>
   <view class="rank">
     <text class="g-title">{{ t('rank.title') }}</text>
+    <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
+      <text>{{ t('rank.profileHint') }}</text>
+      <text class="hint-arrow">›</text>
+    </view>
     <view class="tabs">
       <view class="tab" :class="{ active: board === 'best_run' }" @tap="switchBoard('best_run')">
         {{ t('rank.bestRun') }}
@@ -52,11 +56,21 @@ interface RankRow {
 
 const board = ref<Board>('best_run')
 const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; avatar_url?: string } } | null>(null)
+const showProfileHint = ref(false)
 
 const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
 
 async function load() {
   data.value = await api.leaderboard(board.value)
+}
+
+async function checkProfile() {
+  try {
+    const me = await api.me()
+    showProfileHint.value = me.nickname === '旅行者' && !me.avatar_url
+  } catch {
+    showProfileHint.value = false
+  }
 }
 
 function switchBoard(b: Board) {
@@ -66,7 +80,14 @@ function switchBoard(b: Board) {
   load()
 }
 
-onShow(load)
+function goProfile() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
+
+onShow(() => {
+  load()
+  checkProfile()
+})
 </script>
 
 <style scoped>
@@ -75,6 +96,22 @@ onShow(load)
   background: #16110c;
   padding: 90rpx 24rpx 40rpx;
   box-sizing: border-box;
+}
+.hint-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #2a2110;
+  border: 1px solid #f5a33c;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  margin-top: 20rpx;
+  color: #f5a33c;
+  font-size: 24rpx;
+}
+.hint-arrow {
+  font-size: 28rpx;
+  margin-left: 12rpx;
 }
 .tabs {
   display: flex;
