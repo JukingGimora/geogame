@@ -41,7 +41,7 @@
       <img :src="p.url" @click="window.open(p.url)">
       <div class="meta">
         <span class="dim" x-text="'#' + p.id + ' · 上传者 ' + p.uploader_id + ' · ' + p.created_at.slice(0,19).replace('T',' ') + ' UTC'"></span>
-        <span class="coords" x-text="p.lat.toFixed(4) + ', ' + p.lng.toFixed(4)"></span>
+        <span class="coords" x-text="p.lat.toFixed(4) + ', ' + p.lng.toFixed(4) + (p.region_name ? '　·　' + p.region_name : '　·　(无法定位省份)')"></span>
         <span class="story" x-text="p.story || '(无故事)'"></span>
         <div class="actions" x-show="status === 'pending'">
           <button class="ok" @click="approve(p.id)">通过</button>

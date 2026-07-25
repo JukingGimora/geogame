@@ -1,12 +1,6 @@
 {
   "pages": [
     {
-      "path": "pages/login/login",
-      "style": {
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/opening/opening",
       "style": {
         "navigationStyle": "custom"
@@ -14,6 +8,12 @@
     },
     {
       "path": "pages/map/map",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/login/login",
       "style": {
         "navigationStyle": "custom"
       }

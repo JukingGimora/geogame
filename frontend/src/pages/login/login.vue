@@ -1,5 +1,5 @@
 <template>
-  <view v-if="ready" class="login" :style="{ paddingTop: `${topOffset + 48}px` }">
+  <view class="login" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view class="header">
       <text class="g-title">{{ t('login.title') }}</text>
     </view>
@@ -63,7 +63,6 @@ const topOffset = ref(0)
 const avatar = ref('')
 const nickname = ref('')
 const agreed = ref(true)
-const ready = ref(false)
 
 const canLogin = computed(() => {
   return nickname.value.trim() && agreed.value
@@ -73,14 +72,8 @@ onMounted(() => {
   topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
   const savedNick = uni.getStorageSync('geogame_nickname')
   const savedAvatar = uni.getStorageSync('geogame_avatar')
-  const hasLogin = uni.getStorageSync('geogame_logged_in')
-  if (hasLogin) {
-    goHome()
-    return
-  }
   if (savedNick) nickname.value = savedNick
   if (savedAvatar) avatar.value = savedAvatar
-  ready.value = true
 })
 
 function onChooseAvatar(e: any) {
@@ -96,7 +89,7 @@ async function doLogin() {
     uni.setStorageSync('geogame_nickname', nick)
     if (avatar.value) uni.setStorageSync('geogame_avatar', avatar.value)
     uni.setStorageSync('geogame_logged_in', '1')
-    goHome()
+    leave()
   } catch {
     uni.showToast({ title: '登录失败', icon: 'none' })
   }
@@ -111,19 +104,20 @@ async function doWechatLogin() {
     uni.setStorageSync('geogame_logged_in', '1')
     if (res.user?.nickname) uni.setStorageSync('geogame_nickname', res.user.nickname)
     if (res.user?.avatar_url) uni.setStorageSync('geogame_avatar', res.user.avatar_url)
-    goHome()
+    leave()
   } catch {
     uni.showToast({ title: t('login.wechatFailed'), icon: 'none' })
   }
 }
 
 function skipLogin() {
-  uni.setStorageSync('geogame_logged_in', '1')
-  goHome()
+  leave()
 }
 
-function goHome() {
-  uni.reLaunch({ url: '/pages/opening/opening' })
+function leave() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) uni.navigateBack()
+  else uni.reLaunch({ url: '/pages/map/map' })
 }
 </script>
 

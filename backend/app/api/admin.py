@@ -27,18 +27,27 @@ async def pending_photos(status: str = "pending", session: AsyncSession = Depend
     photos = (
         await session.scalars(select(Photo).where(Photo.status == status).order_by(Photo.id))
     ).all()
-    return [
-        {
-            "id": p.id,
-            "url": storage.url(p.file_key),
-            "lat": p.lat,
-            "lng": p.lng,
-            "story": p.story,
-            "uploader_id": p.uploader_id,
-            "created_at": p.created_at.isoformat(),
-        }
-        for p in photos
-    ]
+    result = []
+    for p in photos:
+        region_name = None
+        if p.region_id:
+            province = await session.get(Region, p.region_id)
+            if province:
+                macro = await session.get(Region, province.parent_id) if province.parent_id else None
+                region_name = f"{macro.name}·{province.name}" if macro else province.name
+        result.append(
+            {
+                "id": p.id,
+                "url": storage.url(p.file_key),
+                "lat": p.lat,
+                "lng": p.lng,
+                "region_name": region_name,
+                "story": p.story,
+                "uploader_id": p.uploader_id,
+                "created_at": p.created_at.isoformat(),
+            }
+        )
+    return result
 
 
 @router.post("/photos/{photo_id}/approve")

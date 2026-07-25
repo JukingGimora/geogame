@@ -39,7 +39,22 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
             raise HTTPException(404, "region_not_found")
         sub = select(Region.id).where(Region.path.like(f"{region.path}%"))
         q = q.where(Photo.region_id.in_(sub))
-    photos = (await session.scalars(q.order_by(func.random()).limit(ROUNDS_PER_RUN))).all()
+
+    played_ids = (
+        await session.scalars(select(Round.photo_id).join(Run, Round.run_id == Run.id).where(Run.user_id == user.id))
+    ).all()
+    photos = (
+        await session.scalars(q.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(ROUNDS_PER_RUN))
+    ).all()
+    if len(photos) < ROUNDS_PER_RUN:
+        # 没玩过的不够凑一轮了(库存被这个用户玩穿)——用玩过的补足,好过直接没得玩
+        seen = {p.id for p in photos}
+        extra = (
+            await session.scalars(
+                q.where(Photo.id.notin_(seen)).order_by(func.random()).limit(ROUNDS_PER_RUN - len(photos))
+            )
+        ).all()
+        photos = list(photos) + list(extra)
     if not photos:
         raise HTTPException(409, "no_photos_available")
     run = Run(user_id=user.id, region_id=body.region_id)

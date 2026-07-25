@@ -17,14 +17,14 @@ export default {
     soundOff: '♪ 静音',
   },
   login: {
-    title: '迷雾中国',
+    title: '完善资料',
     tapAvatar: '点击选择头像',
     nickPlaceholder: '请输入你的昵称',
     agree: '我同意用户协议和隐私政策',
-    enter: '开始游戏',
+    enter: '保存',
     wechatLogin: '微信一键登录',
     wechatFailed: '微信登录失败',
-    skip: '跳过，稍后登录',
+    skip: '暂不设置',
   },
   map: {
     title: '迷雾中国',
@@ -79,6 +79,7 @@ export default {
   },
   mine: {
     title: '我的行囊',
+    editProfile: '设置昵称头像 / 微信登录',
     empty: '还没有上传过照片',
     status: { pending: '审核中', live: '已上线', rejected: '未通过' },
     fbTitle: '想吐槽的、想要的功能，都告诉我们',

@@ -4,6 +4,7 @@
       <text class="g-title">{{ t('mine.title') }}</text>
       <text class="g-stamp" v-if="me">{{ t('map.points') }} {{ me.points }}</text>
     </view>
+    <button class="g-btn" @tap="editProfile">{{ t('mine.editProfile') }}</button>
     <view v-if="photos.length === 0" class="empty">{{ t('mine.empty') }}</view>
 
     <view v-for="p in photos" :key="p.id" class="card">
@@ -80,6 +81,10 @@ const photos = ref<any[]>([])
 const me = ref<{ points: number } | null>(null)
 const topOffset = ref(0)
 const statusText = tMap('mine.status')
+
+function editProfile() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
 
 onMounted(async () => {
   topOffset.value = (uni.getSystemInfoSync().statusBarHeight || 0) + 12
