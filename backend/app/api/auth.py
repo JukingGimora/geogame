@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import PointsLedger, User
 from app.services.auth import get_current_user, guest_login, wechat_login
+from app.storage import storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -40,6 +41,18 @@ async def login_wechat(
         "token": token,
         "user": {"id": target_user.id, "nickname": target_user.nickname, "avatar_url": target_user.avatar_url},
     }
+
+
+@router.post("/avatar")
+async def upload_avatar(file: UploadFile = File(...), user: User = Depends(get_current_user)):
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(413, "file_too_large")
+    try:
+        file_key = storage.save_image(data)
+    except Exception:
+        raise HTTPException(422, "invalid_image")
+    return {"url": storage.url(file_key)}
 
 
 @router.post("/profile")

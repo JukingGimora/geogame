@@ -10,7 +10,7 @@
         open-type="chooseAvatar"
         @chooseavatar="onChooseAvatar"
       >
-        <image v-if="avatar" class="avatar" :src="avatar" mode="aspectFill" />
+        <image v-if="avatarPreview" class="avatar" :src="avatarPreview" mode="aspectFill" />
         <view v-else class="avatar-placeholder">
           <text class="px-font avatar-icon">▦</text>
         </view>
@@ -54,7 +54,9 @@ import { t } from '../../locale'
 import { api } from '../../api'
 
 const topOffset = ref(0)
-const avatar = ref('')
+const avatar = ref('') // 已上传成功的真实URL,提交给后端用
+const avatarPreview = ref('') // 本地临时预览,选择后立刻显示
+const avatarUploading = ref(false)
 const nickname = ref('')
 const agreed = ref(true)
 
@@ -67,12 +69,26 @@ onMounted(() => {
   const savedNick = uni.getStorageSync('geogame_nickname')
   const savedAvatar = uni.getStorageSync('geogame_avatar')
   if (savedNick) nickname.value = savedNick
-  if (savedAvatar) avatar.value = savedAvatar
+  if (savedAvatar) {
+    avatar.value = savedAvatar
+    avatarPreview.value = savedAvatar
+  }
 })
 
-function onChooseAvatar(e: any) {
+async function onChooseAvatar(e: any) {
   const tempFilePath = e.detail.avatarUrl
-  avatar.value = tempFilePath
+  avatarPreview.value = tempFilePath
+  avatarUploading.value = true
+  try {
+    const res = await api.uploadAvatar(tempFilePath)
+    avatar.value = res.url
+  } catch {
+    uni.showToast({ title: '头像上传失败,请重试', icon: 'none' })
+    avatarPreview.value = ''
+    avatar.value = ''
+  } finally {
+    avatarUploading.value = false
+  }
 }
 
 async function linkWechatSilently() {
@@ -90,6 +106,10 @@ async function linkWechatSilently() {
 
 async function doLogin() {
   if (!canLogin.value) return
+  if (avatarUploading.value) {
+    uni.showToast({ title: '头像上传中,请稍候', icon: 'none' })
+    return
+  }
   const nick = nickname.value.trim()
   try {
     await linkWechatSilently()

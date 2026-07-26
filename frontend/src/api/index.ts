@@ -78,6 +78,23 @@ export const api = {
   logEvent: (eventType: string, refType = '', refId?: number, meta = '') =>
     request('POST', '/api/v1/events', { event_type: eventType, ref_type: refType, ref_id: refId ?? null, meta }),
 
+  async uploadAvatar(filePath: string): Promise<{ url: string }> {
+    if (!token) await guestLogin()
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE_URL + '/api/v1/auth/avatar',
+        filePath,
+        name: 'file',
+        header: { Authorization: `Bearer ${token}` },
+        success: (res) => {
+          if (res.statusCode < 400) resolve(JSON.parse(res.data))
+          else reject({ status: res.statusCode, data: res.data })
+        },
+        fail: reject,
+      })
+    })
+  },
+
   async uploadPhoto(filePath: string, lat: number, lng: number, story: string): Promise<any> {
     if (!token) await guestLogin()
     return new Promise((resolve, reject) => {

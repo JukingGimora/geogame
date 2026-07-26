@@ -79,7 +79,7 @@ export default {
   },
   mine: {
     title: '我的行囊',
-    editProfile: '设置昵称头像 / 微信登录',
+    editProfile: '编辑昵称头像',
     empty: '还没有上传过照片',
     status: { pending: '审核中', live: '已上线', rejected: '未通过' },
     fbTitle: '想吐槽的、想要的功能，都告诉我们',
