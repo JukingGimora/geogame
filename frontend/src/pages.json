@@ -9,7 +9,9 @@
     {
       "path": "pages/map/map",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enableShareTimeline": true,
+        "enableShareAppMessage": true
       }
     },
     {
@@ -21,7 +23,9 @@
     {
       "path": "pages/play/play",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enableShareTimeline": true,
+        "enableShareAppMessage": true
       }
     },
     {

@@ -18,6 +18,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+// #ifdef MP-WEIXIN
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+// #endif
 import ChinaMap from '../../components/ChinaMap.vue'
 import { api } from '../../api'
 import { t } from '../../locale'
@@ -57,6 +60,17 @@ async function startRun() {
 function go(url: string) {
   uni.navigateTo({ url })
 }
+
+// #ifdef MP-WEIXIN
+onShareAppMessage(() => ({
+  title: t('map.shareTitle'),
+  path: '/pages/map/map',
+}))
+
+onShareTimeline(() => ({
+  title: t('map.shareTitle'),
+}))
+// #endif
 </script>
 
 <style scoped>

@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import ChinaMap from '../../components/ChinaMap.vue'
 // #ifdef MP-WEIXIN
 import NativeMapPicker from '../../components/NativeMapPicker.vue'
@@ -201,11 +201,25 @@ function onShareTap() {
   logEvent('share_click', 'round', recapRoundId ?? undefined)
 }
 
-onShareAppMessage(() => ({
-  title: result.value?.ai?.beaten
+function shareTitle(): string {
+  return result.value?.ai?.beaten
     ? t('play.shareTitleWon', { score: result.value.score })
-    : t('play.shareTitleDefault', { score: result.value?.score ?? 0 }),
+    : t('play.shareTitleDefault', { score: result.value?.score ?? 0 })
+}
+
+function shareImage(): string | undefined {
+  return current.value ? photoUrl(current.value.photo_url) : undefined
+}
+
+onShareAppMessage(() => ({
+  title: shareTitle(),
   path: '/pages/map/map',
+  imageUrl: shareImage(),
+}))
+
+onShareTimeline(() => ({
+  title: shareTitle(),
+  imageUrl: shareImage(),
 }))
 </script>
 
