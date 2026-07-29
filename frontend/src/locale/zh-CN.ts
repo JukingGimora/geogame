@@ -67,6 +67,7 @@ export default {
     needAll: '需要照片和拍摄地点',
     noPreview: '已选择 {name}（此浏览器不支持预览该格式，不影响上传）',
     failed: '上传失败（{status}），请重试',
+    tooLarge: '这张照片太大了，换一张试试',
   },
   rank: {
     title: '排行榜',

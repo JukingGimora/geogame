@@ -51,6 +51,8 @@ const BOX_MIN_HEIGHT_RPX = 300
 function choose() {
   uni.chooseImage({
     count: 1,
+    // 手机原图动辄十几二十MB,会顶到后端上限;猜地点靠的是画面内容,压缩后完全够用
+    sizeType: ['compressed'],
     extension: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'heic', 'heif', 'avif'],
     success: (res) => {
       filePath.value = res.tempFilePaths[0]
@@ -86,7 +88,11 @@ async function submit() {
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: unknown) {
     const status = (e as { status?: number })?.status
-    uni.showToast({ title: t('upload.failed', { status: status ? String(status) : '网络' }), icon: 'none' })
+    const msg =
+      status === 413
+        ? t('upload.tooLarge')
+        : t('upload.failed', { status: status ? String(status) : '网络' })
+    uni.showToast({ title: msg, icon: 'none' })
   } finally {
     submitting.value = false
   }
