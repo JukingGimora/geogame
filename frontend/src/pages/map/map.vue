@@ -13,7 +13,10 @@
         <button class="g-btn" @tap="go('/pages/mine/mine')">{{ t('map.mine') }}</button>
       </view>
       <!-- #ifdef MP-WEIXIN -->
-      <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('map.share') }}</button>
+      <view class="row">
+        <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('map.share') }}</button>
+        <button class="g-btn" open-type="share-timeline" @tap="onShareTap">{{ t('map.shareTimeline') }}</button>
+      </view>
       <!-- #endif -->
     </view>
   </view>

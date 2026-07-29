@@ -62,7 +62,10 @@
           <text class="story-text">{{ result.story }}</text>
         </view>
         <!-- #ifdef MP-WEIXIN -->
-        <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('play.share') }}</button>
+        <view class="row">
+          <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('play.share') }}</button>
+          <button class="g-btn" open-type="share-timeline" @tap="onShareTap">{{ t('play.shareTimeline') }}</button>
+        </view>
         <!-- #endif -->
 
         <button class="g-btn primary" @tap="nextRound">
@@ -291,6 +294,9 @@ onShareTimeline(() => ({
   display: flex;
   gap: 16rpx;
   margin-top: 16rpx;
+}
+.row .g-btn {
+  flex: 1;
 }
 .result {
   margin-top: 20rpx;

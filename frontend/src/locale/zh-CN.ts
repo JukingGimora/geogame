@@ -35,6 +35,7 @@ export default {
     allPlayed: '库里的照片你都玩过了，等新图上线吧',
     shareTitle: '一张照片，猜出拍摄地——你的眼力有多准？',
     share: '分享给朋友',
+    shareTimeline: '分享到朋友圈',
   },
   play: {
     round: '第 {n} 关',
@@ -54,6 +55,7 @@ export default {
     total: '本轮总分',
     backHome: '回到地图',
     share: '分享给朋友',
+    shareTimeline: '分享到朋友圈',
     shareTitleWon: '我猜中了，还赢了AI（{score}分）！你能猜得比我准吗？',
     shareTitleDefault: '这张照片是哪拍的？我猜了{score}分，你来试试',
   },
