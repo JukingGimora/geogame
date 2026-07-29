@@ -62,10 +62,7 @@
           <text class="story-text">{{ result.story }}</text>
         </view>
         <!-- #ifdef MP-WEIXIN -->
-        <view class="row">
-          <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('play.share') }}</button>
-          <button class="g-btn" open-type="share-timeline" @tap="onShareTap">{{ t('play.shareTimeline') }}</button>
-        </view>
+        <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('play.share') }}</button>
         <!-- #endif -->
 
         <button class="g-btn primary" @tap="nextRound">
@@ -97,6 +94,7 @@ import { api, BASE_URL } from '../../api'
 import { t, tList } from '../../locale'
 import { addFogPoint } from '../../lib/fogStore'
 import { logEvent } from '../../lib/analytics'
+import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'
 import type { LngLat } from '../../lib/geo'
 import type { MapMarker } from '../../lib/mapRender'
@@ -135,6 +133,7 @@ const resultMarkers = computed<MapMarker[]>(() => {
 
 onLoad(async (query) => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
+  enableShareMenu()
   const runId = Number(query?.runId)
   run.value = await api.getRun(runId)
 })

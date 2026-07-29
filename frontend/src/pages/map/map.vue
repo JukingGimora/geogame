@@ -13,10 +13,7 @@
         <button class="g-btn" @tap="go('/pages/mine/mine')">{{ t('map.mine') }}</button>
       </view>
       <!-- #ifdef MP-WEIXIN -->
-      <view class="row">
-        <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('map.share') }}</button>
-        <button class="g-btn" open-type="share-timeline" @tap="onShareTap">{{ t('map.shareTimeline') }}</button>
-      </view>
+      <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('map.share') }}</button>
       <!-- #endif -->
     </view>
   </view>
@@ -32,6 +29,7 @@ import { api } from '../../api'
 import { t } from '../../locale'
 import { loadFogPoints } from '../../lib/fogStore'
 import { logEvent } from '../../lib/analytics'
+import { enableShareMenu } from '../../lib/share'
 import type { FogPoint } from '../../lib/mapRender'
 
 const me = ref<{ nickname: string; points: number; avatar_url?: string } | null>(null)
@@ -41,6 +39,7 @@ const mapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.62)
 
 onMounted(async () => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
+  enableShareMenu()
   fogPoints.value = loadFogPoints()
   try {
     me.value = await api.me()
