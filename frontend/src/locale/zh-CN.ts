@@ -34,7 +34,6 @@ export default {
     noPhotos: '题库还没有照片，先上传几张吧',
     allPlayed: '库里的照片你都玩过了，等新图上线吧',
     shareTitle: '一张照片，猜出拍摄地——你的眼力有多准？',
-    share: '分享给朋友',
   },
   play: {
     round: '第 {n} 关',
@@ -78,6 +77,9 @@ export default {
     notRanked: '完成一轮闯关或上传照片后上榜',
     me: '我',
     meSuffix: '（我）',
+    share: '晒晒我的排名',
+    shareTitle: '来「身处雾境」比比谁的眼力更准',
+    shareTitleRanked: '我在「身处雾境」排第 {rank} 名，你能超过我吗？',
   },
   mine: {
     title: '我的行囊',

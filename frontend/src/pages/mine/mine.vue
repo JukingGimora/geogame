@@ -74,8 +74,12 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+// #ifdef MP-WEIXIN
+import { onShareAppMessage } from '@dcloudio/uni-app'
+// #endif
 import { api, BASE_URL } from '../../api'
 import { t, tMap } from '../../locale'
+import { enableShareMenu } from '../../lib/share'
 
 const photos = ref<any[]>([])
 const me = ref<{ points: number } | null>(null)
@@ -88,9 +92,14 @@ function editProfile() {
 
 onMounted(async () => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
+  enableShareMenu(false)
   photos.value = await api.myPhotos()
   me.value = await api.me()
 })
+
+// #ifdef MP-WEIXIN
+onShareAppMessage(() => ({ title: t('map.shareTitle'), path: '/pages/map/map' }))
+// #endif
 
 const fbExpanded = ref(false)
 const fbData = ref({

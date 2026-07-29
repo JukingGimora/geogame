@@ -35,14 +35,23 @@
       <text class="val g-stamp">{{ data.me.value }}</text>
     </view>
     <view v-if="data && data.me.rank === null" class="empty">{{ t('rank.notRanked') }}</view>
+
+    <!-- #ifdef MP-WEIXIN -->
+    <button class="g-btn share-btn" open-type="share" @tap="onShareTap">{{ t('rank.share') }}</button>
+    <!-- #endif -->
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+// #ifdef MP-WEIXIN
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+// #endif
 import { api } from '../../api'
 import { t } from '../../locale'
+import { logEvent } from '../../lib/analytics'
+import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'
 
 type Board = 'best_run' | 'points'
@@ -73,9 +82,25 @@ function switchBoard(b: Board) {
 }
 
 onShow(() => {
+  enableShareMenu()
   load()
   checkProfile()
 })
+
+// #ifdef MP-WEIXIN
+function shareTitle(): string {
+  const rank = data.value?.me.rank
+  return rank ? t('rank.shareTitleRanked', { rank }) : t('rank.shareTitle')
+}
+
+function onShareTap() {
+  logEvent('share_click', 'page', undefined, { location: 'rank' })
+}
+
+onShareAppMessage(() => ({ title: shareTitle(), path: '/pages/rank/rank' }))
+
+onShareTimeline(() => ({ title: shareTitle() }))
+// #endif
 </script>
 
 <style scoped>
@@ -174,5 +199,8 @@ onShow(() => {
   text-align: center;
   margin-top: 120rpx;
   font-size: 28rpx;
+}
+.share-btn {
+  margin-top: 40rpx;
 }
 </style>

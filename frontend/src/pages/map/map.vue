@@ -12,9 +12,6 @@
         <button class="g-btn" @tap="go('/pages/rank/rank')">{{ t('map.rank') }}</button>
         <button class="g-btn" @tap="go('/pages/mine/mine')">{{ t('map.mine') }}</button>
       </view>
-      <!-- #ifdef MP-WEIXIN -->
-      <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('map.share') }}</button>
-      <!-- #endif -->
     </view>
   </view>
 </template>
@@ -28,7 +25,6 @@ import ChinaMap from '../../components/ChinaMap.vue'
 import { api } from '../../api'
 import { t } from '../../locale'
 import { loadFogPoints } from '../../lib/fogStore'
-import { logEvent } from '../../lib/analytics'
 import { enableShareMenu } from '../../lib/share'
 import type { FogPoint } from '../../lib/mapRender'
 
@@ -68,10 +64,6 @@ function go(url: string) {
 }
 
 // #ifdef MP-WEIXIN
-function onShareTap() {
-  logEvent('share_click', 'page', undefined, { location: 'map' })
-}
-
 onShareAppMessage(() => ({
   title: t('map.shareTitle'),
   path: '/pages/map/map',

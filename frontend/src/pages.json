@@ -37,13 +37,16 @@
     {
       "path": "pages/mine/mine",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enableShareAppMessage": true
       }
     },
     {
       "path": "pages/rank/rank",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enableShareTimeline": true,
+        "enableShareAppMessage": true
       }
     }
   ],
