@@ -12,7 +12,7 @@ from app.db import get_session
 from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, Round, User
 from app.services.auth import require_admin
 from app.services.enrich import enrich_photo
-from app.services.geo import resolve_city
+from app.services.geo import nearest_province, resolve_city
 from app.storage import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -48,6 +48,20 @@ async def pending_photos(
                 city = await resolve_city(province.name, p.lat, p.lng)
                 parts = [n for n in (macro.name if macro else None, province.name, city) if n]
                 region_name = "·".join(parts)
+
+        # AI 推测的位置,用来对照上传者标注的坐标——标错地点的图肉眼很难发现,
+        # 但"AI说陕西、他标海南"这种矛盾一眼就能看出来。
+        ai = await session.scalar(select(AIGuess).where(AIGuess.photo_id == p.id))
+        ai_out = None
+        if ai:
+            ai_out = {
+                "lat": ai.lat,
+                "lng": ai.lng,
+                "distance_km": ai.distance_km,
+                "region_name": await _describe_point(session, ai.lat, ai.lng),
+                "reasoning": ai.reasoning,
+            }
+
         result.append(
             {
                 "id": p.id,
@@ -58,6 +72,7 @@ async def pending_photos(
                 "story": p.story,
                 "uploader_id": p.uploader_id,
                 "created_at": p.created_at.isoformat(),
+                "ai": ai_out,
             }
         )
     return {"items": result, "total": total, "limit": limit, "offset": offset}
@@ -243,6 +258,16 @@ async def stats(session: AsyncSession = Depends(get_session)):
         },
         "total_events": total_events,
     }
+
+
+async def _describe_point(session: AsyncSession, lat: float, lng: float) -> str | None:
+    """任意坐标 → 「大区·省·市」,给审核页并排对照用。"""
+    province = await nearest_province(session, lat, lng)
+    if not province:
+        return None
+    macro = await session.get(Region, province.parent_id) if province.parent_id else None
+    city = await resolve_city(province.name, lat, lng)
+    return "·".join(n for n in (macro.name if macro else None, province.name, city) if n)
 
 
 async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:

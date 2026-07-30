@@ -17,6 +17,10 @@
   .card img { width: 260px; height: 200px; object-fit: cover; border-radius: 6px; cursor: pointer; }
   .meta { display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .coords { color: #f5a33c; font-size: 13px; letter-spacing: 1px; }
+  .ai { font-size: 13px; color: #8fd3a8; }
+  .ai.warn { color: #ff9d6b; font-weight: bold; }
+  .ai.dim { color: #6b6558; }
+  .reason-ai { font-size: 12px; color: #7a7466; line-height: 1.5; }
   .story { color: #cabfa8; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
   .dim { color: #a2937b; font-size: 12px; }
   .actions { display: flex; gap: 10px; margin-top: auto; }
@@ -44,7 +48,17 @@
       <div class="meta">
         <span class="dim" x-text="'#' + p.id + ' · 上传者 ' + p.uploader_id + ' · ' + p.created_at.slice(0,19).replace('T',' ') + ' UTC'"></span>
         <span class="coords" x-text="p.lat.toFixed(4) + ', ' + p.lng.toFixed(4) + (p.region_name ? '　·　' + p.region_name : '　·　(无法定位省份)')"></span>
+        <template x-if="p.ai">
+          <span class="ai" :class="{ warn: p.ai.distance_km > 300 }"
+            x-text="'AI推测：' + (p.ai.region_name || (p.ai.lat.toFixed(4) + ', ' + p.ai.lng.toFixed(4)))
+                    + '　·　相差 ' + p.ai.distance_km + ' km'
+                    + (p.ai.distance_km > 300 ? '　⚠ 可能标错地点' : '')"></span>
+        </template>
+        <span class="ai dim" x-show="!p.ai">AI推测：尚未生成（点上方「补算AI」）</span>
         <span class="story" x-text="p.story || '(无故事)'"></span>
+        <template x-if="p.ai">
+          <span class="reason-ai" x-text="p.ai.reasoning"></span>
+        </template>
         <div class="actions" x-show="status === 'pending'">
           <button class="ok" @click="approve(p.id)">通过</button>
           <button class="no" @click="reject(p.id)">拒绝</button>
