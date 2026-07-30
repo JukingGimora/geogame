@@ -51,6 +51,8 @@ async function startRun() {
   } catch (e: any) {
     if (e?.status === 409 && e?.data?.detail === 'all_photos_played') {
       uni.showToast({ title: t('map.allPlayed'), icon: 'none' })
+    } else if (e?.status === 409 && e?.data?.detail === 'only_own_photos') {
+      uni.showToast({ title: t('map.onlyOwnPhotos'), icon: 'none' })
     } else if (e?.status === 409) {
       uni.showToast({ title: t('map.noPhotos'), icon: 'none' })
     } else {

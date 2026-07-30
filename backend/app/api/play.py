@@ -46,16 +46,26 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         sub = select(Region.id).where(Region.path.like(f"{region.path}%"))
         q = q.where(Photo.region_id.in_(sub))
 
+    # 自己上传的图不能自己猜:上传者知道确切坐标,等于白送满分刷榜
+    playable = q.where(Photo.uploader_id != user.id)
+
     played_ids = (
         await session.scalars(select(Round.photo_id).join(Run, Round.run_id == Run.id).where(Run.user_id == user.id))
     ).all()
     photos = (
-        await session.scalars(q.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(ROUNDS_PER_RUN))
+        await session.scalars(
+            playable.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(ROUNDS_PER_RUN)
+        )
     ).all()
     if not photos:
-        # 区分"库里真没图"和"库里有图但这个用户全玩过了",前端提示不一样
-        total_live = await session.scalar(select(func.count()).select_from(q.subquery()))
-        raise HTTPException(409, "all_photos_played" if total_live else "no_photos_available")
+        # 三种空库的原因,前端提示各不相同
+        if await session.scalar(select(func.count()).select_from(playable.subquery())):
+            detail = "all_photos_played"
+        elif await session.scalar(select(func.count()).select_from(q.subquery())):
+            detail = "only_own_photos"  # 库里只剩自己传的图,种子期很常见
+        else:
+            detail = "no_photos_available"
+        raise HTTPException(409, detail)
     run = Run(user_id=user.id, region_id=body.region_id)
     session.add(run)
     await session.flush()

@@ -33,6 +33,7 @@ export default {
     points: '积分',
     noPhotos: '题库还没有照片，先上传几张吧',
     allPlayed: '库里的照片你都玩过了，等新图上线吧',
+    onlyOwnPhotos: '现在库里只有你自己传的照片，等别人上传吧',
     shareTitle: '一张照片，猜出拍摄地——你的眼力有多准？',
   },
   play: {
