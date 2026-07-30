@@ -50,7 +50,11 @@ app.mount(
 
 @app.get("/admin")
 async def admin_page():
-    return FileResponse(Path(__file__).parent / "static" / "admin.html")
+    # 不缓存:否则改了审核页要手工强刷才能看到,很容易误判成"功能没生效"
+    return FileResponse(
+        Path(__file__).parent / "static" / "admin.html",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/health")
