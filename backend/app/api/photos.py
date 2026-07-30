@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import AIGuess, Hint, Photo, Round, User
 from app.services.auth import get_current_user
-from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province
 from app.storage import process_image, storage
 
@@ -18,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 @router.post("")
 async def upload_photo(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     lat: float = Form(...),
     lng: float = Form(...),
@@ -53,8 +51,8 @@ async def upload_photo(
     )
     session.add(photo)
     await session.commit()
-    # AI 猜测和提示②现在就算,别拖到审核通过时让审核页干等
-    background_tasks.add_task(enrich_photo, photo.id)
+    # 这里**不**触发 AI 推理:上传是开放的,谁都能一次推几十张,自动跑等于让垃圾图也烧 API 费。
+    # 改由审核页的「补算AI」按钮批量触发(POST /admin/photos/enrich-missing),先筛一眼再花钱。
     return {"id": photo.id, "status": photo.status}
 
 
