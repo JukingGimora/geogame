@@ -1,3 +1,4 @@
+import hashlib
 import logging
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -34,6 +35,14 @@ async def upload_photo(
     except Exception:
         logger.warning("cannot decode upload (%d bytes, content_type=%s)", len(data), file.content_type)
         raise HTTPException(422, "invalid_image")
+    # 只跟 pending/live 比:被拒或已删的图不占用这张照片,别人还应该能传
+    digest = hashlib.sha256(image).hexdigest()
+    dup = await session.scalar(
+        select(Photo.id).where(Photo.file_hash == digest, Photo.status.in_(("pending", "live")))
+    )
+    if dup:
+        raise HTTPException(409, "duplicate_photo")
+
     try:
         file_key = storage.save(image)
     except Exception:
@@ -48,6 +57,7 @@ async def upload_photo(
         lng=lng,
         region_id=province.id if province else None,
         story=story[:2000],
+        file_hash=digest,
     )
     session.add(photo)
     await session.commit()

@@ -49,6 +49,9 @@ class Photo(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     uploader_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     file_key: Mapped[str] = mapped_column(String(255))
+    # 处理后图片字节的 sha256,用来拦同一张图重复上传(否则可以靠重复传刷"被理解次数")。
+    # 老数据为 NULL,由 /admin/photos/backfill-hashes 补齐。
+    file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     lat: Mapped[float] = mapped_column(Float)  # WGS-84 truth, never sent to client before guess
     lng: Mapped[float] = mapped_column(Float)
     region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), nullable=True)

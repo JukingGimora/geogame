@@ -42,6 +42,9 @@ class LocalStorage:
     def url(self, file_key: str) -> str:
         return f"/uploads/{file_key}"
 
+    def read(self, file_key: str) -> bytes:
+        return (settings.upload_path / file_key).read_bytes()
+
     def delete(self, file_key: str) -> None:
         path = settings.upload_path / file_key
         if path.exists():
@@ -67,6 +70,9 @@ class OSSStorage:
 
     def url(self, file_key: str) -> str:
         return f"{self._public_base}/{file_key}"
+
+    def read(self, file_key: str) -> bytes:
+        return self._bucket.get_object(file_key).read()
 
     def delete(self, file_key: str) -> None:
         self._bucket.delete_object(file_key)

@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   invalid_coordinates: 'errors.invalidCoordinates',
   storage_unavailable: 'errors.storageUnavailable',
   photo_already_played: 'errors.photoAlreadyPlayed',
+  duplicate_photo: 'errors.duplicatePhoto',
   photo_not_found: 'errors.photoNotFound',
   // 开局
   no_photos_available: 'errors.noPhotos',

@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +18,8 @@ from app.services.geo import nearest_province, resolve_city
 from app.storage import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
+
+logger = logging.getLogger(__name__)
 
 BEIJING_OFFSET = timedelta(hours=8)
 
@@ -126,6 +130,33 @@ async def enrich_missing(limit: int = 20, session: AsyncSession = Depends(get_se
         .where(Photo.id.notin_(has_guess) | Photo.id.notin_(has_hint2))
     )
     return {"enriched": len(ids), "remaining": remaining}
+
+
+@router.post("/photos/backfill-hashes")
+async def backfill_hashes(limit: int = 200, session: AsyncSession = Depends(get_session)):
+    """给改动之前上传的照片补 file_hash,否则重复上传检测对老图形同虚设。
+
+    存储里的文件已经是 process_image 的输出,所以直接哈希存储字节就等于上传时算的值。
+    """
+    limit = max(1, min(limit, 500))
+    photos = (
+        await session.scalars(
+            select(Photo).where(Photo.file_hash.is_(None)).order_by(Photo.id).limit(limit)
+        )
+    ).all()
+    done, failed = 0, 0
+    for p in photos:
+        try:
+            p.file_hash = hashlib.sha256(storage.read(p.file_key)).hexdigest()
+            done += 1
+        except Exception:
+            logger.warning("cannot hash photo %d (file_key=%s)", p.id, p.file_key)
+            failed += 1
+    await session.commit()
+    remaining = await session.scalar(
+        select(func.count()).select_from(Photo).where(Photo.file_hash.is_(None))
+    )
+    return {"hashed": done, "failed": failed, "remaining": remaining}
 
 
 @router.delete("/photos/{photo_id}")
