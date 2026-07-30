@@ -3,7 +3,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import PointsLedger, Run, User
+from app.models import Run, User
+from app.services import understood
 from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
@@ -18,11 +19,7 @@ async def leaderboard(
     session: AsyncSession = Depends(get_session),
 ):
     if board == "points":
-        sub = (
-            select(PointsLedger.user_id.label("uid"), func.sum(PointsLedger.delta).label("v"))
-            .group_by(PointsLedger.user_id)
-            .subquery()
-        )
+        sub = understood.counts_by_uploader()
     else:
         sub = (
             select(Run.user_id.label("uid"), func.max(Run.total_score).label("v"))

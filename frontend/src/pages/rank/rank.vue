@@ -22,7 +22,7 @@
         <view v-else class="avatar placeholder" />
         <text class="nick">{{ row.nickname }}{{ row.is_me ? t('rank.meSuffix') : '' }}</text>
       </view>
-      <text class="val g-stamp">{{ row.value }}</text>
+      <text class="val g-stamp">{{ row.value }}{{ board === 'points' ? t('rank.peopleUnit') : '' }}</text>
     </view>
 
     <view v-if="data && data.me.rank && !inTop" class="row me footer-me">
@@ -32,7 +32,7 @@
         <view v-else class="avatar placeholder" />
         <text class="nick">{{ t('rank.me') }}</text>
       </view>
-      <text class="val g-stamp">{{ data.me.value }}</text>
+      <text class="val g-stamp">{{ data.me.value }}{{ board === 'points' ? t('rank.peopleUnit') : '' }}</text>
     </view>
     <view v-if="data && data.me.rank === null" class="empty">{{ t('rank.notRanked') }}</view>
 

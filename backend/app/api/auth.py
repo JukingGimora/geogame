@@ -2,11 +2,11 @@ import logging
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import PointsLedger, User
+from app.models import User
+from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.storage import process_image, storage
 
@@ -76,7 +76,6 @@ async def update_profile(body: ProfileIn, user: User = Depends(get_current_user)
 
 @router.get("/me")
 async def me(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
-    points = await session.scalar(
-        select(func.coalesce(func.sum(PointsLedger.delta), 0)).where(PointsLedger.user_id == user.id)
-    )
-    return {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url, "points": points}
+    # 跟排行榜口径一致:算"多少个不同的人猜过我的照片",不是积分流水求和
+    points = await session.scalar(understood.count_for(user.id))
+    return {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url, "points": points or 0}
