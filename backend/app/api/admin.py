@@ -25,9 +25,18 @@ class RejectIn(BaseModel):
 
 
 @router.get("/photos")
-async def pending_photos(status: str = "pending", session: AsyncSession = Depends(get_session)):
+async def pending_photos(
+    status: str = "pending",
+    limit: int = 20,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+):
+    limit = max(1, min(limit, 100))
+    total = await session.scalar(select(func.count()).select_from(Photo).where(Photo.status == status))
     photos = (
-        await session.scalars(select(Photo).where(Photo.status == status).order_by(Photo.id))
+        await session.scalars(
+            select(Photo).where(Photo.status == status).order_by(Photo.id).limit(limit).offset(offset)
+        )
     ).all()
     result = []
     for p in photos:
@@ -51,7 +60,7 @@ async def pending_photos(status: str = "pending", session: AsyncSession = Depend
                 "created_at": p.created_at.isoformat(),
             }
         )
-    return result
+    return {"items": result, "total": total, "limit": limit, "offset": offset}
 
 
 @router.post("/photos/{photo_id}/approve")

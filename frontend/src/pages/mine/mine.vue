@@ -7,13 +7,20 @@
     <button class="g-btn" @tap="editProfile">{{ t('mine.editProfile') }}</button>
     <view v-if="photos.length === 0" class="empty">{{ t('mine.empty') }}</view>
 
-    <view v-for="p in photos" :key="p.id" class="card">
+    <view v-for="p in visiblePhotos" :key="p.id" class="card">
       <image class="thumb" :src="photoUrl(p.url)" mode="aspectFill" @tap="previewPhoto(p)" />
       <view class="meta">
-        <text class="status" :class="p.status">{{ statusText[p.status] }}</text>
+        <view class="meta-top">
+          <text class="status" :class="p.status">{{ statusText[p.status] }}</text>
+          <text class="del" @tap="removePhoto(p)">{{ t('mine.delete') }}</text>
+        </view>
         <text v-if="p.reject_reason" class="reason">{{ p.reject_reason }}</text>
         <text v-if="p.story" class="story">{{ p.story }}</text>
       </view>
+    </view>
+
+    <view v-if="photos.length > COLLAPSED_COUNT" class="more" @tap="photosExpanded = !photosExpanded">
+      {{ photosExpanded ? t('mine.collapse') : t('mine.expand', { n: photos.length - COLLAPSED_COUNT }) }}
     </view>
 
     <view class="fb g-card">
@@ -73,18 +80,44 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 // #ifdef MP-WEIXIN
 import { onShareAppMessage } from '@dcloudio/uni-app'
 // #endif
 import { api, BASE_URL } from '../../api'
 import { t, tMap } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
+import { errorMessage } from '../../lib/errors'
 
 const photos = ref<any[]>([])
 const me = ref<{ points: number } | null>(null)
 const topOffset = ref(0)
 const statusText = tMap('mine.status')
+
+const COLLAPSED_COUNT = 3
+const photosExpanded = ref(false)
+const visiblePhotos = computed(() =>
+  photosExpanded.value ? photos.value : photos.value.slice(0, COLLAPSED_COUNT),
+)
+
+async function removePhoto(p: any) {
+  const ok = await new Promise<boolean>((resolve) =>
+    uni.showModal({
+      title: t('mine.deleteConfirm'),
+      content: t('mine.deleteHint'),
+      success: (r) => resolve(r.confirm),
+      fail: () => resolve(false),
+    }),
+  )
+  if (!ok) return
+  try {
+    await api.deletePhoto(p.id)
+    photos.value = photos.value.filter((x) => x.id !== p.id)
+    uni.showToast({ title: t('mine.deleted'), icon: 'none' })
+  } catch (e: unknown) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
+  }
+}
 
 function editProfile() {
   uni.navigateTo({ url: '/pages/login/login' })
@@ -253,9 +286,28 @@ function previewPhoto(p: any) {
   gap: 6rpx;
   overflow: hidden;
 }
+.meta-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .status {
   font-size: 24rpx;
   color: #a2937b;
+}
+.del {
+  font-size: 24rpx;
+  color: #e08484;
+  padding: 4rpx 12rpx;
+}
+.more {
+  text-align: center;
+  color: #a2937b;
+  font-size: 24rpx;
+  padding: 18rpx 0;
+  border: 1px solid #322818;
+  border-radius: 8rpx;
+  margin-bottom: 14rpx;
 }
 .status.live {
   color: #6fe0a8;

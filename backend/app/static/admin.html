@@ -26,13 +26,14 @@
 <body x-data="admin()" x-init="load(); loadFb()">
   <h1>审核后台</h1>
   <div class="bar">
-    <input type="password" placeholder="管理口令" x-model="token" @change="save(); load()">
-    <select x-model="status" @change="load()">
+    <input type="password" placeholder="管理口令" x-model="token" @change="save(); reload()">
+    <select x-model="status" @change="reload()">
       <option value="pending">待审核</option>
       <option value="live">已上线</option>
       <option value="rejected">已拒绝</option>
     </select>
     <button @click="load()">刷新</button>
+    <span class="dim" x-text="pageInfo()"></span>
     <span class="dim" x-text="msg"></span>
   </div>
 
@@ -54,6 +55,11 @@
     </div>
   </template>
   <div class="empty" x-show="photos.length === 0">这一栏是空的</div>
+  <div class="bar" x-show="total > limit">
+    <button @click="prev()" :disabled="offset === 0">上一页</button>
+    <span class="dim" x-text="pageInfo()"></span>
+    <button @click="next()" :disabled="offset + limit >= total">下一页</button>
+  </div>
 
   <h1 style="margin-top:40px">用户反馈</h1>
   <div class="bar">
@@ -78,6 +84,9 @@ function admin() {
     token: localStorage.getItem('admin_token') || '',
     status: 'pending',
     photos: [],
+    total: 0,
+    offset: 0,
+    limit: 20,
     fbs: [],
     msg: '',
     save() { localStorage.setItem('admin_token', this.token) },
@@ -92,10 +101,22 @@ function admin() {
     },
     async load() {
       this.msg = ''
-      const r = await fetch(`/api/v1/admin/photos?status=${this.status}`, { headers: this.headers() })
-      if (!r.ok) { this.photos = []; this.msg = '口令错误或服务异常 (' + r.status + ')'; return }
-      this.photos = await r.json()
+      const q = `status=${this.status}&limit=${this.limit}&offset=${this.offset}`
+      const r = await fetch(`/api/v1/admin/photos?${q}`, { headers: this.headers() })
+      if (!r.ok) { this.photos = []; this.total = 0; this.msg = '口令错误或服务异常 (' + r.status + ')'; return }
+      const d = await r.json()
+      this.photos = d.items
+      this.total = d.total
+      // 删到本页空了但后面还有,自动回退一页,免得停在空白页
+      if (this.photos.length === 0 && this.offset > 0) { this.offset = Math.max(0, this.offset - this.limit); return this.load() }
     },
+    reload() { this.offset = 0; this.load() },
+    pageInfo() {
+      if (this.total === 0) return ''
+      return `${this.offset + 1}-${this.offset + this.photos.length} / 共 ${this.total}`
+    },
+    prev() { if (this.offset > 0) { this.offset = Math.max(0, this.offset - this.limit); this.load() } },
+    next() { if (this.offset + this.limit < this.total) { this.offset += this.limit; this.load() } },
     async approve(id) {
       const r = await fetch(`/api/v1/admin/photos/${id}/approve`, { method: 'POST', headers: this.headers() })
       this.msg = r.ok ? `#${id} 已上线` : '操作失败'

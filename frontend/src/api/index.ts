@@ -25,7 +25,7 @@ async function guestLogin(): Promise<void> {
   uni.setStorageSync(TOKEN_KEY, token)
 }
 
-function rawRequest(method: 'GET' | 'POST', path: string, data?: any): Promise<any> {
+function rawRequest(method: 'GET' | 'POST' | 'DELETE', path: string, data?: any): Promise<any> {
   return new Promise((resolve, reject) => {
     uni.request({
       url: BASE_URL + path,
@@ -41,7 +41,7 @@ function rawRequest(method: 'GET' | 'POST', path: string, data?: any): Promise<a
   })
 }
 
-async function request(method: 'GET' | 'POST', path: string, data?: any): Promise<any> {
+async function request(method: 'GET' | 'POST' | 'DELETE', path: string, data?: any): Promise<any> {
   if (!token) await guestLogin()
   try {
     return await rawRequest(method, path, data)
@@ -72,6 +72,7 @@ export const api = {
   guess: (roundId: number, lat: number, lng: number) =>
     request('POST', `/api/v1/rounds/${roundId}/guess`, { lat, lng }),
   myPhotos: () => request('GET', '/api/v1/photos/mine'),
+  deletePhoto: (photoId: number) => request('DELETE', `/api/v1/photos/${photoId}`),
   leaderboard: (board: 'best_run' | 'points') => request('GET', `/api/v1/leaderboard?board=${board}`),
   sendFeedback: (content: string, contact?: string) =>
     request('POST', '/api/v1/feedback', { content, contact: contact || null }),

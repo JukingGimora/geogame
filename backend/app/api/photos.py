@@ -1,11 +1,12 @@
 import logging
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import select
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import Photo, User
+from app.models import AIGuess, Hint, Photo, Round, User
 from app.services.auth import get_current_user
 from app.services.geo import nearest_province
 from app.storage import process_image, storage
@@ -51,6 +52,25 @@ async def upload_photo(
     session.add(photo)
     await session.commit()
     return {"id": photo.id, "status": photo.status}
+
+
+@router.delete("/{photo_id}")
+async def delete_my_photo(
+    photo_id: int, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+):
+    photo = await session.get(Photo, photo_id)
+    if not photo or photo.uploader_id != user.id:
+        raise HTTPException(404, "photo_not_found")
+    played = await session.scalar(select(func.count()).select_from(Round).where(Round.photo_id == photo_id))
+    if played:
+        # 删了会让引用它的 rounds 变成孤儿,连带把别人的历史成绩和自己的被理解次数搞坏
+        raise HTTPException(409, "photo_already_played")
+    await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id))
+    await session.execute(sa_delete(AIGuess).where(AIGuess.photo_id == photo_id))
+    storage.delete(photo.file_key)
+    await session.delete(photo)
+    await session.commit()
+    return {"id": photo_id, "deleted": True}
 
 
 @router.get("/mine")
