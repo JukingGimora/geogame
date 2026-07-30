@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -6,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import PointsLedger, User
 from app.services.auth import get_current_user, guest_login, wechat_login
-from app.storage import storage
+from app.storage import process_image, storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 class GuestIn(BaseModel):
@@ -49,9 +52,15 @@ async def upload_avatar(file: UploadFile = File(...), user: User = Depends(get_c
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(413, "file_too_large")
     try:
-        file_key = storage.save_image(data)
+        image = process_image(data)
     except Exception:
+        logger.warning("cannot decode avatar (%d bytes)", len(data))
         raise HTTPException(422, "invalid_image")
+    try:
+        file_key = storage.save(image)
+    except Exception:
+        logger.exception("storage.save failed for avatar (%d bytes)", len(image))
+        raise HTTPException(503, "storage_unavailable")
     return {"url": storage.url(file_key)}
 
 

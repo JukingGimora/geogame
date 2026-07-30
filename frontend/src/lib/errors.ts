@@ -9,6 +9,7 @@ const MESSAGES: Record<string, string> = {
   file_too_large: 'errors.fileTooLarge',
   invalid_image: 'errors.invalidImage',
   invalid_coordinates: 'errors.invalidCoordinates',
+  storage_unavailable: 'errors.storageUnavailable',
   // 开局
   no_photos_available: 'errors.noPhotos',
   all_photos_played: 'errors.allPlayed',

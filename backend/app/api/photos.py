@@ -8,7 +8,7 @@ from app.db import get_session
 from app.models import Photo, User
 from app.services.auth import get_current_user
 from app.services.geo import nearest_province
-from app.storage import storage
+from app.storage import process_image, storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 logger = logging.getLogger(__name__)
@@ -29,11 +29,16 @@ async def upload_photo(
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(413, "file_too_large")
     try:
-        file_key = storage.save_image(data)
+        image = process_image(data)
     except Exception:
-        # 吞掉异常会让"上传失败422"完全无法排查:格式不认、OSS 挂了、磁盘满了都长一个样
-        logger.exception("save_image failed (%d bytes, content_type=%s)", len(data), file.content_type)
+        logger.warning("cannot decode upload (%d bytes, content_type=%s)", len(data), file.content_type)
         raise HTTPException(422, "invalid_image")
+    try:
+        file_key = storage.save(image)
+    except Exception:
+        # 存储挂了不能报成"图片有问题":用户会一直换图,而换哪张都不可能成功
+        logger.exception("storage.save failed (%d bytes)", len(image))
+        raise HTTPException(503, "storage_unavailable")
     province = await nearest_province(session, lat, lng)
     photo = Photo(
         uploader_id=user.id,

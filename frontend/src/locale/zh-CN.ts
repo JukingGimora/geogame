@@ -4,6 +4,7 @@ export default {
     unknown: '出了点问题，再试一次',
     fileTooLarge: '这张照片太大了，换一张试试',
     invalidImage: '这张图片打不开，换一张试试',
+    storageUnavailable: '服务器暂时存不了图，稍后再试（不是你的问题）',
     invalidCoordinates: '拍摄地点不对，重新在地图上标一下',
     noPhotos: '题库还没有照片，先上传几张吧',
     allPlayed: '库里的照片你都玩过了，等新图上线吧',

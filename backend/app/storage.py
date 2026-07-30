@@ -14,8 +14,12 @@ except ImportError:
     pass
 
 
-def _process_image(data: bytes) -> bytes:
-    """统一转 JPEG:先按 EXIF 方向转正,再抹除全部元数据,限长边。"""
+def process_image(data: bytes) -> bytes:
+    """统一转 JPEG:先按 EXIF 方向转正,再抹除全部元数据,限长边。
+
+    跟 save() 分开是为了让"图片本身解不开"和"存储写不进去"能分别报错——
+    合在一起的话 OSS 故障会被当成图片格式问题,用户只会徒劳地反复换图。
+    """
     img = Image.open(io.BytesIO(data))
     img = ImageOps.exif_transpose(img)
     if img.mode not in ("RGB", "L"):
@@ -27,10 +31,13 @@ def _process_image(data: bytes) -> bytes:
 
 
 class LocalStorage:
-    def save_image(self, data: bytes) -> str:
+    def save(self, image: bytes) -> str:
         key = f"{uuid.uuid4().hex}.jpg"
-        (settings.upload_path / key).write_bytes(_process_image(data))
+        (settings.upload_path / key).write_bytes(image)
         return key
+
+    def save_image(self, data: bytes) -> str:
+        return self.save(process_image(data))
 
     def url(self, file_key: str) -> str:
         return f"/uploads/{file_key}"
@@ -50,10 +57,13 @@ class OSSStorage:
         host = settings.oss_endpoint.split("://")[-1]
         self._public_base = f"https://{settings.oss_bucket}.{host}"
 
-    def save_image(self, data: bytes) -> str:
+    def save(self, image: bytes) -> str:
         key = f"{uuid.uuid4().hex}.jpg"
-        self._bucket.put_object(key, _process_image(data))
+        self._bucket.put_object(key, image)
         return key
+
+    def save_image(self, data: bytes) -> str:
+        return self.save(process_image(data))
 
     def url(self, file_key: str) -> str:
         return f"{self._public_base}/{file_key}"
