@@ -8,6 +8,7 @@ from app.db import get_session
 from app.models import User
 from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
+from app.services.avatar import clean_avatar_url
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -31,7 +32,9 @@ class ProfileIn(BaseModel):
 
 @router.post("/guest")
 async def login_guest(body: GuestIn, session: AsyncSession = Depends(get_session)):
-    user, token = await guest_login(session, body.device_key, body.nickname, body.avatar_url)
+    # 静默丢弃而不是报错:本地存着个临时路径不该导致登不上
+    avatar = clean_avatar_url(body.avatar_url)
+    user, token = await guest_login(session, body.device_key, body.nickname, avatar)
     return {"token": token, "user": {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url}}
 
 
@@ -69,7 +72,10 @@ async def update_profile(body: ProfileIn, user: User = Depends(get_current_user)
     if body.nickname is not None:
         user.nickname = body.nickname
     if body.avatar_url is not None:
-        user.avatar_url = body.avatar_url
+        cleaned = clean_avatar_url(body.avatar_url)
+        if cleaned is None:
+            raise HTTPException(422, "invalid_avatar_url")
+        user.avatar_url = cleaned
     await session.commit()
     return {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url}
 
