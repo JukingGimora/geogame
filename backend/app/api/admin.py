@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -59,11 +60,15 @@ async def approve_photo(photo_id: int, session: AsyncSession = Depends(get_sessi
     if not photo or photo.status != "pending":
         raise HTTPException(404, "photo_not_pending")
     photo.status = "live"
-    await _generate_system_hints(session, photo)
+    # 提示②和AI对手的猜测是两次独立的视觉模型请求(各自 timeout 60s),串行等于让审核页干等两倍时间。
+    # 两者互不依赖,并发发出;session 的写入仍在下面串行做。
     if settings.fake_ai:
-        await fake_ai_guess(session, photo)
+        hint2, guess = None, await fake_ai_guess(photo)
     else:
-        await real_ai_guess(session, photo)
+        hint2, guess = await asyncio.gather(real_ai_hint(photo), real_ai_guess(photo))
+    await _generate_system_hints(session, photo, hint2)
+    if guess:
+        session.add(guess)
     await session.commit()
     return {"id": photo.id, "status": photo.status}
 
@@ -177,8 +182,11 @@ async def stats(session: AsyncSession = Depends(get_session)):
     }
 
 
-async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
-    """提示①(故事前半句)与③④(大区/省份)——纯程序生成,不经AI(幻觉隔离)。"""
+async def _generate_system_hints(session: AsyncSession, photo: Photo, hint2_content: str | None) -> None:
+    """提示①(故事前半句)与③④(大区/省份)——纯程序生成,不经AI(幻觉隔离)。
+
+    提示②的AI文案由调用方传进来:它是个网络请求,留在这里就没法跟AI猜测并发。
+    """
     if photo.story:
         teaser = photo.story[: max(6, len(photo.story) // 2)]
         session.add(Hint(photo_id=photo.id, level=1, content=teaser + "…", source="uploader"))
@@ -190,9 +198,6 @@ async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
                 session.add(Hint(photo_id=photo.id, level=3, content=f"在{macro.name}地区", source="system"))
             session.add(Hint(photo_id=photo.id, level=4, content=f"在{province.name}", source="system"))
 
-    hint2_content = None
-    if not settings.fake_ai:
-        hint2_content = await real_ai_hint(photo)
     session.add(
         Hint(
             photo_id=photo.id,

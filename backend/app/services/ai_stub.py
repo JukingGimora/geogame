@@ -9,7 +9,6 @@ import random
 import re
 
 import httpx
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models import AIGuess, Photo
@@ -38,7 +37,7 @@ HINT_PROMPT = (
 )
 
 
-async def fake_ai_guess(session: AsyncSession, photo: Photo) -> AIGuess:
+async def fake_ai_guess(photo: Photo) -> AIGuess:
     offset_km = random.uniform(30, 600)
     bearing = random.uniform(0, 6.28)
     dlat = (offset_km / 111.0) * random.uniform(0.3, 1.0) * (1 if bearing < 3.14 else -1)
@@ -54,7 +53,6 @@ async def fake_ai_guess(session: AsyncSession, photo: Photo) -> AIGuess:
         reasoning=CANNED_REASONING.format(name="该区域", conf=random.randint(55, 90)),
         model="fake-ai-v0",
     )
-    session.add(guess)
     return guess
 
 
@@ -66,7 +64,7 @@ def _image_url(photo: Photo) -> str:
     return f"data:image/jpeg;base64,{base64.b64encode(data).decode()}"
 
 
-async def real_ai_guess(session: AsyncSession, photo: Photo) -> AIGuess | None:
+async def real_ai_guess(photo: Photo) -> AIGuess | None:
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
@@ -113,7 +111,6 @@ async def real_ai_guess(session: AsyncSession, photo: Photo) -> AIGuess | None:
         reasoning=f"{reasoning}置信度{confidence}%。",
         model=settings.ai_model,
     )
-    session.add(guess)
     return guess
 
 
