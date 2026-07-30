@@ -52,6 +52,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { t } from '../../locale'
 import { api } from '../../api'
+import { errorMessage } from '../../lib/errors'
 
 const topOffset = ref(0)
 const avatar = ref('') // 已上传成功的真实URL,提交给后端用
@@ -82,8 +83,8 @@ async function onChooseAvatar(e: any) {
   try {
     const res = await api.uploadAvatar(tempFilePath)
     avatar.value = res.url
-  } catch {
-    uni.showToast({ title: '头像上传失败,请重试', icon: 'none' })
+  } catch (err: unknown) {
+    uni.showToast({ title: errorMessage(err), icon: 'none' })
     avatarPreview.value = ''
     avatar.value = ''
   } finally {
@@ -118,8 +119,8 @@ async function doLogin() {
     if (profile.avatar_url) uni.setStorageSync('geogame_avatar', profile.avatar_url)
     uni.setStorageSync('geogame_logged_in', '1')
     leave()
-  } catch {
-    uni.showToast({ title: '登录失败', icon: 'none' })
+  } catch (e: unknown) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
   }
 }
 

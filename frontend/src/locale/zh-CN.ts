@@ -1,4 +1,20 @@
 export default {
+  errors: {
+    network: '网络不太顺，再试一次',
+    unknown: '出了点问题，再试一次',
+    fileTooLarge: '这张照片太大了，换一张试试',
+    invalidImage: '这张图片打不开，换一张试试',
+    invalidCoordinates: '拍摄地点不对，重新在地图上标一下',
+    noPhotos: '题库还没有照片，先上传几张吧',
+    allPlayed: '库里的照片你都玩过了，等新图上线吧',
+    onlyOwnPhotos: '现在库里只有你自己传的照片，等别人上传吧',
+    regionNotFound: '这个区域暂时玩不了',
+    runNotFound: '这一局找不到了，回地图重新开始吧',
+    roundNotFound: '这一关找不到了，回地图重新开始吧',
+    roundFinished: '这一关已经猜过了',
+    hintNotAvailable: '这条提示暂时没有',
+    wechatInvalid: '微信登录没成功，再试一次',
+  },
   opening: {
     lines: [
       '2014.10.02',
@@ -31,9 +47,6 @@ export default {
     mine: '我的行囊',
     rank: '排行榜',
     points: '积分',
-    noPhotos: '题库还没有照片，先上传几张吧',
-    allPlayed: '库里的照片你都玩过了，等新图上线吧',
-    onlyOwnPhotos: '现在库里只有你自己传的照片，等别人上传吧',
     shareTitle: '一张照片，猜出拍摄地——你的眼力有多准？',
   },
   play: {
@@ -67,8 +80,6 @@ export default {
     submitted: '已提交，审核通过后会出现在题库里',
     needAll: '需要照片和拍摄地点',
     noPreview: '已选择 {name}（此浏览器不支持预览该格式，不影响上传）',
-    failed: '上传失败（{status}），请重试',
-    tooLarge: '这张照片太大了，换一张试试',
   },
   rank: {
     title: '排行榜',

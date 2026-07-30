@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,7 @@ from app.services.geo import nearest_province
 from app.storage import storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("")
@@ -28,6 +31,8 @@ async def upload_photo(
     try:
         file_key = storage.save_image(data)
     except Exception:
+        # 吞掉异常会让"上传失败422"完全无法排查:格式不认、OSS 挂了、磁盘满了都长一个样
+        logger.exception("save_image failed (%d bytes, content_type=%s)", len(data), file.content_type)
         raise HTTPException(422, "invalid_image")
     province = await nearest_province(session, lat, lng)
     photo = Photo(

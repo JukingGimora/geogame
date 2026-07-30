@@ -25,6 +25,7 @@ import ChinaMap from '../../components/ChinaMap.vue'
 import { api } from '../../api'
 import { t } from '../../locale'
 import { loadFogPoints } from '../../lib/fogStore'
+import { errorMessage } from '../../lib/errors'
 import { enableShareMenu } from '../../lib/share'
 import type { FogPoint } from '../../lib/mapRender'
 
@@ -48,16 +49,8 @@ async function startRun() {
   try {
     const run = await api.createRun()
     uni.navigateTo({ url: `/pages/play/play?runId=${run.run_id}` })
-  } catch (e: any) {
-    if (e?.status === 409 && e?.data?.detail === 'all_photos_played') {
-      uni.showToast({ title: t('map.allPlayed'), icon: 'none' })
-    } else if (e?.status === 409 && e?.data?.detail === 'only_own_photos') {
-      uni.showToast({ title: t('map.onlyOwnPhotos'), icon: 'none' })
-    } else if (e?.status === 409) {
-      uni.showToast({ title: t('map.noPhotos'), icon: 'none' })
-    } else {
-      uni.showToast({ title: '网络异常', icon: 'none' })
-    }
+  } catch (e: unknown) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
   }
 }
 

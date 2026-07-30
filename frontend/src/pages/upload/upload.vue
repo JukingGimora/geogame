@@ -32,6 +32,7 @@ import NativeMapPicker from '../../components/NativeMapPicker.vue'
 // #endif
 import { api } from '../../api'
 import { t } from '../../locale'
+import { errorMessage } from '../../lib/errors'
 import type { LngLat } from '../../lib/geo'
 import type { MapMarker } from '../../lib/mapRender'
 
@@ -87,12 +88,7 @@ async function submit() {
     uni.showToast({ title: t('upload.submitted'), icon: 'none', duration: 2500 })
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: unknown) {
-    const status = (e as { status?: number })?.status
-    const msg =
-      status === 413
-        ? t('upload.tooLarge')
-        : t('upload.failed', { status: status ? String(status) : '网络' })
-    uni.showToast({ title: msg, icon: 'none' })
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
   } finally {
     submitting.value = false
   }

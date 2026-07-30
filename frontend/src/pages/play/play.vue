@@ -94,6 +94,7 @@ import { api, BASE_URL } from '../../api'
 import { t, tList } from '../../locale'
 import { addFogPoint } from '../../lib/fogStore'
 import { logEvent } from '../../lib/analytics'
+import { errorMessage } from '../../lib/errors'
 import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'
 import type { LngLat } from '../../lib/geo'
@@ -151,8 +152,8 @@ async function unlockHint(level: number) {
   try {
     const h = await api.unlockHint(current.value.round_id, level)
     unlockedContents.value.push({ level, content: h.content })
-  } catch {
-    uni.showToast({ title: '该提示不可用', icon: 'none' })
+  } catch (e: unknown) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
   }
 }
 
