@@ -86,10 +86,17 @@ async def delete_my_photo(
 
 
 @router.get("/mine")
-async def my_photos(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+async def my_photos(
+    limit: int = 10,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """只回最近几张:行囊是给人看"我传的还在不在、过没过审"的,不是完整档案馆。
+    顺带避免传了几百张的人一次拉回一个巨大的响应。"""
+    limit = max(1, min(limit, 100))
     photos = (
         await session.scalars(
-            select(Photo).where(Photo.uploader_id == user.id).order_by(Photo.id.desc())
+            select(Photo).where(Photo.uploader_id == user.id).order_by(Photo.id.desc()).limit(limit)
         )
     ).all()
     return [
