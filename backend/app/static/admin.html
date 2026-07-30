@@ -38,7 +38,6 @@
     </select>
     <button @click="load()">刷新</button>
     <button @click="enrich()" x-show="status === 'pending'">补算AI</button>
-    <button @click="backfill()">补哈希</button>
     <span class="dim" x-text="pageInfo()"></span>
     <span class="dim" x-text="msg"></span>
   </div>
@@ -139,13 +138,6 @@ function admin() {
       if (!r.ok) { this.msg = '补算失败 (' + r.status + ')'; return }
       const d = await r.json()
       this.msg = `已补算 ${d.enriched} 张，还差 ${d.remaining} 张`
-    },
-    async backfill() {
-      this.msg = '正在补哈希…'
-      const r = await fetch('/api/v1/admin/photos/backfill-hashes?limit=500', { method: 'POST', headers: this.headers() })
-      if (!r.ok) { this.msg = '补哈希失败 (' + r.status + ')'; return }
-      const d = await r.json()
-      this.msg = `已补 ${d.hashed} 张，失败 ${d.failed} 张，还差 ${d.remaining} 张`
     },
     async approve(id) {
       const r = await fetch(`/api/v1/admin/photos/${id}/approve`, { method: 'POST', headers: this.headers() })
