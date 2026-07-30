@@ -3,12 +3,13 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import case
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, User
+from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, Round, User
 from app.services.auth import require_admin
 from app.services.enrich import enrich_photo
 from app.services.geo import resolve_city
@@ -200,6 +201,22 @@ async def stats(session: AsyncSession = Depends(get_session)):
     )
     total_events = await session.scalar(select(func.count()).select_from(Event))
 
+    # AI 对手的强度是否合适:赢太多玩家挫败,输太多"赢了AI"就不值钱了。
+    # 数据本来就都在,只是没算过。
+    duel = (
+        await session.execute(
+            select(
+                func.count().label("rounds"),
+                func.sum(case((Round.score > AIGuess.score, 1), else_=0)).label("player_wins"),
+                func.avg(Round.distance_km).label("avg_player_km"),
+                func.avg(AIGuess.distance_km).label("avg_ai_km"),
+            )
+            .select_from(Round)
+            .join(AIGuess, AIGuess.photo_id == Round.photo_id)
+            .where(Round.finished_at.is_not(None))
+        )
+    ).one()
+
     return {
         "total_users": len(users),
         "d1_retention": {
@@ -216,6 +233,13 @@ async def stats(session: AsyncSession = Depends(get_session)):
             "viewers": profile_hint_viewers or 0,
             "clickers": profile_hint_clickers or 0,
             "rate": round((profile_hint_clickers or 0) / profile_hint_viewers, 4) if profile_hint_viewers else None,
+        },
+        "ai_duel": {
+            "rounds": duel.rounds or 0,
+            "player_wins": duel.player_wins or 0,
+            "ai_win_rate": round(1 - (duel.player_wins or 0) / duel.rounds, 4) if duel.rounds else None,
+            "avg_player_km": round(duel.avg_player_km, 1) if duel.avg_player_km is not None else None,
+            "avg_ai_km": round(duel.avg_ai_km, 1) if duel.avg_ai_km is not None else None,
         },
         "total_events": total_events,
     }
