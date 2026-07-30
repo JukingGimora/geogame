@@ -51,7 +51,7 @@ export default {
     upload: '上传照片',
     mine: '我的行囊',
     rank: '排行榜',
-    points: '被理解',
+    points: '被看见',
     shareTitle: '一张照片，猜出拍摄地——你的眼力有多准？',
   },
   play: {
@@ -90,7 +90,7 @@ export default {
     title: '排行榜',
     profileHint: '设置昵称头像或绑定微信，换设备也能找回你的排名和记录',
     bestRun: '最佳一轮',
-    points: '被理解次数',
+    points: '被看见',
     empty: '还没有人上榜',
     notRanked: '完成一轮闯关或上传照片后上榜',
     peopleUnit: ' 人',
