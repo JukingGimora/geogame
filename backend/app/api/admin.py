@@ -7,11 +7,10 @@ from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.db import get_session
 from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, User
-from app.services.ai_stub import fake_ai_guess, real_ai_guess, real_ai_hint
 from app.services.auth import require_admin
+from app.services.enrich import enrich_photo
 from app.services.geo import resolve_city
 from app.storage import storage
 
@@ -69,17 +68,48 @@ async def approve_photo(photo_id: int, session: AsyncSession = Depends(get_sessi
     if not photo or photo.status != "pending":
         raise HTTPException(404, "photo_not_pending")
     photo.status = "live"
-    # 提示②和AI对手的猜测是两次独立的视觉模型请求(各自 timeout 60s),串行等于让审核页干等两倍时间。
-    # 两者互不依赖,并发发出;session 的写入仍在下面串行做。
-    if settings.fake_ai:
-        hint2, guess = None, await fake_ai_guess(photo)
-    else:
-        hint2, guess = await asyncio.gather(real_ai_hint(photo), real_ai_guess(photo))
-    await _generate_system_hints(session, photo, hint2)
-    if guess:
-        session.add(guess)
+    # AI 猜测和提示②在上传时就已经算好了(services/enrich.py),这里只补纯程序生成的提示①③④。
+    # 万一当时后台任务失败,兜底再跑一次,不让图带着空 AI 上线。
+    await enrich_photo(photo.id)
+    await _generate_system_hints(session, photo)
     await session.commit()
     return {"id": photo.id, "status": photo.status}
+
+
+@router.post("/photos/enrich-missing")
+async def enrich_missing(limit: int = 20, session: AsyncSession = Depends(get_session)):
+    """给缺 AI 数据的待审图补算。
+
+    上传时自动富化只覆盖新图,这个接口用来消化改动之前的积压队列,
+    以及后台任务偶发失败留下的漏网之鱼——否则那些图只能在点"通过"时现算,又要干等。
+    """
+    limit = max(1, min(limit, 100))
+    has_guess = select(AIGuess.photo_id)
+    has_hint2 = select(Hint.photo_id).where(Hint.level == 2)
+    ids = (
+        await session.scalars(
+            select(Photo.id)
+            .where(Photo.status == "pending")
+            .where(Photo.id.notin_(has_guess) | Photo.id.notin_(has_hint2))
+            .order_by(Photo.id)
+            .limit(limit)
+        )
+    ).all()
+
+    sem = asyncio.Semaphore(3)  # 别把 AI 接口打满
+
+    async def one(pid: int) -> None:
+        async with sem:
+            await enrich_photo(pid)
+
+    await asyncio.gather(*(one(i) for i in ids))
+    remaining = await session.scalar(
+        select(func.count())
+        .select_from(Photo)
+        .where(Photo.status == "pending")
+        .where(Photo.id.notin_(has_guess) | Photo.id.notin_(has_hint2))
+    )
+    return {"enriched": len(ids), "remaining": remaining}
 
 
 @router.delete("/photos/{photo_id}")
@@ -191,10 +221,10 @@ async def stats(session: AsyncSession = Depends(get_session)):
     }
 
 
-async def _generate_system_hints(session: AsyncSession, photo: Photo, hint2_content: str | None) -> None:
+async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
     """提示①(故事前半句)与③④(大区/省份)——纯程序生成,不经AI(幻觉隔离)。
 
-    提示②的AI文案由调用方传进来:它是个网络请求,留在这里就没法跟AI猜测并发。
+    提示②(AI线索)不在这里:它是网络请求,上传时就由 services/enrich.py 算好入库了。
     """
     if photo.story:
         teaser = photo.story[: max(6, len(photo.story) // 2)]
@@ -206,12 +236,3 @@ async def _generate_system_hints(session: AsyncSession, photo: Photo, hint2_cont
             if macro:
                 session.add(Hint(photo_id=photo.id, level=3, content=f"在{macro.name}地区", source="system"))
             session.add(Hint(photo_id=photo.id, level=4, content=f"在{province.name}", source="system"))
-
-    session.add(
-        Hint(
-            photo_id=photo.id,
-            level=2,
-            content=hint2_content or "注意画面里的植被与建筑样式(开发桩:正式版由AI生成,审核可改)",
-            source="ai",
-        )
-    )

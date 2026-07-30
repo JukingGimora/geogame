@@ -33,6 +33,7 @@
       <option value="rejected">已拒绝</option>
     </select>
     <button @click="load()">刷新</button>
+    <button @click="enrich()" x-show="status === 'pending'">补算AI</button>
     <span class="dim" x-text="pageInfo()"></span>
     <span class="dim" x-text="msg"></span>
   </div>
@@ -117,6 +118,13 @@ function admin() {
     },
     prev() { if (this.offset > 0) { this.offset = Math.max(0, this.offset - this.limit); this.load() } },
     next() { if (this.offset + this.limit < this.total) { this.offset += this.limit; this.load() } },
+    async enrich() {
+      this.msg = '正在补算…'
+      const r = await fetch('/api/v1/admin/photos/enrich-missing?limit=20', { method: 'POST', headers: this.headers() })
+      if (!r.ok) { this.msg = '补算失败 (' + r.status + ')'; return }
+      const d = await r.json()
+      this.msg = `已补算 ${d.enriched} 张，还差 ${d.remaining} 张`
+    },
     async approve(id) {
       const r = await fetch(`/api/v1/admin/photos/${id}/approve`, { method: 'POST', headers: this.headers() })
       this.msg = r.ok ? `#${id} 已上线` : '操作失败'

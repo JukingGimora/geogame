@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import AIGuess, Hint, Photo, Round, User
 from app.services.auth import get_current_user
+from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province
 from app.storage import process_image, storage
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("")
 async def upload_photo(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     lat: float = Form(...),
     lng: float = Form(...),
@@ -51,6 +53,8 @@ async def upload_photo(
     )
     session.add(photo)
     await session.commit()
+    # AI 猜测和提示②现在就算,别拖到审核通过时让审核页干等
+    background_tasks.add_task(enrich_photo, photo.id)
     return {"id": photo.id, "status": photo.status}
 
 
