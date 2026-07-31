@@ -23,6 +23,30 @@ async function guestLogin(): Promise<void> {
   const res = await rawRequest('POST', '/api/v1/auth/guest', { device_key: deviceKey(), nickname, avatar_url: avatarUrl })
   token = res.token
   uni.setStorageSync(TOKEN_KEY, token)
+  await restoreByWechat()
+}
+
+/**
+ * 游客身份只锚在本地存储的 device_key 上,而小程序的开发版/体验版/正式版存储互相隔离、
+ * 微信也会在空间紧张时清理它——存储一没,老用户就变成了全新游客,上传和积分全部失联。
+ * openid 不会丢,所以每次登录后立刻静默绑一次:后端认得这个 openid 的话,会把原来的
+ * 账号换回来。绑不上不影响继续玩,顶多是这次仍以游客身份进行。
+ */
+async function restoreByWechat(): Promise<void> {
+  // #ifdef MP-WEIXIN
+  try {
+    const code = await new Promise<string>((resolve, reject) => {
+      uni.login({ provider: 'weixin', success: (r: any) => resolve(r.code), fail: reject })
+    })
+    const res = await rawRequest('POST', '/api/v1/auth/wechat', { code })
+    if (res?.token) {
+      token = res.token
+      uni.setStorageSync(TOKEN_KEY, token)
+    }
+  } catch {
+    /* 静默失败:没绑上不该挡着人玩 */
+  }
+  // #endif
 }
 
 function rawRequest(method: 'GET' | 'POST' | 'DELETE', path: string, data?: any): Promise<any> {

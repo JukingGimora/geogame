@@ -23,14 +23,34 @@ _UNDERSTOOD = func.count(func.distinct(case((Round.distance_km <= CLOSE_KM, Run.
 
 
 def counts_by_uploader():
-    """子查询:uid -> 看过他照片的不同人数。给排行榜用。"""
-    return (
+    """子查询:uid -> 看过他照片的不同人数。给排行榜用。
+
+    只统计上传者的话,这个榜上就只有寥寥几个人,而**玩得再多也进不去**——
+    线上默认打开的正是这个榜,新玩家看到的就是一块跟自己无关的空地。
+    所以把"玩过或传过的人"都收进来,没被看见的记 0,至少人人都能找到自己。
+    """
+    seen = (
         select(Photo.uploader_id.label("uid"), _SEEN.label("v"))
         .select_from(Round)
         .join(Run, Round.run_id == Run.id)
         .join(Photo, Round.photo_id == Photo.id)
         .where(*_CONDITIONS)
         .group_by(Photo.uploader_id)
+        .subquery()
+    )
+    # 有过完整一轮、或上传过照片的人,都算"参与过"
+    participants = (
+        select(Run.user_id.label("uid")).where(Run.status == "finished")
+        .union(select(Photo.uploader_id.label("uid")))
+        .subquery()
+    )
+    return (
+        select(
+            participants.c.uid.label("uid"),
+            func.coalesce(seen.c.v, 0).label("v"),
+        )
+        .select_from(participants)
+        .join(seen, seen.c.uid == participants.c.uid, isouter=True)
         .subquery()
     )
 
