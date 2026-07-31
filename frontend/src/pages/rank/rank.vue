@@ -79,9 +79,13 @@ const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfile
 const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
 
 async function load() {
-  const res = await api.leaderboard(board.value)
-  data.value = res
-  pulse.value = res.pulse
+  try {
+    const res = await api.leaderboard(board.value)
+    data.value = res
+    pulse.value = res?.pulse ?? null
+  } catch {
+    // 拉不到榜单就维持空态,别把未捕获的 rejection 抛到页面上
+  }
 }
 
 function switchBoard(b: Board) {

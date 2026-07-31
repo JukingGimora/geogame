@@ -136,7 +136,13 @@ onLoad(async (query) => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   enableShareMenu()
   const runId = Number(query?.runId)
-  run.value = await api.getRun(runId)
+  try {
+    run.value = await api.getRun(runId)
+  } catch (e: unknown) {
+    // 拿不到这一局就没有任何东西可渲染,页面会是全黑的。宁可说清楚再退回地图
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
+    setTimeout(() => uni.reLaunch({ url: '/pages/map/map' }), 1500)
+  }
 })
 
 function photoUrl(path: string): string {
