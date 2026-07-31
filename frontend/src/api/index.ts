@@ -5,6 +5,7 @@ const DEVICE_KEY = 'geogame_device'
 const NICKNAME_KEY = 'geogame_nickname'
 const AVATAR_KEY = 'geogame_avatar'
 const LOGGED_IN_KEY = 'geogame_logged_in'
+const WX_BOUND_KEY = 'geogame_wx_bound'
 
 function deviceKey(): string {
   let key = uni.getStorageSync(DEVICE_KEY)
@@ -27,6 +28,18 @@ async function guestLogin(): Promise<void> {
 }
 
 /**
+ * 启动时补一次绑定:存储还完好的老用户根本不会走 guestLogin,
+ * 也就从来没绑过 openid——等哪天存储真被清了,已经来不及了。
+ */
+export async function ensureWechatBinding(): Promise<void> {
+  // #ifdef MP-WEIXIN
+  if (!token) return                        // 没登录过,guestLogin 里会绑
+  if (uni.getStorageSync(WX_BOUND_KEY)) return
+  await restoreByWechat()
+  // #endif
+}
+
+/**
  * 游客身份只锚在本地存储的 device_key 上,而小程序的开发版/体验版/正式版存储互相隔离、
  * 微信也会在空间紧张时清理它——存储一没,老用户就变成了全新游客,上传和积分全部失联。
  * openid 不会丢,所以每次登录后立刻静默绑一次:后端认得这个 openid 的话,会把原来的
@@ -35,6 +48,7 @@ async function guestLogin(): Promise<void> {
 async function restoreByWechat(): Promise<void> {
   // #ifdef MP-WEIXIN
   try {
+    uni.setStorageSync(WX_BOUND_KEY, '1')
     const code = await new Promise<string>((resolve, reject) => {
       uni.login({ provider: 'weixin', success: (r: any) => resolve(r.code), fail: reject })
     })

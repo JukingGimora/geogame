@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app'
 import { logEvent } from './lib/analytics'
+import { ensureWechatBinding } from './api'
 
 onLaunch(() => {
   logEvent('session_start')
+  // 趁账号还在,把 openid 绑上;将来存储被清才找得回来
+  ensureWechatBinding()
 })
 </script>
 
