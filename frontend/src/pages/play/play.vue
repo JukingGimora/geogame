@@ -216,7 +216,7 @@ function shareImage(): string | undefined {
 
 onShareAppMessage(() => ({
   title: shareTitle(),
-  path: '/pages/map/map',
+  path: '/pages/opening/opening',
   imageUrl: shareImage(),
 }))
 

@@ -149,7 +149,7 @@ onMounted(async () => {
 })
 
 // #ifdef MP-WEIXIN
-onShareAppMessage(() => ({ title: t('map.shareTitle'), path: '/pages/map/map' }))
+onShareAppMessage(() => ({ title: t('map.shareTitle'), path: '/pages/opening/opening' }))
 // #endif
 
 const fbExpanded = ref(false)

@@ -13,11 +13,11 @@
       <text class="hint-arrow">›</text>
     </view>
     <view class="tabs">
-      <view class="tab" :class="{ active: board === 'points' }" @tap="switchBoard('points')">
-        {{ t('rank.points') }}
-      </view>
       <view class="tab" :class="{ active: board === 'best_run' }" @tap="switchBoard('best_run')">
         {{ t('rank.bestRun') }}
+      </view>
+      <view class="tab" :class="{ active: board === 'points' }" @tap="switchBoard('points')">
+        {{ t('rank.points') }}
       </view>
     </view>
 
@@ -71,7 +71,7 @@ interface RankRow {
   is_me: boolean
 }
 
-const board = ref<Board>('points')
+const board = ref<Board>('best_run')
 const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; avatar_url?: string } } | null>(null)
 const pulse = ref<{ active_today: number; photos_live: number; photos_today: number; my_seen_today: number } | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('rank')
@@ -107,7 +107,7 @@ function onShareTap() {
   logEvent('share_click', 'page', undefined, { location: 'rank' })
 }
 
-onShareAppMessage(() => ({ title: shareTitle(), path: '/pages/rank/rank' }))
+onShareAppMessage(() => ({ title: shareTitle(), path: '/pages/opening/opening' }))
 
 onShareTimeline(() => ({ title: shareTitle() }))
 // #endif

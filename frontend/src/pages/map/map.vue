@@ -61,7 +61,7 @@ function go(url: string) {
 // #ifdef MP-WEIXIN
 onShareAppMessage(() => ({
   title: t('map.shareTitle'),
-  path: '/pages/map/map',
+  path: '/pages/opening/opening',
 }))
 
 onShareTimeline(() => ({
