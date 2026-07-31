@@ -20,7 +20,11 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+// #ifdef MP-WEIXIN
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+// #endif
 import { t, tList } from '../../locale'
+import { enableShareMenu } from '../../lib/share'
 
 const lines = tList('opening.lines')
 const shown = ref(-1)
@@ -31,6 +35,7 @@ let audio: UniApp.InnerAudioContext | null = null
 
 onMounted(() => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
+  enableShareMenu()
   const seen = uni.getStorageSync('geogame_seen_opening')
   const interval = seen ? 250 : 2000
 
@@ -64,6 +69,12 @@ function next() {
     enter()
   }
 }
+
+// 所有分享都落在这一页,它自己必须也能被转发,否则传播在第一跳就断了
+// #ifdef MP-WEIXIN
+onShareAppMessage(() => ({ title: t('map.shareTitle'), path: '/pages/opening/opening' }))
+onShareTimeline(() => ({ title: t('map.shareTitle') }))
+// #endif
 
 function enter() {
   uni.setStorageSync('geogame_seen_opening', '1')
