@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, Round, User
+from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, Round, Run, User
 from app.services.auth import require_admin
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
