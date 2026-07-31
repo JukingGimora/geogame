@@ -9,12 +9,12 @@ from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.scoring import final_score, haversine_km
+from app.services.understood import CLOSE_KM
 from app.storage import storage
 
 router = APIRouter(tags=["play"])
 
 ROUNDS_PER_RUN = 5
-CLOSE_KM = 100.0
 
 
 class RunIn(BaseModel):

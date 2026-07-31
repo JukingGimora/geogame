@@ -89,6 +89,9 @@ export default {
   rank: {
     title: '排行榜',
     profileHint: '设置昵称头像或绑定微信，换设备也能找回你的排名和记录',
+    pulse: '今天 {active} 人在猜 · 题库 {photos} 张',
+    pulseNew: ' · 今日新增 {n} 张',
+    seenToday: '✨ 你的照片今天被 {n} 个人看过',
     bestRun: '最佳一轮',
     points: '被看见',
     empty: '还没有人上榜',
@@ -108,6 +111,8 @@ export default {
     deleteConfirm: '删掉这张照片？',
     deleteHint: '删除后无法恢复',
     deleted: '已删除',
+    summary: '你的 {photos} 张照片，被 {seen} 个人看过，其中 {understood} 人读懂了',
+    photoStat: '{seen} 人看过 · {understood} 人读懂',
     expand: '还有 {n} 张，展开看看',
     collapse: '收起',
     status: { pending: '审核中', live: '已上线', rejected: '未通过' },

@@ -1,16 +1,23 @@
 <template>
   <view class="rank">
     <text class="g-title">{{ t('rank.title') }}</text>
+    <text v-if="pulse" class="pulse">
+      {{ t('rank.pulse', { active: pulse.active_today, photos: pulse.photos_live })
+         + (pulse.photos_today > 0 ? t('rank.pulseNew', { n: pulse.photos_today }) : '') }}
+    </text>
+    <text v-if="pulse && pulse.my_seen_today > 0" class="pulse-me">
+      {{ t('rank.seenToday', { n: pulse.my_seen_today }) }}
+    </text>
     <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
       <text>{{ t('rank.profileHint') }}</text>
       <text class="hint-arrow">›</text>
     </view>
     <view class="tabs">
-      <view class="tab" :class="{ active: board === 'best_run' }" @tap="switchBoard('best_run')">
-        {{ t('rank.bestRun') }}
-      </view>
       <view class="tab" :class="{ active: board === 'points' }" @tap="switchBoard('points')">
         {{ t('rank.points') }}
+      </view>
+      <view class="tab" :class="{ active: board === 'best_run' }" @tap="switchBoard('best_run')">
+        {{ t('rank.bestRun') }}
       </view>
     </view>
 
@@ -64,14 +71,17 @@ interface RankRow {
   is_me: boolean
 }
 
-const board = ref<Board>('best_run')
+const board = ref<Board>('points')
 const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; avatar_url?: string } } | null>(null)
+const pulse = ref<{ active_today: number; photos_live: number; photos_today: number; my_seen_today: number } | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('rank')
 
 const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
 
 async function load() {
-  data.value = await api.leaderboard(board.value)
+  const res = await api.leaderboard(board.value)
+  data.value = res
+  pulse.value = res.pulse
 }
 
 function switchBoard(b: Board) {
@@ -109,6 +119,18 @@ onShareTimeline(() => ({ title: shareTitle() }))
   background: #16110c;
   padding: 90rpx 24rpx 40rpx;
   box-sizing: border-box;
+}
+.pulse {
+  display: block;
+  color: #a2937b;
+  font-size: 23rpx;
+  margin-top: 8rpx;
+}
+.pulse-me {
+  display: block;
+  color: #8fd3a8;
+  font-size: 24rpx;
+  margin-top: 8rpx;
 }
 .hint-bar {
   display: flex;

@@ -280,6 +280,7 @@ async def stats(session: AsyncSession = Depends(get_session)):
             "clickers": profile_hint_clickers or 0,
             "rate": round((profile_hint_clickers or 0) / profile_hint_viewers, 4) if profile_hint_viewers else None,
         },
+        "cohorts": await _cohorts(session),
         "ai_duel": {
             "rounds": duel.rounds or 0,
             "player_wins": duel.player_wins or 0,
@@ -289,6 +290,42 @@ async def stats(session: AsyncSession = Depends(get_session)):
         },
         "total_events": total_events,
     }
+
+
+NEW_USER_DAYS = 7
+
+
+async def _cohorts(session: AsyncSession) -> dict:
+    """新老用户各自的上传率、通关率。
+
+    立项报告第三道门原本写的是"非熟人上传",但熟人这个界线没法严格界定。
+    换成按注册时间分组问同一件事:**后来的人**——没有人情压力的那批——
+    是不是也会传照片、也会把一轮打完。老用户那栏是参照系。
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=NEW_USER_DAYS)
+    out = {}
+    for name, cond in (("new", User.created_at >= cutoff), ("old", User.created_at < cutoff)):
+        total = await session.scalar(select(func.count()).select_from(User).where(cond))
+        uploaders = await session.scalar(
+            select(func.count(func.distinct(Photo.uploader_id)))
+            .select_from(Photo)
+            .join(User, User.id == Photo.uploader_id)
+            .where(cond)
+        )
+        finishers = await session.scalar(
+            select(func.count(func.distinct(Run.user_id)))
+            .select_from(Run)
+            .join(User, User.id == Run.user_id)
+            .where(Run.status == "finished", cond)
+        )
+        out[name] = {
+            "users": total or 0,
+            "uploaders": uploaders or 0,
+            "upload_rate": round((uploaders or 0) / total, 4) if total else None,
+            "finishers": finishers or 0,
+            "finish_rate": round((finishers or 0) / total, 4) if total else None,
+        }
+    return out
 
 
 async def _describe_point(session: AsyncSession, lat: float, lng: float) -> str | None:

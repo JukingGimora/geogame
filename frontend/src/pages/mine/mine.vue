@@ -4,6 +4,9 @@
       <text class="g-title">{{ t('mine.title') }}</text>
       <text class="g-stamp" v-if="me">{{ t('map.points') }} {{ me.points }}</text>
     </view>
+    <text v-if="summary && summary.photos > 0" class="summary">
+      {{ t('mine.summary', { photos: summary.photos, seen: summary.seen, understood: summary.understood }) }}
+    </text>
     <button class="g-btn" @tap="editProfile">{{ t('mine.editProfile') }}</button>
     <view v-if="photos.length === 0" class="empty">{{ t('mine.empty') }}</view>
 
@@ -14,6 +17,9 @@
           <text class="status" :class="p.status">{{ statusText[p.status] }}</text>
           <text class="del" @tap="removePhoto(p)">{{ t('mine.delete') }}</text>
         </view>
+        <text v-if="p.status === 'live'" class="seen">
+          {{ t('mine.photoStat', { seen: p.seen, understood: p.understood }) }}
+        </text>
         <text v-if="p.reject_reason" class="reason">{{ p.reject_reason }}</text>
         <text v-if="p.story" class="story">{{ p.story }}</text>
       </view>
@@ -96,6 +102,7 @@ const statusText = tMap('mine.status')
 
 const COLLAPSED_COUNT = 3
 const photosExpanded = ref(false)
+const summary = ref<{ photos: number; seen: number; understood: number } | null>(null)
 const visiblePhotos = computed(() =>
   photosExpanded.value ? photos.value : photos.value.slice(0, COLLAPSED_COUNT),
 )
@@ -126,8 +133,19 @@ function editProfile() {
 onMounted(async () => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   enableShareMenu(false)
-  photos.value = await api.myPhotos()
-  me.value = await api.me()
+  // 兜底:任何一个请求失败都不该让整页白屏,宁可少显示一块
+  try {
+    const res = await api.myPhotos()
+    photos.value = res?.items ?? []
+    summary.value = res?.summary ?? null
+  } catch (e) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
+  }
+  try {
+    me.value = await api.me()
+  } catch {
+    me.value = null
+  }
 })
 
 // #ifdef MP-WEIXIN
@@ -314,6 +332,17 @@ function previewPhoto(p: any) {
 }
 .status.rejected {
   color: #e08484;
+}
+.summary {
+  display: block;
+  color: #8fd3a8;
+  font-size: 24rpx;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+.seen {
+  color: #8fd3a8;
+  font-size: 22rpx;
 }
 .reason {
   color: #e08484;

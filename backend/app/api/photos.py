@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import AIGuess, Hint, Photo, Round, User
+from app.services import understood
 from app.services.auth import get_current_user
 from app.services.geo import nearest_province
 from app.storage import process_image, storage
@@ -99,14 +100,34 @@ async def my_photos(
             select(Photo).where(Photo.uploader_id == user.id).order_by(Photo.id.desc()).limit(limit)
         )
     ).all()
-    return [
-        {
-            "id": p.id,
-            "url": storage.url(p.file_key),
-            "status": p.status,
-            "reject_reason": p.reject_reason,
-            "story": p.story,
-            "created_at": p.created_at.isoformat(),
-        }
-        for p in photos
-    ]
+
+    stats = {}
+    if photos:
+        rows = await session.execute(understood.by_photo([p.id for p in photos]))
+        stats = {pid: (seen, got) for pid, seen, got in rows}
+    # 汇总要覆盖他全部照片,不只是返回的这几张
+    total_uploaded = await session.scalar(
+        select(func.count()).select_from(Photo).where(Photo.uploader_id == user.id)
+    )
+    summary = (await session.execute(understood.summary_for(user.id))).one()
+
+    return {
+        "items": [
+            {
+                "id": p.id,
+                "url": storage.url(p.file_key),
+                "status": p.status,
+                "reject_reason": p.reject_reason,
+                "story": p.story,
+                "seen": stats.get(p.id, (0, 0))[0],
+                "understood": stats.get(p.id, (0, 0))[1],
+                "created_at": p.created_at.isoformat(),
+            }
+            for p in photos
+        ],
+        "summary": {
+            "photos": total_uploaded or 0,
+            "seen": summary.seen or 0,
+            "understood": summary.understood or 0,
+        },
+    }
