@@ -7,8 +7,10 @@
  */
 export function enableShareMenu(withTimeline = true): void {
   // #ifdef MP-WEIXIN
+  // 必须给 fail:某些入口(如未授权场景)会 reject,不接住就是一个未捕获异常
   uni.showShareMenu({
     menus: withTimeline ? ['shareAppMessage', 'shareTimeline'] : ['shareAppMessage'],
+    fail: () => {},
   })
   // #endif
 }

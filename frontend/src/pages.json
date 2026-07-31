@@ -9,9 +9,7 @@
     {
       "path": "pages/map/map",
       "style": {
-        "navigationStyle": "custom",
-        "enableShareTimeline": true,
-        "enableShareAppMessage": true
+        "navigationStyle": "custom"
       }
     },
     {
@@ -23,9 +21,7 @@
     {
       "path": "pages/play/play",
       "style": {
-        "navigationStyle": "custom",
-        "enableShareTimeline": true,
-        "enableShareAppMessage": true
+        "navigationStyle": "custom"
       }
     },
     {
@@ -37,16 +33,13 @@
     {
       "path": "pages/mine/mine",
       "style": {
-        "navigationStyle": "custom",
-        "enableShareAppMessage": true
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/rank/rank",
       "style": {
-        "navigationStyle": "custom",
-        "enableShareTimeline": true,
-        "enableShareAppMessage": true
+        "navigationStyle": "custom"
       }
     }
   ],

@@ -83,5 +83,10 @@ async def update_profile(body: ProfileIn, user: User = Depends(get_current_user)
 @router.get("/me")
 async def me(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     # 跟排行榜口径一致:算"多少个不同的人猜过我的照片",不是积分流水求和
-    points = await session.scalar(understood.count_for(user.id))
-    return {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url, "points": points or 0}
+    row = (await session.execute(understood.summary_for(user.id))).one()
+    return {
+        "id": user.id,
+        "nickname": user.nickname,
+        "avatar_url": user.avatar_url,
+        "points": row.seen or 0,
+    }
