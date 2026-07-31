@@ -42,14 +42,20 @@ check "POST /feedback" 200 "$(code -X POST "$API/feedback" "${AUTH[@]}" "${JSON[
 
 # 一局完整流程。题库被这个探针玩空后会返回 409,那是预期的,不算失败。
 RUN=$(curl -s -m 25 -X POST "$API/runs" "${AUTH[@]}" "${JSON[@]}" -d '{}')
-RID=$(echo "$RUN" | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d["rounds"][0]["round_id"])' 2>/dev/null)
+# 必须取第一个**未完成**的关:固定设备号第二次跑时,/runs 会返回上次没打完的那局,
+# 取 rounds[0] 会撞上已经猜过的关,白报 409。
+RID=$(echo "$RUN" | python3 -c '
+import sys,json
+d=json.load(sys.stdin)
+r=next((x for x in d["rounds"] if not x["finished"]), None)
+print(r["round_id"] if r else "")' 2>/dev/null)
 if [ -n "$RID" ]; then
   check "POST /runs" 200 200
   check "GET  /runs/{id}" 200 "$(code "$API/runs/$(echo "$RUN"|python3 -c 'import sys,json;print(json.load(sys.stdin)["run_id"])')" "${AUTH[@]}")"
   check "POST /rounds/{id}/hints" 200 "$(code -X POST "$API/rounds/$RID/hints" "${AUTH[@]}" "${JSON[@]}" -d '{"level":1}')"
   check "POST /rounds/{id}/guess" 200 "$(code -X POST "$API/rounds/$RID/guess" "${AUTH[@]}" "${JSON[@]}" -d '{"lat":30,"lng":104}')"
 else
-  echo "  · /runs 未开出新局(题库对该探针已玩空),跳过关卡接口"
+  echo "  · 没有未完成的关(题库对该探针已玩空),跳过关卡接口"
 fi
 
 if [ -n "$ADMIN" ]; then
