@@ -61,6 +61,10 @@
           <text class="story-from">{{ t('play.storyFrom', { name: result.uploader.nickname }) }}</text>
           <text class="story-text">{{ result.story }}</text>
         </view>
+        <view class="invite" @tap="goUpload">
+          <text>{{ t('play.uploadInvite') }}</text>
+          <text class="invite-arrow">›</text>
+        </view>
         <!-- #ifdef MP-WEIXIN -->
         <button class="g-btn" open-type="share" @tap="onShareTap">{{ t('play.share') }}</button>
         <!-- #endif -->
@@ -138,12 +142,20 @@ onLoad(async (query) => {
   const runId = Number(query?.runId)
   try {
     run.value = await api.getRun(runId)
+    logRoundStart()
   } catch (e: unknown) {
     // 拿不到这一局就没有任何东西可渲染,页面会是全黑的。宁可说清楚再退回地图
     uni.showToast({ title: errorMessage(e), icon: 'none' })
     setTimeout(() => uni.reLaunch({ url: '/pages/map/map' }), 1500)
   }
 })
+
+/** 每一关展示时打一次。没有它就只有"开始"和"完成"两头,中间全黑,答不了"卡在第几关"。 */
+function logRoundStart() {
+  if (current.value) {
+    logEvent('round_start', 'round', current.value.round_id, { order: current.value.order + 1 })
+  }
+}
 
 function photoUrl(path: string): string {
   return path.startsWith('http') ? path : BASE_URL + path
@@ -195,6 +207,7 @@ async function nextRound() {
   picked.value = null
   unlockedContents.value = []
   phase.value = 'view'
+  logRoundStart()
   if (!current.value) {
     finished.value = true
     logEvent('run_finished', 'run', runId, { total_score: run.value.total_score })
@@ -204,6 +217,11 @@ async function nextRound() {
 
 function backHome() {
   uni.reLaunch({ url: '/pages/map/map' })
+}
+
+function goUpload() {
+  logEvent('upload_invite_click', 'round', recapRoundId ?? undefined)
+  uni.navigateTo({ url: '/pages/upload/upload' })
 }
 
 function onShareTap() {
@@ -360,6 +378,20 @@ onShareTimeline(() => ({
   color: #cabfa8;
   font-size: 26rpx;
   line-height: 1.7;
+}
+.invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px dashed #4b4231;
+  border-radius: 8rpx;
+  padding: 20rpx 24rpx;
+  color: #a2937b;
+  font-size: 25rpx;
+}
+.invite-arrow {
+  color: #f5a33c;
+  font-size: 30rpx;
 }
 .story-card {
   border-left: 4rpx solid #f5a33c;

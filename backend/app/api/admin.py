@@ -270,10 +270,13 @@ async def stats(session: AsyncSession = Depends(get_session)):
             "retained": retained,
             "rate": round(retained / eligible, 4) if eligible else None,
         },
+        # 分母曾经用 recap_viewers(看过关卡结算的人),但后来地图页、排行榜也能分享了,
+        # 分子里混进了没玩过的人,算出过 2.57 这种大于 1 的"比率"。改成占全部用户的比例。
         "share_rate": {
-            "recap_viewers": recap_viewers or 0,
+            "users": len(users),
             "sharers": sharers or 0,
-            "rate": round((sharers or 0) / recap_viewers, 4) if recap_viewers else None,
+            "rate": round((sharers or 0) / len(users), 4) if users else None,
+            "recap_viewers": recap_viewers or 0,
         },
         "profile_hint_rate": {
             "viewers": profile_hint_viewers or 0,

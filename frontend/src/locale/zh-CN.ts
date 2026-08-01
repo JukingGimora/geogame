@@ -72,6 +72,7 @@ export default {
     total: '本轮总分',
     backHome: '回到地图',
     share: '分享给朋友',
+    uploadInvite: '你也有这样一个地方吧？让别人也猜猜看',
     shareTitleWon: '我猜中了，还赢了AI（{score}分）！你能猜得比我准吗？',
     shareTitleDefault: '这张照片是哪拍的？我猜了{score}分，你来试试',
   },
