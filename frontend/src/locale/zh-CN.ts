@@ -114,6 +114,8 @@ export default {
     deleted: '已删除',
     summary: '你的 {photos} 张照片，被 {seen} 个人看过，其中 {understood} 人读懂了',
     photoStat: '{seen} 人看过 · {understood} 人读懂',
+    challenge: '叫朋友猜这张',
+    challengeTitle: '我拍的这个地方，你猜得到吗？',
     expand: '还有 {n} 张，展开看看',
     collapse: '收起',
     status: { pending: '审核中', live: '已上线', rejected: '未通过' },

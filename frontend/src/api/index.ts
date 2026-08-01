@@ -104,7 +104,8 @@ export const api = {
     return res
   },
   regions: () => request('GET', '/api/v1/regions'),
-  createRun: (regionId?: number) => request('POST', '/api/v1/runs', { region_id: regionId ?? null }),
+  createRun: (regionId?: number, photoId?: number) =>
+    request('POST', '/api/v1/runs', { region_id: regionId ?? null, photo_id: photoId ?? null }),
   getRun: (runId: number) => request('GET', `/api/v1/runs/${runId}`),
   unlockHint: (roundId: number, level: number) => request('POST', `/api/v1/rounds/${roundId}/hints`, { level }),
   guess: (roundId: number, lat: number, lng: number) =>

@@ -19,6 +19,8 @@ ROUNDS_PER_RUN = 5
 
 class RunIn(BaseModel):
     region_id: int | None = None
+    # 从"叫朋友猜这张"的分享进来时带上,这一局就从那张开始
+    photo_id: int | None = None
 
 
 class GuessIn(BaseModel):
@@ -52,11 +54,24 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     played_ids = (
         await session.scalars(select(Round.photo_id).join(Run, Round.run_id == Run.id).where(Run.user_id == user.id))
     ).all()
-    photos = (
+    photos = list(
         await session.scalars(
             playable.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(ROUNDS_PER_RUN)
         )
-    ).all()
+    )
+
+    # 朋友指名要你猜的那张,排到第一关。
+    # 拿不到就默默按普通一局走——他是被朋友叫来的,不能因为"这张你玩过了"就把人挡在门外。
+    if body.photo_id:
+        wanted = await session.get(Photo, body.photo_id)
+        if (
+            wanted
+            and wanted.status == "live"
+            and wanted.uploader_id != user.id
+            and wanted.id not in played_ids
+        ):
+            photos = [wanted] + [p for p in photos if p.id != wanted.id][: ROUNDS_PER_RUN - 1]
+
     if not photos:
         # 三种空库的原因,前端提示各不相同
         if await session.scalar(select(func.count()).select_from(playable.subquery())):

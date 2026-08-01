@@ -20,6 +20,14 @@
         <text v-if="p.status === 'live'" class="seen">
           {{ t('mine.photoStat', { seen: p.seen, understood: p.understood }) }}
         </text>
+        <!-- #ifdef MP-WEIXIN -->
+        <button
+          v-if="p.status === 'live'"
+          class="g-btn challenge"
+          open-type="share"
+          @tap="onSharePhoto(p)"
+        >{{ t('mine.challenge') }}</button>
+        <!-- #endif -->
         <text v-if="p.reject_reason" class="reason">{{ p.reject_reason }}</text>
         <text v-if="p.story" class="story">{{ p.story }}</text>
       </view>
@@ -94,6 +102,7 @@ import { api, BASE_URL } from '../../api'
 import { t, tMap } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
 import { errorMessage } from '../../lib/errors'
+import { logEvent } from '../../lib/analytics'
 
 const photos = ref<any[]>([])
 const me = ref<{ points: number } | null>(null)
@@ -149,7 +158,27 @@ onMounted(async () => {
 })
 
 // #ifdef MP-WEIXIN
-onShareAppMessage(() => ({ title: t('map.shareTitle'), path: '/pages/opening/opening' }))
+// 点了哪张就分享哪张。分享自己的照片跟分享"这个游戏"是两回事:
+// 前者是内容,接收方有理由回应;后者是广告,划走就完了。
+const sharingPhoto = ref<any>(null)
+
+function onSharePhoto(p: any) {
+  sharingPhoto.value = p
+  logEvent('challenge_share', 'photo', p.id)
+}
+
+onShareAppMessage(() => {
+  const p = sharingPhoto.value
+  sharingPhoto.value = null
+  if (p) {
+    return {
+      title: t('mine.challengeTitle'),
+      path: `/pages/opening/opening?photo=${p.id}`,
+      imageUrl: photoUrl(p.url),
+    }
+  }
+  return { title: t('map.shareTitle'), path: '/pages/opening/opening' }
+})
 // #endif
 
 const fbExpanded = ref(false)
@@ -343,6 +372,11 @@ function previewPhoto(p: any) {
 .seen {
   color: #8fd3a8;
   font-size: 22rpx;
+}
+.challenge {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 2.2;
 }
 .reason {
   color: #e08484;

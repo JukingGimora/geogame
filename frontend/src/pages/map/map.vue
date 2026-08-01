@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 // #ifdef MP-WEIXIN
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 // #endif
@@ -34,6 +35,12 @@ const fogPoints = ref<FogPoint[]>([])
 const topOffset = ref(0)
 const mapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.62)
 
+// 朋友指名的那张:一进来就开局,别让人还得自己找"开始一轮"
+onLoad((q) => {
+  const id = Number(q?.photo)
+  if (id) startRun(id)
+})
+
 onMounted(async () => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   enableShareMenu()
@@ -45,9 +52,9 @@ onMounted(async () => {
   }
 })
 
-async function startRun() {
+async function startRun(photoId?: number) {
   try {
-    const run = await api.createRun()
+    const run = await api.createRun(undefined, photoId)
     uni.navigateTo({ url: `/pages/play/play?runId=${run.run_id}` })
   } catch (e: unknown) {
     uni.showToast({ title: errorMessage(e), icon: 'none' })

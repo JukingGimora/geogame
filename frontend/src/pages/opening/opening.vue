@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 // #ifdef MP-WEIXIN
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 // #endif
@@ -30,6 +31,12 @@ const lines = tList('opening.lines')
 const shown = ref(-1)
 const topOffset = ref(0)
 const muted = ref(false)
+// 「叫朋友猜这张」带来的照片 id,原样传给地图页去开局
+let wantedPhoto = ''
+
+onLoad((q) => {
+  wantedPhoto = String(q?.photo ?? '')
+})
 let timer: ReturnType<typeof setInterval> | null = null
 let audio: UniApp.InnerAudioContext | null = null
 
@@ -79,7 +86,7 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
 function enter() {
   uni.setStorageSync('geogame_seen_opening', '1')
   audio?.stop()
-  uni.reLaunch({ url: '/pages/map/map' })
+  uni.reLaunch({ url: wantedPhoto ? `/pages/map/map?photo=${wantedPhoto}` : '/pages/map/map' })
 }
 </script>
 
