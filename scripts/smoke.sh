@@ -38,7 +38,11 @@ check "GET  /leaderboard?board=best_run" 200 "$(code "$API/leaderboard?board=bes
 check "GET  /leaderboard?board=points" 200 "$(code "$API/leaderboard?board=points" "${AUTH[@]}")"
 check "GET  /photos/mine" 200 "$(code "$API/photos/mine" "${AUTH[@]}")"
 check "POST /events" 200 "$(code -X POST "$API/events" "${AUTH[@]}" "${JSON[@]}" -d '{"event_type":"session_start"}')"
-check "POST /feedback" 200 "$(code -X POST "$API/feedback" "${AUTH[@]}" "${JSON[@]}" -d '{"content":"冒烟测试,可忽略"}')"
+# 测完顺手关掉,别把冒烟数据留在后台反馈列表里当噪音
+FB=$(curl -s -m 25 -X POST "$API/feedback" "${AUTH[@]}" "${JSON[@]}" -d '{"content":"冒烟测试,可忽略"}')
+FBID=$(echo "$FB" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))' 2>/dev/null)
+check "POST /feedback" 200 "$([ -n "$FBID" ] && echo 200 || echo 000)"
+[ -n "$FBID" ] && [ -n "$ADMIN" ] && check "POST /admin/feedback/{id}/close" 200 "$(code -X POST "$API/admin/feedback/$FBID/close" -H "X-Admin-Token: $ADMIN")"
 
 # 一局完整流程。题库被这个探针玩空后会返回 409,那是预期的,不算失败。
 RUN=$(curl -s -m 25 -X POST "$API/runs" "${AUTH[@]}" "${JSON[@]}" -d '{}')
