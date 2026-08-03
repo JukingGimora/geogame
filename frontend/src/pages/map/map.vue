@@ -6,7 +6,7 @@
     </view>
     <view class="map-frame"><ChinaMap :height="mapHeight" :fog-points="fogPoints" :show-labels="true" /></view>
     <view class="actions">
-      <button class="g-btn primary" @tap="startRun">{{ t('map.start') }}</button>
+      <button class="g-btn primary" @tap="startRun()">{{ t('map.start') }}</button>
       <view class="row">
         <button class="g-btn" @tap="go('/pages/upload/upload')">{{ t('map.upload') }}</button>
         <button class="g-btn" @tap="go('/pages/rank/rank')">{{ t('map.rank') }}</button>
@@ -53,8 +53,10 @@ onMounted(async () => {
 })
 
 async function startRun(photoId?: number) {
+  // 模板里若写成 @tap="startRun",Vue 会把事件对象塞进来,这里挡一道
+  const pid = typeof photoId === 'number' && photoId > 0 ? photoId : undefined
   try {
-    const run = await api.createRun(undefined, photoId)
+    const run = await api.createRun(undefined, pid)
     uni.navigateTo({ url: `/pages/play/play?runId=${run.run_id}` })
   } catch (e: unknown) {
     uni.showToast({ title: errorMessage(e), icon: 'none' })
