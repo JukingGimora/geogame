@@ -43,7 +43,7 @@
     </view>
     <view v-if="data && data.me.rank === null" class="empty">{{ t('rank.notRanked') }}</view>
 
-    <button class="g-btn primary play-btn" @tap="goPlay">{{ t('map.start') }}</button>
+    <button class="g-btn primary play-btn" @tap="startRun()">{{ t('map.start') }}</button>
     <!-- #ifdef MP-WEIXIN -->
     <button class="g-btn share-btn" open-type="share" @tap="onShareTap">{{ t('rank.share') }}</button>
     <!-- #endif -->
@@ -61,6 +61,7 @@ import { t } from '../../locale'
 import { logEvent } from '../../lib/analytics'
 import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'
+import { startRun } from '../../lib/play'
 
 type Board = 'best_run' | 'points'
 
@@ -87,11 +88,6 @@ async function load() {
   } catch {
     // 拉不到榜单就维持空态,别把未捕获的 rejection 抛到页面上
   }
-}
-
-// 从排行榜分享进来的人,看完榜得有路可走,不然就是个死胡同
-function goPlay() {
-  uni.reLaunch({ url: '/pages/map/map' })
 }
 
 function switchBoard(b: Board) {

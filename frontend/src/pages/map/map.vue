@@ -26,8 +26,8 @@ import ChinaMap from '../../components/ChinaMap.vue'
 import { api } from '../../api'
 import { t } from '../../locale'
 import { loadFogPoints } from '../../lib/fogStore'
-import { errorMessage } from '../../lib/errors'
 import { enableShareMenu } from '../../lib/share'
+import { startRun } from '../../lib/play'
 import type { FogPoint } from '../../lib/mapRender'
 
 const me = ref<{ nickname: string; points: number; avatar_url?: string } | null>(null)
@@ -51,17 +51,6 @@ onMounted(async () => {
     me.value = null
   }
 })
-
-async function startRun(photoId?: number) {
-  // 模板里若写成 @tap="startRun",Vue 会把事件对象塞进来,这里挡一道
-  const pid = typeof photoId === 'number' && photoId > 0 ? photoId : undefined
-  try {
-    const run = await api.createRun(undefined, pid)
-    uni.navigateTo({ url: `/pages/play/play?runId=${run.run_id}` })
-  } catch (e: unknown) {
-    uni.showToast({ title: errorMessage(e), icon: 'none' })
-  }
-}
 
 function go(url: string) {
   uni.navigateTo({ url })
