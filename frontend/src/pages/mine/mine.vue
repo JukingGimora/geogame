@@ -167,9 +167,10 @@ function onSharePhoto(p: any) {
   logEvent('challenge_share', 'photo', p.id)
 }
 
-onShareAppMessage(() => {
-  const p = sharingPhoto.value
-  sharingPhoto.value = null
+onShareAppMessage((res: any) => {
+  // 用 from 判断来源,而不是"读完清空"标志位:微信若对一次分享回调两次,
+  // 第二次就会拿到空值,卡片悄悄退化成通用分享。
+  const p = res?.from === 'button' ? sharingPhoto.value : null
   if (p) {
     return {
       title: t('mine.challengeTitle'),
