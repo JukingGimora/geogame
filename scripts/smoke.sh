@@ -21,6 +21,15 @@ check() { # 名称 期望码 实际码
 code() { curl -s -m 25 -o /dev/null -w '%{http_code}' "$@"; }
 
 echo "冒烟测试: $BASE"
+
+# 重启后隧道要几十秒才重连,期间外网是 503。直接判失败会天天误报,
+# 所以先等服务真正可达再开始测。
+for i in $(seq 1 20); do
+  [ "$(code "$BASE/health")" = "200" ] && break
+  [ $i -eq 1 ] && printf "  等待服务就绪"
+  printf "."; sleep 5
+done
+[ $i -gt 1 ] && echo ""
 check "GET  /health" 200 "$(code "$BASE/health")"
 
 TOKEN=$(curl -s -m 25 -X POST "$API/auth/guest" -H 'Content-Type: application/json' \
