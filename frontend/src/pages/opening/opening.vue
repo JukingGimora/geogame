@@ -33,9 +33,12 @@ const topOffset = ref(0)
 const muted = ref(false)
 // 「叫朋友猜这张」带来的照片 id,原样传给地图页去开局
 let wantedPhoto = ''
+// 分享来源想让人落在哪一页(比如排行榜分享,看完开场应该看到榜单本身)
+let target = ''
 
 onLoad((q) => {
   wantedPhoto = String(q?.photo ?? '')
+  target = String(q?.to ?? '')
 })
 let timer: ReturnType<typeof setInterval> | null = null
 let audio: UniApp.InnerAudioContext | null = null
@@ -86,7 +89,9 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
 function enter() {
   uni.setStorageSync('geogame_seen_opening', '1')
   audio?.stop()
-  uni.reLaunch({ url: wantedPhoto ? `/pages/map/map?photo=${wantedPhoto}` : '/pages/map/map' })
+  if (wantedPhoto) uni.reLaunch({ url: `/pages/map/map?photo=${wantedPhoto}` })
+  else if (target === 'rank') uni.reLaunch({ url: '/pages/rank/rank' })
+  else uni.reLaunch({ url: '/pages/map/map' })
 }
 </script>
 

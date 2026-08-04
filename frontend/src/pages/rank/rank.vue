@@ -43,6 +43,7 @@
     </view>
     <view v-if="data && data.me.rank === null" class="empty">{{ t('rank.notRanked') }}</view>
 
+    <button class="g-btn primary play-btn" @tap="goPlay">{{ t('map.start') }}</button>
     <!-- #ifdef MP-WEIXIN -->
     <button class="g-btn share-btn" open-type="share" @tap="onShareTap">{{ t('rank.share') }}</button>
     <!-- #endif -->
@@ -88,6 +89,11 @@ async function load() {
   }
 }
 
+// 从排行榜分享进来的人,看完榜得有路可走,不然就是个死胡同
+function goPlay() {
+  uni.reLaunch({ url: '/pages/map/map' })
+}
+
 function switchBoard(b: Board) {
   if (board.value === b) return
   board.value = b
@@ -111,7 +117,7 @@ function onShareTap() {
   logEvent('share_click', 'page', undefined, { location: 'rank' })
 }
 
-onShareAppMessage(() => ({ title: shareTitle(), path: '/pages/opening/opening' }))
+onShareAppMessage(() => ({ title: shareTitle(), path: '/pages/opening/opening?to=rank' }))
 
 onShareTimeline(() => ({ title: shareTitle() }))
 // #endif
@@ -226,7 +232,10 @@ onShareTimeline(() => ({ title: shareTitle() }))
   margin-top: 120rpx;
   font-size: 28rpx;
 }
-.share-btn {
+.play-btn {
   margin-top: 40rpx;
+}
+.share-btn {
+  margin-top: 16rpx;
 }
 </style>

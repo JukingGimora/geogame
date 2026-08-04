@@ -38,6 +38,11 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         select(Run).where(Run.user_id == user.id, Run.status == "playing").order_by(Run.id.desc())
     )
     if unfinished:
+        # 手上有没打完的局时,如果是从"叫朋友猜这张"进来的,不能直接把旧局还回去——
+        # 那样分享指定的照片永远轮不到,点链接的人只会觉得"点了没反应"。
+        # 把那张换进下一个还没猜的关,承诺兑现,进度也不丢。
+        if body.photo_id:
+            await _swap_in_photo(session, unfinished, body.photo_id, user)
         return await run_state(unfinished.id, user, session)
 
     q = select(Photo).where(Photo.status == "live")
@@ -88,6 +93,28 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         session.add(Round(run_id=run.id, photo_id=p.id, order_index=i))
     await session.commit()
     return await run_state(run.id, user, session)
+
+
+async def _swap_in_photo(session: AsyncSession, run: Run, photo_id: int, user: User) -> None:
+    """把指定照片换进这一局下一个未完成的关卡。换不了就什么都不做。"""
+    photo = await session.get(Photo, photo_id)
+    if not photo or photo.status != "live" or photo.uploader_id == user.id:
+        return
+    already = (
+        await session.scalars(
+            select(Round.photo_id).join(Run, Round.run_id == Run.id).where(Run.user_id == user.id)
+        )
+    ).all()
+    if photo_id in already:
+        return  # 他已经见过这张了,换了也没意义
+    nxt = await session.scalar(
+        select(Round)
+        .where(Round.run_id == run.id, Round.finished_at.is_(None))
+        .order_by(Round.order_index)
+    )
+    if nxt:
+        nxt.photo_id = photo_id
+        await session.commit()
 
 
 @router.get("/runs/{run_id}")
