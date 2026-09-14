@@ -72,6 +72,8 @@ async def real_ai_guess(photo: Photo) -> AIGuess | None:
                 headers={"Authorization": f"Bearer {settings.ai_api_key}"},
                 json={
                     "model": settings.ai_model,
+                    # qwen3.7 系列默认先思考:慢到 25-60 秒、会超时,还会把 AI 对手推得更强
+                    "enable_thinking": False,
                     "messages": [
                         {
                             "role": "user",
@@ -123,6 +125,7 @@ async def real_ai_hint(photo: Photo) -> str | None:
                 headers={"Authorization": f"Bearer {settings.ai_api_key}"},
                 json={
                     "model": settings.ai_model,
+                    "enable_thinking": False,
                     "messages": [
                         {
                             "role": "user",

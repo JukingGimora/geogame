@@ -19,7 +19,8 @@ from app.services.ai_stub import fake_ai_guess, real_ai_guess, real_ai_hint
 
 logger = logging.getLogger(__name__)
 
-HINT2_FALLBACK = "注意画面里的植被与建筑样式(开发桩:正式版由AI生成,审核可改)"
+# 模型调用失败时玩家会看到这句,所以不能写成开发占位的口吻
+HINT2_FALLBACK = "留意画面里的植被和建筑样式,它们藏着这里的气候和地域"
 
 
 async def enrich_photo(photo_id: int) -> None:

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     ai_api_key: str | None = None
     ai_base_url: str | None = None  # OpenAI 兼容地址,不带尾部斜杠
-    ai_model: str = "qwen3-vl-plus"
+    ai_model: str = "qwen3.7-flash"
 
     wechat_appid: str | None = None
     wechat_secret: str | None = None
