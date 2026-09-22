@@ -11,7 +11,21 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import AIGuess, Event, Feedback, Hint, Photo, Region, Round, Run, User
+from app.models import (
+    AIGuess,
+    AuthIdentity,
+    Comment,
+    Event,
+    Feedback,
+    Hint,
+    Photo,
+    PointsLedger,
+    Region,
+    Report,
+    Round,
+    Run,
+    User,
+)
 from app.services.auth import require_admin
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
@@ -197,6 +211,34 @@ async def close_feedback(feedback_id: int, session: AsyncSession = Depends(get_s
     fb.status = "closed"
     await session.commit()
     return {"id": fb.id, "status": fb.status}
+
+
+PROBE_KEY_PREFIX = "smoke-"
+
+
+@router.post("/probe-cleanup")
+async def probe_cleanup(session: AsyncSession = Depends(get_session)):
+    """删掉冒烟脚本账号留下的一切。
+
+    冒烟脚本每次都真的打一关,不清的话它会上排行榜,还会把上传者的"被看见"
+    和"今日活跃"各多算一个人。只认 smoke- 开头的游客设备号,碰不到真实用户。
+    """
+    uids = (
+        await session.scalars(
+            select(AuthIdentity.user_id).where(
+                AuthIdentity.provider == "guest", AuthIdentity.provider_uid.startswith(PROBE_KEY_PREFIX)
+            )
+        )
+    ).all()
+    if not uids:
+        return {"users": 0}
+    runs = select(Run.id).where(Run.user_id.in_(uids))
+    await session.execute(sa_delete(Round).where(Round.run_id.in_(runs)))
+    for model in (Run, Event, Feedback, PointsLedger, Comment, Report, AuthIdentity):
+        await session.execute(sa_delete(model).where(model.user_id.in_(uids)))
+    await session.execute(sa_delete(User).where(User.id.in_(uids)))
+    await session.commit()
+    return {"users": len(uids)}
 
 
 @router.post("/photos/{photo_id}/reject")

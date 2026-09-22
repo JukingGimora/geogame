@@ -78,6 +78,8 @@ if [ -n "$ADMIN" ]; then
   check "GET  /admin/stats" 200 "$(code "$API/admin/stats" "${A[@]}")"
   check "GET  /admin/feedback" 200 "$(code "$API/admin/feedback" "${A[@]}")"
   check "GET  /admin (审核页)" 200 "$(code "$BASE/admin")"
+  # 放最后:探针打过的关会上排行榜、给上传者多记一个"被看见",测完就清掉
+  check "POST /admin/probe-cleanup" 200 "$(code -X POST "$API/admin/probe-cleanup" "${A[@]}")"
 else
   echo "  · 没有 GEOGAME_ADMIN_TOKEN,跳过后台接口"
 fi
