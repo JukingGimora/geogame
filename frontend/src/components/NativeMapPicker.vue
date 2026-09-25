@@ -107,7 +107,7 @@ function onRegionChange(e: any) {
   top: 0;
   width: 2rpx;
   height: 60rpx;
-  background: #b8531a;
+  background: var(--accent);
 }
 .cross-h {
   position: absolute;
@@ -115,6 +115,6 @@ function onRegionChange(e: any) {
   left: 0;
   height: 2rpx;
   width: 60rpx;
-  background: #b8531a;
+  background: var(--accent);
 }
 </style>

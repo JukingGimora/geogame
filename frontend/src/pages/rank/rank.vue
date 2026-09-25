@@ -128,19 +128,19 @@ onShareTimeline(() => ({ title: shareTitle() }))
 <style scoped>
 .rank {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 90rpx 24rpx 40rpx;
   box-sizing: border-box;
 }
 .pulse {
   display: block;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 23rpx;
   margin-top: 8rpx;
 }
 .pulse-me {
   display: block;
-  color: #3f7d55;
+  color: var(--good);
   font-size: 24rpx;
   margin-top: 8rpx;
 }
@@ -148,12 +148,12 @@ onShareTimeline(() => ({ title: shareTitle() }))
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f7ebd0;
-  border: 1px solid #b8531a;
+  background: var(--card-alt);
+  border: 1px solid var(--accent);
   border-radius: 8rpx;
   padding: 16rpx 20rpx;
   margin-top: 20rpx;
-  color: #b8531a;
+  color: var(--accent);
   font-size: 24rpx;
 }
 .hint-arrow {
@@ -169,28 +169,28 @@ onShareTimeline(() => ({ title: shareTitle() }))
   flex: 1;
   text-align: center;
   padding: 16rpx 0;
-  border: 1px solid #c8b58a;
+  border: 1px solid var(--line-strong);
   border-radius: 8rpx;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 26rpx;
 }
 .tab.active {
-  background: #b8531a;
-  border-color: #b8531a;
-  color: #fff6e6;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 .row {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   padding: 20rpx 24rpx;
   margin-bottom: 12rpx;
 }
 .row.me {
-  border-color: #b8531a;
+  border-color: var(--accent);
 }
 .footer-me {
   margin-top: 28rpx;
@@ -208,7 +208,7 @@ onShareTimeline(() => ({ title: shareTitle() }))
 }
 .nick {
   flex: 1;
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 28rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -218,7 +218,7 @@ onShareTimeline(() => ({ title: shareTitle() }))
   font-size: 30rpx;
 }
 .empty {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   text-align: center;
   margin-top: 120rpx;
   font-size: 28rpx;

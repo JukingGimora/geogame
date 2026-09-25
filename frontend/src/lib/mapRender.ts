@@ -16,22 +16,13 @@ export interface MapMarker extends LngLat {
   kind: 'guess' | 'truth' | 'ai' | 'pick'
 }
 
+import { MAP_THEME } from './theme'
+
 export interface FogPoint extends LngLat {
   radiusKm: number
 }
 
-const COLORS = {
-  bg: '#e7dabb',
-  land: '#f2e7cb',
-  landAlt: '#eadcb9',
-  border: '#b9a273',
-  label: '#6b5a3c',
-  fog: 'rgba(10,12,16,0.78)',
-  pick: '#b8531a',
-  truth: '#2f7d4f',
-  ai: '#b5432a',
-  line: '#3b2f1c',
-}
+const COLORS = MAP_THEME
 
 interface Projector {
   toCanvas(p: LngLat): [number, number]

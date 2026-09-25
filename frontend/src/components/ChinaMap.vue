@@ -277,7 +277,7 @@ function emitPick(x: number, y: number) {
 .cmap {
   position: relative;
   width: 100%;
-  background: #e7dabb;
+  background: var(--bg-sunken);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -301,7 +301,7 @@ function emitPick(x: number, y: number) {
   line-height: 34px;
   text-align: center;
   background: rgba(35, 45, 62, 0.9);
-  color: #6b5a3c;
+  color: var(--ink-dim);
   border-radius: 8px;
   font-size: 18px;
   user-select: none;

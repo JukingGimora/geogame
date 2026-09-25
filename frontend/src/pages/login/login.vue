@@ -90,7 +90,7 @@ function leave() {
 <style scoped>
 .login {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 24rpx 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -108,7 +108,7 @@ function leave() {
 .hint {
   display: block;
   text-align: center;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 22rpx;
   margin-top: 12rpx;
   margin-bottom: 24rpx;
@@ -117,12 +117,12 @@ function leave() {
 .nick-input {
   width: 100%;
   height: 88rpx;
-  background: #e7dabb;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   padding: 0 20rpx;
   box-sizing: border-box;
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 28rpx;
   text-align: center;
   margin-bottom: 20rpx;

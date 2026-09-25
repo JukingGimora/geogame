@@ -72,7 +72,7 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
 <style scoped>
 .chapters {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 24rpx 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -89,8 +89,8 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fbf5e6;
-  border: 1px solid #c8b58a;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
   border-radius: 12rpx;
   padding: 36rpx 28rpx;
   margin-bottom: 20rpx;
@@ -101,12 +101,12 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
 }
 .card-title {
   display: block;
-  color: #b8531a;
+  color: var(--accent);
   font-size: 34rpx;
 }
 .card-desc {
   display: block;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 24rpx;
   margin-top: 10rpx;
 }

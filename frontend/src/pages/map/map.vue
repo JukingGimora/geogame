@@ -79,7 +79,7 @@ onShareTimeline(() => ({
 <style scoped>
 .home {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 24rpx 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -96,10 +96,10 @@ onShareTimeline(() => ({
 }
 
 .map-frame {
-  border: 1px solid #ddcca6;
+  border: 1px solid var(--line);
   border-radius: 12rpx;
   padding: 6rpx;
-  background: #e7dabb;
+  background: var(--bg-sunken);
 }
 
 .actions {

@@ -143,7 +143,7 @@ async function destroyAccount() {
       title: t('mine.deleteAccount'),
       content: t('mine.deleteAccountHint'),
       confirmText: t('mine.deleteAccountConfirm'),
-      confirmColor: '#b5432a',
+      confirmColor: 'var(--warn)',
       success: (res) => resolve(!!res.confirm),
       fail: () => resolve(false),
     })
@@ -252,14 +252,14 @@ function previewPhoto(p: any) {
 .danger {
   display: block;
   text-align: center;
-  color: #9a8a6b;
+  color: var(--ink-faint);
   font-size: 24rpx;
   margin: 48rpx 0 16rpx;
 }
 
 .mine {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 24rpx 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -270,16 +270,16 @@ function previewPhoto(p: any) {
   margin-bottom: 16rpx;
 }
 .title {
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 38rpx;
   display: none;
 }
 .points {
-  color: #b8531a;
+  color: var(--accent);
   font-size: 26rpx;
 }
 .empty {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 28rpx;
   text-align: center;
   margin-top: 200rpx;
@@ -296,12 +296,12 @@ function previewPhoto(p: any) {
   align-items: center;
 }
 .fb-title {
-  color: #b8531a;
+  color: var(--accent);
   font-size: 30rpx;
   font-weight: bold;
 }
 .fb-toggle {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 24rpx;
 }
 .fb-item {
@@ -310,7 +310,7 @@ function previewPhoto(p: any) {
   gap: 12rpx;
 }
 .fb-label {
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 28rpx;
   line-height: 1.5;
 }
@@ -320,9 +320,9 @@ function previewPhoto(p: any) {
   gap: 10rpx;
 }
 .fb-option {
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
-  color: #7a6a4d;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
   font-size: 24rpx;
   padding: 10rpx 20rpx;
   border-radius: 6rpx;
@@ -330,26 +330,26 @@ function previewPhoto(p: any) {
   flex: 1 1 auto;
 }
 .fb-option.active {
-  background: #b8531a;
-  border-color: #b8531a;
-  color: #efe3c8;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
 }
 .fb-input {
   width: 100%;
   min-height: 100rpx;
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   padding: 16rpx;
   box-sizing: border-box;
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 26rpx;
 }
 .card {
   display: flex;
   flex-direction: column;
   gap: 12rpx;
-  background: #fbf5e6;
+  background: var(--card);
   border-radius: 12rpx;
   padding: 14rpx;
   margin-bottom: 14rpx;
@@ -373,37 +373,37 @@ function previewPhoto(p: any) {
 }
 .status {
   font-size: 24rpx;
-  color: #7a6a4d;
+  color: var(--ink-dim);
 }
 .del {
   font-size: 24rpx;
-  color: #b5432a;
+  color: var(--warn);
   padding: 4rpx 12rpx;
 }
 .more {
   text-align: center;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 24rpx;
   padding: 18rpx 0;
-  border: 1px solid #ddcca6;
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   margin-bottom: 14rpx;
 }
 .status.live {
-  color: #2f7d4f;
+  color: var(--good);
 }
 .status.rejected {
-  color: #b5432a;
+  color: var(--warn);
 }
 .summary {
   display: block;
-  color: #3f7d55;
+  color: var(--good);
   font-size: 24rpx;
   line-height: 1.6;
   margin-bottom: 16rpx;
 }
 .seen {
-  color: #3f7d55;
+  color: var(--good);
   font-size: 22rpx;
 }
 .challenge {
@@ -412,11 +412,11 @@ function previewPhoto(p: any) {
   line-height: 2.2;
 }
 .reason {
-  color: #b5432a;
+  color: var(--warn);
   font-size: 22rpx;
 }
 .story {
-  color: #6b5a3c;
+  color: var(--ink-dim);
   font-size: 24rpx;
   display: -webkit-box;
   -webkit-line-clamp: 2;

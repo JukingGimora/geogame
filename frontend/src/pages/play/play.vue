@@ -274,14 +274,14 @@ onShareTimeline(() => ({
 <style scoped>
 .place {
   display: block;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 24rpx;
   margin-top: 12rpx;
 }
 
 .play {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 24rpx 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -292,14 +292,14 @@ onShareTimeline(() => ({
   margin-bottom: 12rpx;
 }
 .round-label {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 24rpx;
 }
 .photo {
   width: 100%;
   border-radius: 8rpx;
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   box-sizing: border-box;
 }
 .hints {
@@ -310,8 +310,8 @@ onShareTimeline(() => ({
 }
 .hint-chip {
   background: transparent;
-  border: 1px solid #c8b58a;
-  color: #5d4e33;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-dim);
   font-size: 22rpx;
   padding: 8rpx 14rpx;
   border-radius: 6rpx;
@@ -320,15 +320,15 @@ onShareTimeline(() => ({
   opacity: 0.4;
 }
 .cost {
-  color: #b8531a;
+  color: var(--accent);
   font-size: 20rpx;
 }
 .hint-content {
   width: 100%;
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 24rpx;
-  background: #fbf5e6;
-  border-left: 4rpx solid #b8531a;
+  background: var(--card);
+  border-left: 4rpx solid var(--accent);
   padding: 12rpx 16rpx;
   border-radius: 0;
 }
@@ -337,10 +337,10 @@ onShareTimeline(() => ({
 }
 .picker {
   margin-top: 16rpx;
-  border: 1px solid #ddcca6;
+  border: 1px solid var(--line);
   border-radius: 12rpx;
   padding: 6rpx;
-  background: #e7dabb;
+  background: var(--bg-sunken);
 }
 .row {
   display: flex;
@@ -362,8 +362,8 @@ onShareTimeline(() => ({
 }
 .stat {
   flex: 1;
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   padding: 20rpx;
   display: flex;
@@ -371,18 +371,18 @@ onShareTimeline(() => ({
   gap: 8rpx;
 }
 .stat-label {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 24rpx;
 }
 .stat-value {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #b8531a;
+  color: var(--accent);
   font-size: 48rpx;
 }
 .ai-card,
 .story-card {
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   padding: 22rpx;
   display: flex;
@@ -392,15 +392,15 @@ onShareTimeline(() => ({
 .ai-head {
   display: flex;
   justify-content: space-between;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 26rpx;
 }
 .ai-badge {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #b5432a;
+  color: var(--warn);
 }
 .ai-badge.won {
-  color: #2f7d4f;
+  color: var(--good);
 }
 .ai-reasoning {
   color: #cabfa8;
@@ -411,27 +411,27 @@ onShareTimeline(() => ({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px dashed #c8b58a;
+  border: 1px dashed var(--line-strong);
   border-radius: 8rpx;
   padding: 20rpx 24rpx;
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 25rpx;
 }
 .invite-arrow {
-  color: #b8531a;
+  color: var(--accent);
   font-size: 30rpx;
 }
 .story-card {
-  border-left: 4rpx solid #b8531a;
+  border-left: 4rpx solid var(--accent);
   border-radius: 0 8rpx 8rpx 0;
 }
 .story-from {
-  color: #b8531a;
+  color: var(--accent);
   font-size: 24rpx;
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
 }
 .story-text {
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 28rpx;
   line-height: 1.9;
   font-family: Georgia, 'Songti SC', 'SimSun', serif;
@@ -445,23 +445,23 @@ onShareTimeline(() => ({
   gap: 24rpx;
 }
 .finale-label {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 28rpx;
 }
 .finale-score {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #b8531a;
+  color: var(--accent);
   font-size: 110rpx;
 }
 .hint-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f7ebd0;
-  border: 1px solid #b8531a;
+  background: var(--card-alt);
+  border: 1px solid var(--accent);
   border-radius: 8rpx;
   padding: 16rpx 20rpx;
-  color: #b8531a;
+  color: var(--accent);
   font-size: 24rpx;
   width: 100%;
   box-sizing: border-box;

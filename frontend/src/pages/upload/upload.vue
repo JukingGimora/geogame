@@ -130,7 +130,7 @@ async function submit() {
 <style scoped>
 .upload {
   min-height: 100vh;
-  background: #efe3c8;
+  background: var(--bg);
   padding: 90rpx 24rpx 40rpx;
   box-sizing: border-box;
   display: flex;
@@ -138,16 +138,16 @@ async function submit() {
   gap: 20rpx;
 }
 .hint-line {
-  color: #9a8a6b;
+  color: var(--ink-faint);
   font-size: 22rpx;
 }
 .title {
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 38rpx;
   display: none;
 }
 .photo-box {
-  background: #fbf5e6;
+  background: var(--card);
   border-radius: 12rpx;
   display: flex;
   align-items: center;
@@ -159,26 +159,26 @@ async function submit() {
   height: 100%;
 }
 .placeholder {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 28rpx;
 }
 .section {
-  color: #7a6a4d;
+  color: var(--ink-dim);
   font-size: 26rpx;
 }
 .story {
   width: 100%;
   min-height: 160rpx;
-  background: #fbf5e6;
+  background: var(--card);
   border-radius: 12rpx;
   padding: 20rpx;
   box-sizing: border-box;
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 28rpx;
 }
 .btn {
   background: #232d3e;
-  color: #6b5a3c;
+  color: var(--ink-dim);
   border: none;
   font-size: 30rpx;
   border-radius: 12rpx;
@@ -186,7 +186,7 @@ async function submit() {
   width: 100%;
 }
 .btn.primary {
-  background: #b8531a;
-  color: #fff6e6;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 </style>

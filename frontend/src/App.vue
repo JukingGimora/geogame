@@ -12,9 +12,26 @@ onLaunch(() => {
 
 <style>
 page,
+:root {
+  /* 值在 lib/theme.ts 里,两处要一起改 */
+  --bg: #121417;
+  --bg-sunken: #0d0f11;
+  --card: #1a1d21;
+  --card-alt: #20242a;
+  --line: #262b31;
+  --line-strong: #39414a;
+  --ink: #e8e6e3;
+  --ink-dim: #9aa0a8;
+  --ink-faint: #6a7079;
+  --accent: #f5a33c;
+  --on-accent: #221703;
+  --good: #6fc7a1;
+  --warn: #ff6b5e;
+}
+
 body {
-  background: #efe3c8;
-  color: #3b2f1c;
+  background: var(--bg);
+  color: var(--ink);
   font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
@@ -25,28 +42,28 @@ body {
 
 .g-title {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #3b2f1c;
+  color: var(--ink);
   font-size: 36rpx;
   letter-spacing: 4rpx;
 }
 
 .g-stamp {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #b8531a;
+  color: var(--accent);
   letter-spacing: 3rpx;
 }
 
 .g-card {
-  background: #fbf5e6;
-  border: 1px solid #ddcca6;
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 8rpx;
   padding: 24rpx;
 }
 
 .g-btn {
   background: transparent;
-  color: #5d4e33;
-  border: 1px solid #c8b58a;
+  color: var(--ink-dim);
+  border: 1px solid var(--line-strong);
   border-radius: 8rpx;
   font-size: 28rpx;
   line-height: 2.6;
@@ -58,9 +75,9 @@ body {
 }
 
 .g-btn.primary {
-  background: #b8531a;
-  color: #fff6e6;
-  border-color: #b8531a;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
   font-size: 30rpx;
 }
@@ -68,11 +85,11 @@ body {
 .g-btn[disabled] {
   opacity: 0.4;
   background: transparent;
-  color: #5d4e33;
+  color: var(--ink-dim);
 }
 
 .g-btn.primary[disabled] {
-  background: #b8531a;
-  color: #fff6e6;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 </style>

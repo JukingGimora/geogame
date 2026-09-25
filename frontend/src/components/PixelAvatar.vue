@@ -20,14 +20,14 @@ const props = withDefaults(defineProps<{ seed?: string; size?: number }>(), { se
 
 // 浅底主题:头像用浅色底 + 深色墨字,和页面同一套纸感
 const PALETTES: [string, string][] = [
-  ['#b8531a', '#f7e7c8'],
-  ['#2f6b46', '#e3edda'],
-  ['#2b5a7d', '#dde9f1'],
-  ['#8a3a63', '#f4dfe8'],
-  ['#6b5a3c', '#efe3c8'],
-  ['#4a3f7d', '#e4e1f2'],
-  ['#a13b26', '#f6e2d8'],
-  ['#1f6b66', '#dcece9'],
+  ['#f5a33c', '#2a1f10'],
+  ['#6fc7a1', '#10231c'],
+  ['#7bb7e0', '#0f1c27'],
+  ['#d98cb3', '#241521'],
+  ['#c9bd8f', '#211f16'],
+  ['#9b8cd9', '#191630'],
+  ['#ff8f7a', '#2a1512'],
+  ['#6fc7c1', '#0e2220'],
 ]
 
 function hash(text: string): number {
