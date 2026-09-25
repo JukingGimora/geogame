@@ -53,7 +53,9 @@ interface Circle {
 const circles = ref<Circle[]>([])
 const activeName = ref('')
 const topOffset = ref(0)
-const mapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.46)
+// 世界地图的宽高比约 2.5:高度按宽度算,画面才不会上下留一大片空
+const windowWidth = uni.getWindowInfo().windowWidth
+const mapHeight = Math.round(((windowWidth * (750 - 56)) / 750) / 2.5)
 
 const active = computed(() => circles.value.find((c) => c.name === activeName.value) || null)
 

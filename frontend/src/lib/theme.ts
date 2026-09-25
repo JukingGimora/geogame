@@ -38,3 +38,21 @@ export const MAP_THEME = {
   ai: THEME.warn,
   line: THEME.ink,
 }
+
+
+/**
+ * 九个文化圈各有自己的颜色,照那张人文地理的分区图来:
+ * 相邻的圈色相要拉开,不然在小屏上分不出边界。
+ * 解锁与否只改亮度,不改色相——颜色是"这是哪个圈",亮度是"你走到哪了"。
+ */
+export const CIRCLE_COLORS: Record<string, string> = {
+  西欧: '#1f5fa8',   // 图里的 WESTERN,含北美与澳新
+  东欧: '#2196f3',   // ORTHODOX
+  伊斯兰: '#ef3e33', // MUSLIM
+  东亚: '#f5d020',   // CONFUCIAN
+  南亚: '#e2632a',   // HINDU
+  非洲: '#f0942f',   // AFRICAN
+  拉美: '#5b2c91',   // LATIN AMERICAN
+  东南亚: '#3fa34d', // 那张图没有单列,按图一的划分单独成圈,取没被占用的绿
+  太平洋: '#17a2a2', // 同上,取青
+}

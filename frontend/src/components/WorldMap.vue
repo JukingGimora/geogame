@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, ref, watch } from 'vue'
 import { BASE_URL } from '../api'
-import { THEME } from '../lib/theme'
+import { CIRCLE_COLORS, THEME } from '../lib/theme'
 
 /**
  * 世界地图,按文化圈上色。
@@ -46,6 +46,7 @@ type Ring = [number, number][]
 let loaded = false
 let features: { c: string; r: Ring[] }[] = []
 let box = { w: 0, h: 0 }
+let retries = 0
 
 // 等距圆柱投影:南北极的形变无所谓,我们只要认得出哪块是哪块
 const LNG_MIN = -180
@@ -53,16 +54,24 @@ const LNG_MAX = 180
 const LAT_MIN = -58 // 南极不画,省下三分之一的画布
 const LAT_MAX = 84
 
+// 等比缩放并居中。按容器直接拉满会把世界压扁,大陆的形状就不对了
+function fit() {
+  const scale = Math.min(box.w / (LNG_MAX - LNG_MIN), box.h / (LAT_MAX - LAT_MIN))
+  return {
+    scale,
+    offsetX: (box.w - (LNG_MAX - LNG_MIN) * scale) / 2,
+    offsetY: (box.h - (LAT_MAX - LAT_MIN) * scale) / 2,
+  }
+}
+
 function project(lng: number, lat: number): [number, number] {
-  const x = ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN)) * box.w
-  const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * box.h
-  return [x, y]
+  const { scale, offsetX, offsetY } = fit()
+  return [offsetX + (lng - LNG_MIN) * scale, offsetY + (LAT_MAX - lat) * scale]
 }
 
 function unproject(x: number, y: number): [number, number] {
-  const lng = LNG_MIN + (x / box.w) * (LNG_MAX - LNG_MIN)
-  const lat = LAT_MAX - (y / box.h) * (LAT_MAX - LAT_MIN)
-  return [lng, lat]
+  const { scale, offsetX, offsetY } = fit()
+  return [LNG_MIN + (x - offsetX) / scale, LAT_MAX - (y - offsetY) / scale]
 }
 
 const state = ref<Record<string, CircleState>>({})
@@ -75,13 +84,21 @@ watch(
   { immediate: true, deep: true },
 )
 
+function mix(hex: string, bg: string, t: number): string {
+  const c = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16)
+  const v = (i: number) => Math.round(c(hex, i) * t + c(bg, i) * (1 - t))
+  return `rgb(${v(0)},${v(1)},${v(2)})`
+}
+
+/** 色相说明这是哪个圈,亮度说明你走到哪了 */
 function fillFor(circle: string): string {
+  const base = CIRCLE_COLORS[circle] ?? THEME.inkFaint
   const s = state.value[circle]
-  if (!s) return THEME.card
-  if (s.lit) return THEME.accent          // 认出来过:最亮
-  if (s.played > 0) return '#6b5230'      // 走过但没认出来:半亮
-  if (s.photos > 0) return '#332a1c'      // 有照片可玩:微亮
-  return '#241d15'                        // 还没有照片:最暗
+  if (!s) return mix(base, THEME.bgSunken, 0.25)
+  if (s.lit) return base                                   // 认出来过:原色
+  if (s.played > 0) return mix(base, THEME.bgSunken, 0.6)   // 走过但没认出来
+  if (s.photos > 0) return mix(base, THEME.bgSunken, 0.38)  // 有照片可玩
+  return mix(base, THEME.bgSunken, 0.2)                     // 还没有照片
 }
 
 async function load() {
@@ -141,13 +158,22 @@ async function draw() {
   paint(ctx)
   // #endif
   // #ifdef MP-WEIXIN
-  const query = uni.createSelectorQuery()
+  // 组件里查节点必须 .in(组件实例),否则查的是页面根节点下的同名节点——查不到,画布就是空的
+  const query = uni.createSelectorQuery().in(instance?.proxy as any)
   query
     .select(`#${canvasId}`)
     .fields({ node: true, size: true } as any, undefined as any)
     .exec((res: any) => {
       const node = res?.[0]?.node
-      if (!node) return
+      if (!node) {
+        // 首次渲染可能还没挂上,退一帧再试
+        if (retries < 5) {
+          retries += 1
+          setTimeout(draw, 80)
+        }
+        return
+      }
+      retries = 0
       const dpr = uni.getWindowInfo().pixelRatio || 2
       box = { w: res[0].width, h: res[0].height }
       node.width = box.w * dpr
@@ -193,6 +219,7 @@ function onTap(e: any) {
   if (typeof pageX !== 'number' || typeof pageY !== 'number') return
   uni
     .createSelectorQuery()
+    .in(instance?.proxy as any)
     .select(`#${canvasId}`)
     .boundingClientRect(((rect: any) => {
       hit(rect ? pageX - rect.left : pageX, rect ? pageY - rect.top : pageY)
