@@ -1,7 +1,7 @@
 <template>
   <view class="world" :style="{ height: height + 'px' }">
     <!-- #ifdef H5 -->
-    <canvas :id="canvasId" class="cv" :style="{ height: height + 'px' }" @click="onTap"></canvas>
+    <view class="cv host" :style="{ height: height + 'px' }" @click="onTap"></view>
     <!-- #endif -->
     <!-- #ifdef MP-WEIXIN -->
     <canvas
@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { getCurrentInstance, onMounted, ref, watch } from 'vue'
 import { BASE_URL } from '../api'
 import { THEME } from '../lib/theme'
 
@@ -39,6 +39,8 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ pick: [name: string] }>()
 
+// getCurrentInstance() 一过 await 就返回 null,必须在 setup 阶段先拿住
+const instance = getCurrentInstance()
 const canvasId = 'world-map'
 type Ring = [number, number][]
 let loaded = false
@@ -116,13 +118,25 @@ function paint(ctx: any) {
 async function draw() {
   await load()
   // #ifdef H5
-  const el = document.getElementById(canvasId) as HTMLCanvasElement | null
-  if (!el) return
+  const root = instance?.proxy?.$el as HTMLElement | undefined
+  const host = root?.querySelector('.host') as HTMLElement | null
+  if (!host) return
+  const width = host.getBoundingClientRect().width
+  if (width < 1) {
+    setTimeout(draw, 60)
+    return
+  }
   const dpr = window.devicePixelRatio || 1
-  box = { w: el.clientWidth, h: el.clientHeight }
-  el.width = box.w * dpr
-  el.height = box.h * dpr
-  const ctx = el.getContext('2d')!
+  box = { w: width, h: props.height }
+  let canvas = host.querySelector('canvas') as HTMLCanvasElement | null
+  if (!canvas) {
+    canvas = document.createElement('canvas')
+    canvas.style.cssText = `width:${box.w}px;height:${box.h}px;display:block`
+    host.appendChild(canvas)
+  }
+  canvas.width = box.w * dpr
+  canvas.height = box.h * dpr
+  const ctx = canvas.getContext('2d')!
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   paint(ctx)
   // #endif
@@ -156,25 +170,44 @@ function inRing(lng: number, lat: number, ring: Ring): boolean {
 }
 
 function onTap(e: any) {
-  const x = e.detail?.x ?? e.offsetX
-  const y = e.detail?.y ?? e.offsetY
-  if (typeof x !== 'number' || typeof y !== 'number') return
-  // 小程序给的是页面坐标,减掉画布在页面里的位置
-  const query = uni.createSelectorQuery()
-  query
+  // 三端给的事件对象长得不一样:H5 是原生 MouseEvent,小程序把坐标放在 detail 里,
+  // 触摸设备走 changedTouches。哪个有值用哪个,少一个分支就变成"点了没反应"。
+  const touch = e?.changedTouches?.[0] ?? e?.touches?.[0]
+  const clientX = touch?.clientX ?? e?.clientX
+  const clientY = touch?.clientY ?? e?.clientY
+  const pageX = e?.detail?.x ?? touch?.pageX ?? e?.pageX
+  const pageY = e?.detail?.y ?? touch?.pageY ?? e?.pageY
+
+  // #ifdef H5
+  const root = instance?.proxy?.$el as HTMLElement | undefined
+  const host = root?.querySelector('.host') as HTMLElement | null
+  if (host) {
+    const rect = host.getBoundingClientRect()
+    const x = clientX ?? (pageX != null ? pageX - window.scrollX : undefined)
+    const y = clientY ?? (pageY != null ? pageY - window.scrollY : undefined)
+    if (typeof x === 'number' && typeof y === 'number') hit(x - rect.left, y - rect.top)
+    return
+  }
+  // #endif
+
+  if (typeof pageX !== 'number' || typeof pageY !== 'number') return
+  uni
+    .createSelectorQuery()
     .select(`#${canvasId}`)
     .boundingClientRect(((rect: any) => {
-      const localX = rect ? x - rect.left : x
-      const localY = rect ? y - rect.top : y
-      const [lng, lat] = unproject(localX, localY)
-      for (const f of features) {
-        if (f.r.some((ring) => inRing(lng, lat, ring))) {
-          emit('pick', f.c)
-          return
-        }
-      }
+      hit(rect ? pageX - rect.left : pageX, rect ? pageY - rect.top : pageY)
     }) as any)
     .exec()
+}
+
+function hit(x: number, y: number) {
+  const [lng, lat] = unproject(x, y)
+  for (const f of features) {
+    if (f.r.some((ring) => inRing(lng, lat, ring))) {
+      emit('pick', f.c)
+      return
+    }
+  }
 }
 
 onMounted(draw)
