@@ -4,6 +4,7 @@ import httpx
 import jwt
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -20,15 +21,19 @@ def create_token(user_id: int) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
+async def _find_guest(session: AsyncSession, device_key: str) -> AuthIdentity | None:
+    return await session.scalar(
+        select(AuthIdentity).where(AuthIdentity.provider == "guest", AuthIdentity.provider_uid == device_key)
+    )
+
+
 async def guest_login(
     session: AsyncSession,
     device_key: str,
     nickname: str | None = None,
     avatar_url: str | None = None,
 ) -> tuple[User, str]:
-    identity = await session.scalar(
-        select(AuthIdentity).where(AuthIdentity.provider == "guest", AuthIdentity.provider_uid == device_key)
-    )
+    identity = await _find_guest(session, device_key)
     if identity:
         user = await session.get(User, identity.user_id)
         if nickname and user.nickname != nickname:
@@ -44,7 +49,16 @@ async def guest_login(
         if not user.nickname:
             user.nickname = default_nickname(user.id)
         session.add(AuthIdentity(user_id=user.id, provider="guest", provider_uid=device_key))
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            # 小程序启动时会并发打好几个请求,同一台设备的两次登录都以为自己是新人,
+            # 撞上唯一索引就 500——用户一进来就是崩的。让后到的那个认领先建好的账号。
+            await session.rollback()
+            identity = await _find_guest(session, device_key)
+            if not identity:
+                raise
+            user = await session.get(User, identity.user_id)
     return user, create_token(user.id)
 
 

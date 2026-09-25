@@ -8,6 +8,8 @@
       <text v-else class="placeholder">{{ t('upload.choose') }}</text>
     </view>
 
+    <text class="hint-line">{{ t('upload.imageOnly') }}</text>
+
     <text class="section">{{ t('upload.pickLocation') }}</text>
     <!-- #ifdef MP-WEIXIN -->
     <NativeMapPicker :height="480" :markers="markers" @pick="onPick" />
@@ -33,6 +35,7 @@ import NativeMapPicker from '../../components/NativeMapPicker.vue'
 import { api } from '../../api'
 import { t } from '../../locale'
 import { errorMessage } from '../../lib/errors'
+import { logEvent } from '../../lib/analytics'
 import type { LngLat } from '../../lib/geo'
 import type { MapMarker } from '../../lib/mapRender'
 
@@ -50,25 +53,51 @@ const BOX_CONTENT_WIDTH_RPX = 702
 const BOX_MIN_HEIGHT_RPX = 300
 
 function choose() {
+  logEvent('upload_choose_click')
+  // #ifdef MP-WEIXIN
+  // 旧的 chooseImage 已不推荐,而且我们之前还传了它不认的 extension 参数,
+  // 调用直接失败又没有 fail 回调——学生反馈的"选视频没结果"就是这么来的。
+  uni.chooseMedia({
+    count: 1,
+    mediaType: ['image'],
+    sizeType: ['compressed'],
+    success: (res: any) => useFile(res.tempFiles?.[0]?.tempFilePath, res.tempFiles?.[0]?.name),
+    fail: (err: any) => onChooseFail(err),
+  })
+  // #endif
+  // #ifndef MP-WEIXIN
   uni.chooseImage({
     count: 1,
-    // 手机原图动辄十几二十MB,会顶到后端上限;猜地点靠的是画面内容,压缩后完全够用
     sizeType: ['compressed'],
-    extension: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'heic', 'heif', 'avif'],
-    success: (res) => {
-      filePath.value = res.tempFilePaths[0]
-      const file = (res.tempFiles as Array<{ name?: string }>)?.[0]
-      fileName.value = file?.name || ''
-      uni.getImageInfo({
-        src: filePath.value,
-        success: (info) => {
-          const ratio = info.width / info.height
-          boxHeight.value = Math.max(BOX_MIN_HEIGHT_RPX, Math.round(BOX_CONTENT_WIDTH_RPX / ratio))
-        },
-        fail: () => {
-          boxHeight.value = 600
-        },
-      })
+    success: (res: any) => useFile(res.tempFilePaths?.[0], res.tempFiles?.[0]?.name),
+    fail: (err: any) => onChooseFail(err),
+  })
+  // #endif
+}
+
+function onChooseFail(err: any) {
+  const msg = String(err?.errMsg ?? '')
+  if (msg.includes('cancel')) return // 用户自己取消的,不用打扰他
+  logEvent('upload_choose_fail', '', undefined, { err: msg.slice(0, 60) })
+  uni.showToast({ title: t('upload.chooseFailed'), icon: 'none', duration: 2500 })
+}
+
+function useFile(path?: string, name?: string) {
+  if (!path) {
+    onChooseFail({ errMsg: 'empty path' })
+    return
+  }
+  filePath.value = path
+  fileName.value = name || ''
+  logEvent('upload_photo_chosen')
+  uni.getImageInfo({
+    src: path,
+    success: (info) => {
+      const ratio = info.width / info.height
+      boxHeight.value = Math.max(BOX_MIN_HEIGHT_RPX, Math.round(BOX_CONTENT_WIDTH_RPX / ratio))
+    },
+    fail: () => {
+      boxHeight.value = 600
     },
   })
 }
@@ -83,12 +112,15 @@ async function submit() {
     return
   }
   submitting.value = true
+  logEvent('upload_submit')
   try {
     await api.uploadPhoto(filePath.value, location.value.lat, location.value.lng, story.value)
+    logEvent('upload_success')
     uni.showToast({ title: t('upload.submitted'), icon: 'none', duration: 2500 })
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: unknown) {
-    uni.showToast({ title: errorMessage(e), icon: 'none' })
+    logEvent('upload_fail', '', undefined, { msg: errorMessage(e).slice(0, 40) })
+    uni.showToast({ title: errorMessage(e), icon: 'none', duration: 2500 })
   } finally {
     submitting.value = false
   }
@@ -104,6 +136,10 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 20rpx;
+}
+.hint-line {
+  color: #6b5f4a;
+  font-size: 22rpx;
 }
 .title {
   color: #e9dfc9;

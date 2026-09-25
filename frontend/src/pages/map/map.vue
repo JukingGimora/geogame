@@ -6,7 +6,7 @@
     </view>
     <view class="map-frame"><ChinaMap :height="mapHeight" :fog-points="fogPoints" :show-labels="true" /></view>
     <view class="actions">
-      <button class="g-btn primary" @tap="startRun()">{{ t('map.start') }}</button>
+      <button class="g-btn primary" @tap="onStart">{{ t('map.start') }}</button>
       <view class="row">
         <button class="g-btn" @tap="go('/pages/upload/upload')">{{ t('map.upload') }}</button>
         <button class="g-btn" @tap="go('/pages/rank/rank')">{{ t('map.rank') }}</button>
@@ -28,6 +28,7 @@ import { t } from '../../locale'
 import { loadFogPoints } from '../../lib/fogStore'
 import { enableShareMenu } from '../../lib/share'
 import { startRun } from '../../lib/play'
+import { logEvent } from '../../lib/analytics'
 import type { FogPoint } from '../../lib/mapRender'
 
 const me = ref<{ nickname: string; points: number; avatar_url?: string } | null>(null)
@@ -52,7 +53,14 @@ onMounted(async () => {
   }
 })
 
+// 首页按钮之前一个埋点都没有,"点了开不起来"和"压根没点"分不开
+function onStart() {
+  logEvent('start_click', 'page', undefined, { from: 'home' })
+  startRun()
+}
+
 function go(url: string) {
+  logEvent('home_nav', 'page', undefined, { to: url.split('/').pop() })
   uni.navigateTo({ url })
 }
 

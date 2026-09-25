@@ -13,8 +13,8 @@
       <text class="hint-arrow">›</text>
     </view>
     <view class="tabs">
-      <view class="tab" :class="{ active: board === 'best_run' }" @tap="switchBoard('best_run')">
-        {{ t('rank.bestRun') }}
+      <view class="tab" :class="{ active: board === 'streak' }" @tap="switchBoard('streak')">
+        {{ t('rank.streak') }}
       </view>
       <view class="tab" :class="{ active: board === 'points' }" @tap="switchBoard('points')">
         {{ t('rank.points') }}
@@ -28,7 +28,7 @@
         <PixelAvatar :seed="`${row.nickname}#${row.uid}`" :size="56" />
         <text class="nick">{{ row.nickname }}{{ row.is_me ? t('rank.meSuffix') : '' }}</text>
       </view>
-      <text class="val g-stamp">{{ row.value }}{{ board === 'points' ? t('rank.peopleUnit') : '' }}</text>
+      <text class="val g-stamp">{{ row.value }}{{ board === 'points' ? t('rank.peopleUnit') : t('rank.roundUnit') }}</text>
     </view>
 
     <view v-if="data && data.me.rank && !inTop" class="row me footer-me">
@@ -37,7 +37,7 @@
         <PixelAvatar :seed="meSeed" :size="56" />
         <text class="nick">{{ t('rank.me') }}</text>
       </view>
-      <text class="val g-stamp">{{ data.me.value }}{{ board === 'points' ? t('rank.peopleUnit') : '' }}</text>
+      <text class="val g-stamp">{{ data.me.value }}{{ board === 'points' ? t('rank.peopleUnit') : t('rank.roundUnit') }}</text>
     </view>
     <view v-if="data && data.me.rank === null" class="empty">{{ t('rank.notRanked') }}</view>
 
@@ -62,7 +62,7 @@ import { useProfileHint } from '../../lib/profileHint'
 import { startRun } from '../../lib/play'
 import PixelAvatar from '../../components/PixelAvatar.vue'
 
-type Board = 'best_run' | 'points'
+type Board = 'streak' | 'points'
 
 interface RankRow {
   rank: number
@@ -72,7 +72,7 @@ interface RankRow {
   is_me: boolean
 }
 
-const board = ref<Board>('best_run')
+const board = ref<Board>('streak')
 const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; uid: number; nickname: string } } | null>(null)
 const pulse = ref<{ active_today: number; photos_live: number; photos_today: number; my_seen_today: number } | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('rank')
@@ -96,6 +96,8 @@ async function load() {
 
 function switchBoard(b: Board) {
   if (board.value === b) return
+  // 大家到底在乎分数还是在乎被看见,只有这个点能回答
+  logEvent('board_switch', '', undefined, { board: b })
   board.value = b
   data.value = null
   load()

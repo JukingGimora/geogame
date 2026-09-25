@@ -2,8 +2,8 @@
   <view class="play" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view v-if="run && current" class="stage">
       <view class="topbar">
-        <text class="round-label px-font">{{ t('play.round', { n: current.order + 1 }) }} / {{ run.rounds.length }}</text>
-        <text class="g-stamp" v-if="run.total_score">{{ run.total_score }}</text>
+        <text class="lives px-font">{{ livesText }}</text>
+        <text class="streak g-stamp">{{ t('play.streak', { n: streak }) }}</text>
       </view>
 
       <image class="photo" :src="photoUrl(current.photo_url)" mode="widthFix" @tap="previewPhoto" />
@@ -21,19 +21,17 @@
         <view v-for="h in unlockedContents" :key="h.level" class="hint-content">{{ h.content }}</view>
       </view>
 
-      <button v-if="phase === 'view'" class="g-btn primary" @tap="phase = 'pick'">{{ t('play.placeFlag') }}</button>
-
-      <view v-if="phase === 'pick'" class="picker">
+      <view v-if="phase === 'guess'" class="picker">
+        <text class="pick-tip">{{ picked ? t('play.pickedTip') : t('play.pickTip') }}</text>
         <!-- #ifdef MP-WEIXIN -->
         <NativeMapPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
         <ChinaMap :height="pickMapHeight" :interactive="true" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
-        <view class="row">
-          <button class="g-btn" @tap="phase = 'view'">{{ t('play.cancelFlag') }}</button>
-          <button class="g-btn primary" :disabled="!picked" @tap="confirmGuess">{{ t('play.confirmFlag') }}</button>
-        </view>
+        <button class="g-btn primary" :disabled="!picked || submitting" @tap="confirmGuess">
+          {{ t('play.confirmFlag') }}
+        </button>
       </view>
 
       <view v-if="phase === 'result' && result" class="result">
@@ -44,8 +42,8 @@
             <text class="stat-value">{{ result.distance_km }} km</text>
           </view>
           <view class="stat">
-            <text class="stat-label">{{ t('play.score') }}</text>
-            <text class="stat-value">{{ result.score }}</text>
+            <text class="stat-label">{{ t('play.livesLabel') }}</text>
+            <text class="stat-value">{{ livesText }}</text>
           </view>
         </view>
         <view v-if="result.ai" class="ai-card">
@@ -70,14 +68,15 @@
         <!-- #endif -->
 
         <button class="g-btn primary" @tap="nextRound">
-          {{ isLastRound ? t('play.finish') : t('play.next') }}
+          {{ result.ended ? t('play.finish') : t('play.next') }}
         </button>
       </view>
     </view>
 
     <view v-if="finished && run" class="finale">
-      <text class="finale-label">{{ t('play.total') }}</text>
-      <text class="finale-score">{{ run.total_score }}</text>
+      <text class="finale-label">{{ endedReason === 'pool_empty' ? t('play.endPool') : t('play.endLives') }}</text>
+      <text class="finale-score">{{ t('play.streak', { n: streak }) }}</text>
+      <text class="finale-sub">{{ t('play.totalScore', { n: run.total_score }) }}</text>
       <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
         <text>{{ t('rank.profileHint') }}</text>
         <text class="hint-arrow">›</text>
@@ -108,7 +107,9 @@ const hintLabels = tList('play.hints')
 const hintCosts = tList('play.hintCost')
 
 const run = ref<any>(null)
-const phase = ref<'view' | 'pick' | 'result'>('view')
+const phase = ref<'guess' | 'result'>('guess')
+const submitting = ref(false)
+const endedReason = ref<string | null>(null)
 const topOffset = ref(0)
 const picked = ref<LngLat | null>(null)
 const result = ref<any>(null)
@@ -120,7 +121,10 @@ let recapRoundId: number | null = null
 let recapShownAt = 0
 
 const current = computed(() => run.value?.rounds.find((r: any) => !r.finished))
-const isLastRound = computed(() => run.value && run.value.rounds.filter((r: any) => !r.finished).length <= 1)
+const streak = computed(() => result.value?.streak ?? run.value?.streak ?? 0)
+const livesLeft = computed(() => result.value?.lives_left ?? run.value?.lives_left ?? 3)
+// ♥♥♡ 一眼就懂,也比"还剩2条命"更有紧张感
+const livesText = computed(() => '♥'.repeat(livesLeft.value) + '♡'.repeat(Math.max(0, 3 - livesLeft.value)))
 const unlockedLevels = computed(() => unlockedContents.value.map((h) => h.level))
 
 const pickMarkers = computed<MapMarker[]>(() =>
@@ -176,13 +180,26 @@ async function unlockHint(level: number) {
 }
 
 function onPick(p: LngLat) {
+  // 第一次落点单独记一次:开局到插旗之间流失最狠,不打这个点就看不见人死在哪
+  if (!picked.value && current.value) logEvent('pick_first', 'round', current.value.round_id)
   picked.value = p
 }
 
 async function confirmGuess() {
-  if (!current.value || !picked.value) return
+  if (!current.value || !picked.value || submitting.value) return
+  submitting.value = true
   recapRoundId = current.value.round_id
-  result.value = await api.guess(current.value.round_id, picked.value.lat, picked.value.lng)
+  logEvent('guess_submit', 'round', current.value.round_id)
+  try {
+    result.value = await api.guess(current.value.round_id, picked.value.lat, picked.value.lng)
+  } catch (e: unknown) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
+    submitting.value = false
+    return
+  }
+  submitting.value = false
+  // 猜完那一下要有反馈,不然揭晓像是页面自己刷新了
+  uni.vibrateShort({ fail: () => {} })
   phase.value = 'result'
   recapShownAt = Date.now()
   addFogPoint({
@@ -202,17 +219,20 @@ function logRecapDwell() {
 async function nextRound() {
   logRecapDwell()
   const runId = run.value.run_id
+  const ended = result.value?.ended ?? null
   run.value = await api.getRun(runId)
   result.value = null
   picked.value = null
   unlockedContents.value = []
-  phase.value = 'view'
-  logRoundStart()
-  if (!current.value) {
+  phase.value = 'guess'
+  if (ended || run.value.status !== 'playing') {
+    endedReason.value = ended
     finished.value = true
-    logEvent('run_finished', 'run', runId, { total_score: run.value.total_score })
+    logEvent('run_finished', 'run', runId, { streak: run.value.streak, reason: ended })
     checkProfile()
+    return
   }
+  logRoundStart()
 }
 
 function backHome() {

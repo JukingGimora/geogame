@@ -26,6 +26,8 @@ import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 // #endif
 import { t, tList } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
+import { logEvent } from '../../lib/analytics'
+import { startRun } from '../../lib/play'
 
 const lines = tList('opening.lines')
 const shown = ref(-1)
@@ -48,6 +50,7 @@ onMounted(() => {
   enableShareMenu()
   const seen = uni.getStorageSync('geogame_seen_opening')
   const interval = seen ? 250 : 2000
+  logEvent('opening_view', '', undefined, { first_time: !seen })
 
   audio = uni.createInnerAudioContext()
   audio.src = seen ? '/static/audio/opening-short.mp3' : '/static/audio/opening-full.mp3'
@@ -87,11 +90,18 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
 // #endif
 
 function enter() {
+  const done = shown.value >= lines.length - 1
+  logEvent('opening_leave', '', undefined, { skipped: !done })
   uni.setStorageSync('geogame_seen_opening', '1')
   audio?.stop()
-  if (wantedPhoto) uni.reLaunch({ url: `/pages/map/map?photo=${wantedPhoto}` })
-  else if (target === 'rank') uni.reLaunch({ url: '/pages/rank/rank' })
-  else uni.reLaunch({ url: '/pages/map/map' })
+  if (wantedPhoto) {
+    uni.reLaunch({ url: `/pages/map/map?photo=${wantedPhoto}` })
+  } else if (target === 'rank') {
+    uni.reLaunch({ url: '/pages/rank/rank' })
+  } else {
+    // 直接开局,不再经过首页——九成的人就是在首页那一步走掉的
+    startRun(undefined, undefined, { homeOnError: true })
+  }
 }
 </script>
 
