@@ -42,10 +42,11 @@ AI_PROMPT = (
 
 HINT_PROMPT = (
     "你在陪玩家猜这张照片拍在哪。你的任务不是告诉他答案,而是示范**你会怎么推**。"
-    "挑出画面里两到三处最能说明问题的特征,每处说清楚它单独能把范围缩到多大,"
-    "最后说这几处交起来还剩下什么样的地方。用中文写2到3句,平实地说,不要感叹词。"
-    "例如:\"屋顶用的是筒瓦,这在东亚的传统建筑里很常见;但墙体是夯土而不是砖,"
-    "说明这里更干旱;再加上院子里那几棵杨树,范围就落到了北方的干旱地带。\""
+    "挑出画面里两三处最能说明问题的特征,每处一句说清它能缩到多大范围,"
+    "最后一句说这几处交起来剩下什么样的地方。"
+    "**全文不超过80个汉字**,每句话都要有信息量,不要铺垫、不要形容词堆砌、不要感叹词。"
+    "例如:\"屋顶是筒瓦,东亚传统建筑常见;墙体却是夯土,说明更干旱;"
+    "院里那几棵杨树,把范围压到了北方的干旱地带。\""
     "严禁:提到任何国家、省份、城市、景点、建筑的名字;"
     "严禁念出或转述画面里的任何文字;严禁说出最终结论。"
     "直接输出这段话本身,不要有多余的引号、前缀或解释。"
@@ -149,7 +150,7 @@ async def real_ai_guess(photo: Photo) -> AIGuess | None:
             found = find_city(city, near=(lat, lng))
             if found:
                 lat, lng = found
-        reasoning = str(parsed["reasoning"])
+        reasoning = re.sub(r"[。.]?\s*置信度[^。]*。?\s*$", "。", str(parsed["reasoning"])).strip()
         confidence = int(parsed.get("confidence", 60))
     except (KeyError, ValueError, TypeError):
         return None
@@ -163,7 +164,7 @@ async def real_ai_guess(photo: Photo) -> AIGuess | None:
         lng=lng,
         distance_km=round(distance, 2),
         score=score_from_distance(distance),
-        reasoning=f"{reasoning}置信度{confidence}%。",
+        reasoning=reasoning,
         model=settings.ai_model,
     )
     return guess
