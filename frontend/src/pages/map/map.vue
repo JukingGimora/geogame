@@ -6,7 +6,7 @@
     </view>
 
     <view class="map-bleed">
-      <WorldMap :height="mapHeight" :circles="circles" @pick="onPick" />
+      <WorldMap :height="mapHeight" :circles="circles" :selected="activeName" @pick="onPick" />
     </view>
 
     <view class="legend">
@@ -73,7 +73,7 @@ const topOffset = ref(0)
 // 世界地图的宽高比约 2.5:高度按宽度算,画面才不会上下留一大片空
 const windowWidth = uni.getWindowInfo().windowWidth
 // 通栏:地图本来就是宽扁的,左右再留白只会更窄
-const mapHeight = Math.round(windowWidth / 2.3)
+const mapHeight = Math.round(windowWidth / 2.0)
 
 function colorOf(name: string): string {
   return CIRCLE_COLORS[name] ?? '#888'

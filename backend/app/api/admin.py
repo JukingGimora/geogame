@@ -475,13 +475,21 @@ def _city_label(lat: float, lng: float) -> str | None:
 
 
 async def _describe_point(session: AsyncSession, lat: float, lng: float) -> str | None:
-    """任意坐标 → 「大区·省·市」,给审核页并排对照用。"""
-    province = await nearest_province(session, lat, lng)
-    if not province:
-        return None
-    macro = await session.get(Region, province.parent_id) if province.parent_id else None
-    city = await resolve_city(province.name, lat, lng)
-    return "·".join(n for n in (macro.name if macro else None, province.name, city) if n)
+    """任意坐标 → 人话描述,给审核页并排对照用。
+
+    以前一律走中国省份表:AI 猜在撒马尔罕,这里却显示"新疆·喀什"——
+    AI 是对的,标签把它冤枉了。境外的点要按国家和最近的城市说。
+    """
+    country, _ = locate(lat, lng)
+    if country.startswith("中国"):
+        province = await nearest_province(session, lat, lng)
+        if not province:
+            return country
+        macro = await session.get(Region, province.parent_id) if province.parent_id else None
+        city = await resolve_city(province.name, lat, lng)
+        return "·".join(n for n in (macro.name if macro else None, province.name, city) if n)
+    hit = nearest_city(lat, lng)
+    return f"{country}·{hit[0]}" if hit else country
 
 
 async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:

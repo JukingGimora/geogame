@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, ref, watch } from 'vue'
 import { BASE_URL } from '../api'
-import { CIRCLE_COLORS, THEME } from '../lib/theme'
+import { CIRCLE_COLORS, CIRCLE_OUTLINES, THEME } from '../lib/theme'
 
 /**
  * 世界地图,按文化圈上色。
@@ -34,8 +34,8 @@ interface CircleState {
 }
 
 const props = withDefaults(
-  defineProps<{ height?: number; circles?: CircleState[] }>(),
-  { height: 420, circles: () => [] },
+  defineProps<{ height?: number; circles?: CircleState[]; selected?: string }>(),
+  { height: 420, circles: () => [], selected: '' },
 )
 const emit = defineEmits<{ pick: [name: string] }>()
 
@@ -51,8 +51,8 @@ let retries = 0
 // 以 150°E 为中心:太平洋文化圈不会被地图边缘劈成两半,中国也大致居中。
 // 接缝落在大西洋(-30°),那儿几乎全是海。
 const CENTER_LNG = 150
-const LNG_MIN = -180
-const LNG_MAX = 180
+const LNG_MIN = -152 // 两边的空海裁掉,画面才不至于又扁又窄
+const LNG_MAX = 168
 
 /** 把真实经度换算成"以中心经线为 0"的相对经度 */
 function rel(lng: number): number {
@@ -83,23 +83,26 @@ function unproject(x: number, y: number): [number, number] {
 }
 
 // 标签落点手工定,自动算重心会把字压到边缘或海里
-const LABELS: Record<string, [number, number]> = {
-  东亚: [36, 108],
-  东南亚: [-2, 112],
-  南亚: [22, 78],
-  伊斯兰: [26, 38],
-  西欧: [50, 8],
-  东欧: [58, 70],
-  非洲: [-12, 22],
-  拉美: [-18, -60],
-  太平洋: [-18, 178],
-}
+// 一个圈可以标好几处:西欧圈分布在西欧、北美、澳新三块地上,只标一处等于没标
+const LABELS: [string, number, number][] = [
+  ['东亚', 36, 108],
+  ['东南亚', -2, 112],
+  ['南亚', 22, 78],
+  ['伊斯兰', 26, 38],
+  ['西欧', 50, 10],
+  ['西欧', 44, -100],
+  ['西欧', -26, 134],
+  ['东欧', 60, 80],
+  ['非洲', -8, 22],
+  ['拉美', -18, -60],
+  ['太平洋', -12, -170],
+]
 
 const state = ref<Record<string, CircleState>>({})
 watch(
-  () => props.circles,
-  (list) => {
-    state.value = Object.fromEntries(list.map((c) => [c.name, c]))
+  () => [props.circles, props.selected] as const,
+  () => {
+    state.value = Object.fromEntries(props.circles.map((c) => [c.name, c]))
     draw()
   },
   { immediate: true, deep: true },
@@ -132,29 +135,77 @@ async function load() {
   loaded = true
 }
 
+/**
+ * 按接缝把一个环切成若干段。
+ *
+ * 地图以 150°E 为中心,接缝在 -30°。俄罗斯、斐济这些横跨接缝的国家,
+ * 如果直接连线,会被拉成一条横贯整张图的带子——线上真出现过,像蒙了层雾。
+ */
+function splitAtSeam(ring: Ring): Ring[] {
+  const out: Ring[] = []
+  let current: Ring = []
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i]
+    if (current.length) {
+      const prev = current[current.length - 1]
+      if (Math.abs(rel(p[0]) - rel(prev[0])) > 180) {
+        out.push(current)
+        current = []
+      }
+    }
+    current.push(p)
+  }
+  if (current.length) out.push(current)
+  return out.filter((r) => r.length >= 3)
+}
+
+function tracePath(ctx: any, ring: Ring) {
+  ctx.beginPath()
+  ring.forEach(([lng, lat]: [number, number], i: number) => {
+    const [x, y] = project(lng, lat)
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  })
+  ctx.closePath()
+}
+
 function paint(ctx: any) {
   ctx.fillStyle = THEME.bgSunken
   ctx.fillRect(0, 0, box.w, box.h)
   for (const f of features) {
+    const muted = props.selected && props.selected !== f.c
     const color = fillFor(f.c)
-    ctx.fillStyle = color
+    ctx.fillStyle = muted ? mix(color, THEME.bgSunken, 0.35) : color
     // 用同色描边而不是底色:同一个文化圈里的国家会连成一片,
     // 玩家看到的是"一个文化圈",不是一堆国家拼图
-    ctx.strokeStyle = color
+    ctx.strokeStyle = ctx.fillStyle
     ctx.lineWidth = 1
     for (const ring of f.r) {
-      ctx.beginPath()
-      ring.forEach(([lng, lat]: [number, number], i: number) => {
-        const [x, y] = project(lng, lat)
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      })
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
+      for (const piece of splitAtSeam(ring)) {
+        tracePath(ctx, piece)
+        ctx.fill()
+        ctx.stroke()
+      }
     }
   }
+  paintOutlines(ctx)
   paintLabels(ctx)
+}
+
+/** 圈的边界线。国界是拼图,这条线才是"文化圈"本身 */
+function paintOutlines(ctx: any) {
+  for (const [name, loops] of Object.entries(CIRCLE_OUTLINES)) {
+    const picked = props.selected === name
+    const color = CIRCLE_COLORS[name] ?? THEME.inkFaint
+    ctx.strokeStyle = picked ? '#fff' : mix(color, THEME.bgSunken, 0.85)
+    ctx.lineWidth = picked ? 2.4 : 1.6
+    for (const loop of loops) {
+      for (const piece of splitAtSeam(loop as Ring)) {
+        tracePath(ctx, piece)
+        ctx.stroke()
+      }
+    }
+  }
 }
 
 /** 圈名标在自己那块地上,否则这张图只是"一堆颜色" */
@@ -162,10 +213,10 @@ function paintLabels(ctx: any) {
   ctx.font = `${Math.max(9, Math.round(box.w / 34))}px sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  for (const [name, anchor] of Object.entries(LABELS)) {
-    const s = state.value[name]
-    const [x, y] = project(anchor[1], anchor[0])
-    ctx.fillStyle = s?.lit ? '#fff' : 'rgba(255,255,255,0.72)'
+  for (const [name, lat, lng] of LABELS) {
+    const [x, y] = project(lng, lat)
+    const dimmed = props.selected && props.selected !== name
+    ctx.fillStyle = dimmed ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.9)'
     ctx.fillText(name, x, y)
   }
 }
