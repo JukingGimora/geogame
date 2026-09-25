@@ -15,6 +15,7 @@
       </text>
     </view>
     <view class="tap" :class="{ visible: shown >= lines.length - 1 }">▸ {{ t('opening.tap') }}</view>
+    <text class="build">build {{ BUILD }}</text>
   </view>
 </template>
 
@@ -27,6 +28,7 @@ import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { t, tList } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
 import { logEvent } from '../../lib/analytics'
+import { BUILD } from '../../lib/version'
 import { startRun } from '../../lib/play'
 
 const lines = tList('opening.lines')
@@ -106,6 +108,15 @@ function enter() {
 </script>
 
 <style scoped>
+.build {
+  position: absolute;
+  right: 24rpx;
+  bottom: 20rpx;
+  color: var(--accent);
+  font-size: 26rpx;
+  letter-spacing: 2rpx;
+}
+
 .opening {
   min-height: 100vh;
   background: #1b1510;

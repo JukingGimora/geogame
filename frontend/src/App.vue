@@ -11,7 +11,26 @@ onLaunch(() => {
 </script>
 
 <style>
-page,
+/* 小程序的根是 page,H5 的根是 :root。写在同一条规则里会被 WXSS 整条丢掉,
+   于是所有 var() 取不到值,页面变成白底黑字——这个坑踩过一次 */
+page {
+  /* 值在 lib/theme.ts 里,两处要一起改 */
+  --bg: #16110c;
+  --bg-sunken: #0f0c08;
+  --card: #211a13;
+  --card-alt: #2a2110;
+  --line: #322818;
+  --line-strong: #4b4231;
+  --ink: #e9dfc9;
+  --ink-dim: #a2937b;
+  --ink-faint: #6b5f4a;
+  --accent: #f5a33c;
+  --on-accent: #2a1c05;
+  --good: #8fd3a8;
+  --warn: #e0785e;
+}
+
+/* #ifdef H5 */
 :root {
   /* 值在 lib/theme.ts 里,两处要一起改 */
   --bg: #16110c;
@@ -28,6 +47,7 @@ page,
   --good: #8fd3a8;
   --warn: #e0785e;
 }
+/* #endif */
 
 body {
   background: var(--bg);

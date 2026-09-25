@@ -59,6 +59,8 @@ export default {
     circlePhotos: '{n} 张',
     circleEmpty: '还没有照片',
     circleEmptyHint: '这个文化圈还没有人传过照片，第一张可以由你来',
+    mapHint: '点地图上任意一块，看看那里是什么文化圈',
+    startCircle: '去{name}走一圈',
     start: '开始一轮',
     upload: '上传照片',
     mine: '我的行囊',

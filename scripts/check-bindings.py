@@ -23,6 +23,7 @@ TEMPLATE = re.compile(r"<template>(.*)</template>", re.S)
 # 加进来之前先确认它真的读了 e,而不是图省事消掉告警。
 INTENTIONAL = {
     ("components/NativeMapPicker.vue", "onTap"),  # 读 e.detail 拿点击处的经纬度
+    ("components/WorldMap.vue", "onTap"),  # 读点击坐标,反推点中的是哪个文化圈
 }
 
 

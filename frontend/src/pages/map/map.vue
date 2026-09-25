@@ -1,25 +1,26 @@
 <template>
-  <view class="home" :style="{ paddingTop: `${topOffset + 56}px` }">
-    <text class="g-title title">{{ t('map.title') }}</text>
-    <text class="sub">{{ subtitle }}</text>
-
-    <view class="circles">
-      <view
-        v-for="c in circles"
-        :key="c.name"
-        class="circle"
-        :class="{ lit: c.lit, empty: c.photos === 0 }"
-        @tap="enter(c)"
-      >
-        <view class="circle-head">
-          <text class="circle-name px-font">{{ c.name }}</text>
-          <text class="circle-count">{{ c.photos > 0 ? t('map.circlePhotos', { n: c.photos }) : t('map.circleEmpty') }}</text>
-        </view>
-        <text class="circle-desc">{{ c.desc }}</text>
-      </view>
+  <view class="home" :style="{ paddingTop: `${topOffset + 48}px` }">
+    <view class="header">
+      <text class="g-title">{{ t('map.title') }}</text>
+      <text class="sub">{{ subtitle }}</text>
     </view>
 
-    <button class="g-btn primary start" @tap="onStart">{{ t('map.start') }}</button>
+    <WorldMap :height="mapHeight" :circles="circles" @pick="onPick" />
+
+    <view class="picked" v-if="active">
+      <view class="picked-head">
+        <text class="picked-name px-font">{{ active.name }}</text>
+        <text class="picked-count">
+          {{ active.photos > 0 ? t('map.circlePhotos', { n: active.photos }) : t('map.circleEmpty') }}
+        </text>
+      </view>
+      <text class="picked-desc">{{ active.desc }}</text>
+    </view>
+    <text v-else class="picked-hint">{{ t('map.mapHint') }}</text>
+
+    <button class="g-btn primary start" @tap="onStart">
+      {{ active && active.photos > 0 ? t('map.startCircle', { name: active.name }) : t('map.start') }}
+    </button>
     <view class="row">
       <button class="g-btn" @tap="go('/pages/upload/upload')">{{ t('map.upload') }}</button>
       <button class="g-btn" @tap="go('/pages/rank/rank')">{{ t('map.rank') }}</button>
@@ -34,6 +35,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 // #ifdef MP-WEIXIN
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 // #endif
+import WorldMap from '../../components/WorldMap.vue'
 import { api } from '../../api'
 import { t } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
@@ -49,9 +51,13 @@ interface Circle {
 }
 
 const circles = ref<Circle[]>([])
+const activeName = ref('')
 const topOffset = ref(0)
+const mapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.46)
 
-// 点亮了几个圈,是玩家在这游戏里唯一一直累积的东西,放在最显眼的第二行
+const active = computed(() => circles.value.find((c) => c.name === activeName.value) || null)
+
+// 点亮了几个圈,是玩家在这游戏里唯一一直累积的东西
 const subtitle = computed(() => {
   const lit = circles.value.filter((c) => c.lit).length
   return t('map.progress', { lit, total: circles.value.length || 9 })
@@ -75,22 +81,24 @@ async function load() {
     const res = await api.circles()
     circles.value = res.items
   } catch {
-    // 拉不到就让页面空着,至少"开始一轮"还能点
+    // 拉不到就让地图空着,至少"开始一轮"还能点
   }
 }
 
-function enter(c: Circle) {
-  logEvent('circle_click', 'circle', undefined, { name: c.name, photos: c.photos, lit: c.lit })
-  if (c.photos === 0) {
-    uni.showToast({ title: t('map.circleEmptyHint'), icon: 'none', duration: 2200 })
-    return
-  }
-  startRun(undefined, c.name)
+function onPick(name: string) {
+  activeName.value = name
+  const c = circles.value.find((x) => x.name === name)
+  logEvent('circle_click', 'circle', undefined, { name, photos: c?.photos ?? 0, lit: c?.lit ?? false })
 }
 
 function onStart() {
-  logEvent('start_click', 'page', undefined, { from: 'home' })
-  startRun()
+  const c = active.value
+  if (c && c.photos === 0) {
+    uni.showToast({ title: t('map.circleEmptyHint'), icon: 'none', duration: 2200 })
+    return
+  }
+  logEvent('start_click', 'page', undefined, { from: 'home', circle: c?.name ?? '' })
+  startRun(undefined, c?.name)
 }
 
 function go(url: string) {
@@ -114,79 +122,67 @@ onShareTimeline(() => ({
 .home {
   min-height: 100vh;
   background: var(--bg);
-  padding: 0 32rpx 40rpx;
+  padding: 0 28rpx 32rpx;
   box-sizing: border-box;
 }
 
-.title {
-  display: block;
-  font-size: 44rpx;
+.header {
+  margin-bottom: 20rpx;
 }
 
 .sub {
   display: block;
   color: var(--ink-faint);
-  font-size: 24rpx;
-  margin-top: 14rpx;
+  font-size: 23rpx;
+  margin-top: 10rpx;
 }
 
-.circles {
-  margin: 44rpx 0 40rpx;
+.picked {
+  min-height: 108rpx;
+  margin-top: 24rpx;
 }
 
-/* 没有边框,靠底色深浅分层:框太多是"廉价感"最主要的来源 */
-.circle {
-  background: var(--card);
-  border-radius: 12rpx;
-  padding: 26rpx 28rpx;
-  margin-bottom: 14rpx;
-  opacity: 0.55;
-}
-
-.circle.lit {
-  opacity: 1;
-}
-
-.circle.empty {
-  opacity: 0.3;
-}
-
-.circle-head {
+.picked-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
 }
 
-.circle-name {
-  color: var(--ink);
+.picked-name {
+  color: var(--accent);
   font-size: 32rpx;
 }
 
-.circle.lit .circle-name {
-  color: var(--accent);
-}
-
-.circle-count {
+.picked-count {
   color: var(--ink-faint);
   font-size: 22rpx;
 }
 
-.circle-desc {
+.picked-desc {
   display: block;
   color: var(--ink-dim);
   font-size: 24rpx;
   line-height: 1.7;
-  margin-top: 10rpx;
+  margin-top: 8rpx;
+}
+
+.picked-hint {
+  display: block;
+  min-height: 108rpx;
+  margin-top: 24rpx;
+  color: var(--ink-faint);
+  font-size: 23rpx;
 }
 
 .start {
   width: 100%;
+  margin-top: 8rpx;
 }
 
 .row {
   display: flex;
-  gap: 16rpx;
-  margin-top: 20rpx;
+  gap: 14rpx;
+  margin-top: 16rpx;
 }
 
 .row .g-btn {

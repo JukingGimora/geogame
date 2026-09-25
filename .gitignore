@@ -9,4 +9,5 @@ node_modules/
 backend/geodata/
 # 省界是按需下载的,城市表是构建好的静态数据,必须跟着代码走
 !backend/geodata/cities.tsv
+!backend/geodata/world.json
 backend/app/static/h5test/

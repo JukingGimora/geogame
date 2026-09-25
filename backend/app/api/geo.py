@@ -11,6 +11,15 @@ GEODATA_DIR = Path(__file__).resolve().parents[2] / "geodata"
 DATAV_URL = "https://geo.datav.aliyun.com/areas_v3/bound/{code}.json"
 
 
+@router.get("/world")
+async def world_outline():
+    """世界轮廓,每块已经标好属于哪个文化圈。前端按它上色,不用自己判国界。"""
+    path = GEODATA_DIR / "world.json"
+    if not path.exists():
+        raise HTTPException(404, "world_not_found")
+    return FileResponse(path, media_type="application/json", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get("/{adcode}")
 async def boundary(adcode: str):
     """行政区边界 GeoJSON。数据自托管于 geodata/,缺失时从公开数据集下载一次并永久缓存。"""
