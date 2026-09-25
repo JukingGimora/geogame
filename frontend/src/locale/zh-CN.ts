@@ -74,6 +74,7 @@ export default {
     totalScore: '总分 {n}',
     hints: ['故事开头', 'AI线索', '大致范围', '再缩小点'],
     hintCost: ['免费', '×0.8', '×0.6', '×0.4'],
+    placeLabel: '拍摄于 {place}',
     distance: '距离',
     score: '得分',
     beatAi: '你赢了 AI',

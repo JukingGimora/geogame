@@ -36,6 +36,7 @@
 
       <view v-if="phase === 'result' && result" class="result">
         <ChinaMap :height="260" :markers="resultMarkers" />
+        <text v-if="result.place" class="place">{{ t('play.placeLabel', { place: result.place }) }}</text>
         <view class="stats">
           <view class="stat">
             <text class="stat-label">{{ t('play.distance') }}</text>
@@ -271,6 +272,13 @@ onShareTimeline(() => ({
 </script>
 
 <style scoped>
+.place {
+  display: block;
+  color: #7a6a4d;
+  font-size: 24rpx;
+  margin-top: 12rpx;
+}
+
 .play {
   min-height: 100vh;
   background: #efe3c8;
