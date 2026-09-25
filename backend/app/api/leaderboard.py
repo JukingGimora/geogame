@@ -23,6 +23,21 @@ async def leaderboard(
 ):
     if board == "points":
         sub = understood.counts_by_uploader()
+    elif board == "streak":
+        # 连过多少关:比总分有故事——"他连过了 31 关"是能被人记住的数字
+        per_run = (
+            select(Run.user_id.label("uid"), func.count(Round.id).label("n"))
+            .select_from(Round)
+            .join(Run, Round.run_id == Run.id)
+            .where(Round.finished_at.is_not(None))
+            .group_by(Round.run_id, Run.user_id)
+            .subquery()
+        )
+        sub = (
+            select(per_run.c.uid.label("uid"), func.max(per_run.c.n).label("v"))
+            .group_by(per_run.c.uid)
+            .subquery()
+        )
     else:
         sub = (
             select(Run.user_id.label("uid"), func.max(Run.total_score).label("v"))

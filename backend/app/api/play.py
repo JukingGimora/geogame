@@ -15,7 +15,9 @@ from app.storage import storage
 
 router = APIRouter(tags=["play"])
 
-ROUNDS_PER_RUN = 5
+LIVES = 3           # 掉光就结束:没有失败就没有"再来一把"
+MISS_KM = 1000.0    # 超过这个距离算失手,掉一条命
+PREFETCH = 2        # 一次多备几关,免得每猜一关都等一次抽题
 
 
 class RunIn(BaseModel):
@@ -48,11 +50,7 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
             await _swap_in_photo(session, unfinished, body.photo_id, user)
         return await run_state(unfinished.id, user, session)
 
-    q = select(Photo).where(Photo.status == "live")
-    if body.chapter in ("china", "world"):
-        lat_min, lat_max, lng_min, lng_max = CHINA_BOUNDS
-        inside = and_(Photo.lat.between(lat_min, lat_max), Photo.lng.between(lng_min, lng_max))
-        q = q.where(inside if body.chapter == "china" else ~inside)
+    q = _playable(user, body.chapter)
     if body.region_id:
         region = await session.get(Region, body.region_id)
         if not region:
@@ -60,15 +58,11 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         sub = select(Region.id).where(Region.path.like(f"{region.path}%"))
         q = q.where(Photo.region_id.in_(sub))
 
-    # 自己上传的图不能自己猜:上传者知道确切坐标,等于白送满分刷榜
-    playable = q.where(Photo.uploader_id != user.id)
-
-    played_ids = (
-        await session.scalars(select(Round.photo_id).join(Run, Round.run_id == Run.id).where(Run.user_id == user.id))
-    ).all()
+    playable = q
+    played_ids = await _played_photo_ids(session, user)
     photos = list(
         await session.scalars(
-            playable.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(ROUNDS_PER_RUN)
+            playable.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(PREFETCH)
         )
     )
 
@@ -82,7 +76,7 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
             and wanted.uploader_id != user.id
             and wanted.id not in played_ids
         ):
-            photos = [wanted] + [p for p in photos if p.id != wanted.id][: ROUNDS_PER_RUN - 1]
+            photos = [wanted] + [p for p in photos if p.id != wanted.id][: PREFETCH - 1]
 
     if not photos:
         # 三种空库的原因,前端提示各不相同
@@ -100,6 +94,47 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         session.add(Round(run_id=run.id, photo_id=p.id, order_index=i))
     await session.commit()
     return await run_state(run.id, user, session)
+
+
+def _playable(user: User, chapter: str | None):
+    """能发给这个人的题:已上线、不是他自己传的(知道答案等于白送满分)、限定章节。"""
+    q = select(Photo).where(Photo.status == "live", Photo.uploader_id != user.id)
+    if chapter in ("china", "world"):
+        lat_min, lat_max, lng_min, lng_max = CHINA_BOUNDS
+        inside = and_(Photo.lat.between(lat_min, lat_max), Photo.lng.between(lng_min, lng_max))
+        q = q.where(inside if chapter == "china" else ~inside)
+    return q
+
+
+async def _played_photo_ids(session: AsyncSession, user: User) -> list[int]:
+    """猜过的不再出现——知道答案的关既没意思,也会把纪录刷成假的。"""
+    return list(
+        await session.scalars(
+            select(Round.photo_id).join(Run, Round.run_id == Run.id).where(Run.user_id == user.id)
+        )
+    )
+
+
+async def _lives_used(session: AsyncSession, run: Run) -> int:
+    """失手次数由关卡记录现算,不存字段,省一次线上迁移。"""
+    return await session.scalar(
+        select(func.count(Round.id)).where(
+            Round.run_id == run.id, Round.distance_km > MISS_KM, Round.finished_at.is_not(None)
+        )
+    ) or 0
+
+
+async def _append_round(session: AsyncSession, run: Run, user: User) -> bool:
+    """再接一关。题库被他打空就返回 False,由调用方结束这一局。"""
+    played = await _played_photo_ids(session, user)
+    photo = await session.scalar(
+        _playable(user, None).where(Photo.id.notin_(played)).order_by(func.random()).limit(1)
+    )
+    if not photo:
+        return False
+    last = await session.scalar(select(func.max(Round.order_index)).where(Round.run_id == run.id))
+    session.add(Round(run_id=run.id, photo_id=photo.id, order_index=(last or 0) + 1))
+    return True
 
 
 async def _swap_in_photo(session: AsyncSession, run: Run, photo_id: int, user: User) -> None:
@@ -146,7 +181,15 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
         if r.finished_at is not None:
             item.update({"score": r.score, "distance_km": r.distance_km})
         out.append(item)
-    return {"run_id": run.id, "status": run.status, "total_score": run.total_score, "rounds": out}
+    finished_rounds = sum(1 for r in rounds if r.finished_at is not None)
+    return {
+        "run_id": run.id,
+        "status": run.status,
+        "total_score": run.total_score,
+        "lives_left": max(0, LIVES - await _lives_used(session, run)),
+        "streak": finished_rounds,
+        "rounds": out,
+    }
 
 
 async def _get_open_round(session: AsyncSession, round_id: int, user: User) -> tuple[Round, Run]:
@@ -192,11 +235,21 @@ async def submit_guess(
     rnd.finished_at = datetime.now(timezone.utc)
     run.total_score += score
 
-    unfinished = await session.scalar(
-        select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_(None))
-    )
-    if unfinished == 0:
+    # 三条命掉光,或者题库被他走空,这一局就结束了。除此之外一直往下接。
+    lives_left = LIVES - await _lives_used(session, run)
+    ended = "lives" if lives_left <= 0 else None
+    if not ended:
+        pending = await session.scalar(
+            select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_(None))
+        )
+        if pending < PREFETCH and not await _append_round(session, run, user):
+            if pending == 0:
+                ended = "pool_empty"
+    if ended:
         run.status = "finished"
+    streak = await session.scalar(
+        select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_not(None))
+    )
 
     await _award_uploader(session, photo, user, distance)
 
@@ -206,6 +259,9 @@ async def submit_guess(
     return {
         "distance_km": rnd.distance_km,
         "score": score,
+        "lives_left": max(0, lives_left),
+        "streak": streak,
+        "ended": ended,
         "truth": {"lat": photo.lat, "lng": photo.lng},
         "story": photo.story,
         "uploader": {"id": uploader.id, "nickname": uploader.nickname},
