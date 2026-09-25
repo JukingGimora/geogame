@@ -3,7 +3,7 @@ import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import case
 from sqlalchemy import delete as sa_delete
@@ -29,8 +29,8 @@ from app.models import (
 from app.services.auth import require_admin
 from app.services.circles import CIRCLES, locate
 from app.services.enrich import enrich_photo
-from app.services.geo import nearest_province, resolve_city
-from app.storage import storage
+from app.services.geo import in_china, nearest_province, resolve_city
+from app.storage import process_image, storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -41,6 +41,10 @@ BEIJING_OFFSET = timedelta(hours=8)
 
 class RejectIn(BaseModel):
     reason: str
+
+
+class StoryIn(BaseModel):
+    story: str
 
 
 @router.get("/photos")
@@ -145,6 +149,78 @@ async def enrich_missing(limit: int = 20, session: AsyncSession = Depends(get_se
         .where(Photo.id.notin_(has_guess) | Photo.id.notin_(has_hint2))
     )
     return {"enriched": len(ids), "remaining": remaining}
+
+
+@router.post("/photos/import")
+async def import_photo(
+    file: UploadFile = File(...),
+    lat: float = Form(...),
+    lng: float = Form(...),
+    story: str = Form(""),
+    uploader_id: int = Form(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """从电脑上批量导入自己的照片。
+
+    手机端那个上传接口一次一张、还有每天 20 张的配额,几百张存量根本传不完。
+    这条只给管理员用:坐标由脚本从 EXIF 里读出来,不用一张张在地图上点。
+    """
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise HTTPException(422, "invalid_coordinates")
+    uploader = await session.get(User, uploader_id)
+    if not uploader:
+        raise HTTPException(404, "uploader_not_found")
+    data = await file.read()
+    try:
+        image = process_image(data)
+    except Exception:
+        raise HTTPException(422, "invalid_image")
+    digest = hashlib.sha256(image).hexdigest()
+    dup = await session.scalar(
+        select(Photo.id).where(Photo.file_hash == digest, Photo.status.in_(("pending", "live")))
+    )
+    if dup:
+        return {"id": dup, "duplicate": True}
+    try:
+        file_key = storage.save(image)
+    except Exception:
+        logger.exception("storage.save failed during import (%d bytes)", len(image))
+        raise HTTPException(503, "storage_unavailable")
+    province = await nearest_province(session, lat, lng) if in_china(lat, lng) else None
+    country, circle = locate(lat, lng)
+    photo = Photo(
+        uploader_id=uploader_id,
+        file_key=file_key,
+        lat=lat,
+        lng=lng,
+        region_id=province.id if province else None,
+        country=country,
+        circle=circle,
+        story=story[:2000],
+        file_hash=digest,
+    )
+    session.add(photo)
+    await session.commit()
+    return {"id": photo.id, "status": photo.status, "country": country, "circle": circle}
+
+
+@router.post("/photos/{photo_id}/story")
+async def edit_story(photo_id: int, body: StoryIn, session: AsyncSession = Depends(get_session)):
+    """补写或改写故事。
+
+    批量导入的照片没有故事,而故事是这个游戏最值钱的部分——审核时必须能补。
+    已上线的照片也能改,顺手把提示①(故事前半句)一起更新。
+    """
+    photo = await session.get(Photo, photo_id)
+    if not photo:
+        raise HTTPException(404, "photo_not_found")
+    photo.story = body.story[:2000]
+    await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id, Hint.level == 1))
+    if photo.story:
+        teaser = photo.story[: max(6, len(photo.story) // 2)]
+        session.add(Hint(photo_id=photo_id, level=1, content=teaser + "…", source="uploader"))
+    await session.commit()
+    return {"id": photo.id, "story": photo.story}
 
 
 @router.post("/photos/backfill-circles")
