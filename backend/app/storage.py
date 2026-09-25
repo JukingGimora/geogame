@@ -2,7 +2,7 @@
 import io
 import uuid
 
-from PIL import Image, ImageOps
+from PIL import ExifTags, Image, ImageOps
 from pillow_heif import register_heif_opener
 
 from app.config import settings
@@ -12,6 +12,39 @@ try:
     import pillow_avif  # noqa: F401
 except ImportError:
     pass
+
+
+GPS_TAG = next(k for k, v in ExifTags.TAGS.items() if v == "GPSInfo")
+
+
+def _ratio(value) -> float:
+    return float(value[0]) / float(value[1]) if isinstance(value, tuple) else float(value)
+
+
+def _dms(values, ref: str) -> float:
+    deg, minutes, seconds = (_ratio(v) for v in values)
+    dec = deg + minutes / 60 + seconds / 3600
+    return -dec if ref in ("S", "W") else dec
+
+
+def read_gps(data: bytes) -> tuple[float, float] | None:
+    """照片自带的拍摄坐标,读不到就返回 None。
+
+    必须在 process_image 之前读:那一步会把元数据全抹掉(这是故意的,
+    上线的图不该带着拍摄者的设备信息)。经微信中转过的图 GPS 已经没了,
+    所以"读不到"是常态之一,不是错误。
+    """
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            exif = img.getexif()
+            gps = exif.get_ifd(GPS_TAG) if exif else None
+        if not gps or 2 not in gps or 4 not in gps:
+            return None
+        lat = _dms(gps[2], gps.get(1, "N"))
+        lng = _dms(gps[4], gps.get(3, "E"))
+    except Exception:
+        return None
+    return (lat, lng) if -90 <= lat <= 90 and -180 <= lng <= 180 else None
 
 
 def process_image(data: bytes) -> bytes:

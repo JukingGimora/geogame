@@ -13,7 +13,7 @@ from app.services import understood
 from app.services.auth import get_current_user
 from app.services.circles import locate
 from app.services.geo import nearest_province
-from app.storage import process_image, storage
+from app.storage import process_image, read_gps, storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 logger = logging.getLogger(__name__)
@@ -24,15 +24,22 @@ DAILY_UPLOAD_LIMIT = 20
 @router.post("")
 async def upload_photo(
     file: UploadFile = File(...),
-    lat: float = Form(...),
-    lng: float = Form(...),
+    lat: float | None = Form(None),
+    lng: float | None = Form(None),
     story: str = Form(""),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    data = await file.read()
+    if lat is None or lng is None:
+        # 照片自带坐标就直接用:让用户在地图上手动找位置是上传流程里最劝退的一步,
+        # 而且他未必记得准。读不到的才退回手动标(微信中转过的图就没有)。
+        found = read_gps(data)
+        if not found:
+            raise HTTPException(422, "need_location")
+        lat, lng = found
     if not (-90 <= lat <= 90 and -180 <= lng <= 180):
         raise HTTPException(422, "invalid_coordinates")
-    data = await file.read()
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(413, "file_too_large")
     try:

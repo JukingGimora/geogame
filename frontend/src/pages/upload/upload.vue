@@ -10,13 +10,16 @@
 
     <text class="hint-line">{{ t('upload.imageOnly') }}</text>
 
-    <text class="section">{{ t('upload.pickLocation') }}</text>
-    <!-- #ifdef MP-WEIXIN -->
-    <NativeMapPicker :height="480" :markers="markers" @pick="onPick" />
-    <!-- #endif -->
-    <!-- #ifndef MP-WEIXIN -->
-    <ChinaMap :height="480" :interactive="true" :markers="markers" @pick="onPick" />
-    <!-- #endif -->
+    <block v-if="needLocation">
+      <text class="section">{{ t('upload.pickLocation') }}</text>
+      <text class="hint-line">{{ t('upload.noGps') }}</text>
+      <!-- #ifdef MP-WEIXIN -->
+      <NativeMapPicker :height="480" :markers="markers" @pick="onPick" />
+      <!-- #endif -->
+      <!-- #ifndef MP-WEIXIN -->
+      <ChinaMap :height="480" :interactive="true" :markers="markers" @pick="onPick" />
+      <!-- #endif -->
+    </block>
 
     <textarea class="story" v-model="story" :placeholder="t('upload.story')" maxlength="2000" />
 
@@ -44,6 +47,9 @@ const fileName = ref('')
 const story = ref('')
 const location = ref<LngLat | null>(null)
 const submitting = ref(false)
+// 默认不让用户找位置:照片自带坐标的占绝大多数(实测 158 张里 153 张有),
+// 手动在地图上标是上传流程里最劝退的一步
+const needLocation = ref(false)
 const boxHeight = ref(600)
 
 const markers = computed<MapMarker[]>(() => (location.value ? [{ ...location.value, kind: 'pick' }] : []))
@@ -107,18 +113,34 @@ function onPick(p: LngLat) {
 }
 
 async function submit() {
-  if (!filePath.value || !location.value) {
+  if (!filePath.value) {
+    uni.showToast({ title: t('upload.needPhoto'), icon: 'none' })
+    return
+  }
+  if (needLocation.value && !location.value) {
     uni.showToast({ title: t('upload.needAll'), icon: 'none' })
     return
   }
   submitting.value = true
   logEvent('upload_submit')
   try {
-    await api.uploadPhoto(filePath.value, location.value.lat, location.value.lng, story.value)
+    await api.uploadPhoto(
+      filePath.value,
+      location.value?.lat ?? null,
+      location.value?.lng ?? null,
+      story.value,
+    )
     logEvent('upload_success')
     uni.showToast({ title: t('upload.submitted'), icon: 'none', duration: 2500 })
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: unknown) {
+    if ((e as any)?.data?.includes?.('need_location')) {
+      // 这张照片没带坐标,这才把地图放出来
+      needLocation.value = true
+      logEvent('upload_need_location')
+      uni.showToast({ title: t('upload.noGps'), icon: 'none', duration: 2600 })
+      return
+    }
     logEvent('upload_fail', '', undefined, { msg: errorMessage(e).slice(0, 40) })
     uni.showToast({ title: errorMessage(e), icon: 'none', duration: 2500 })
   } finally {

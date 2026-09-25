@@ -123,14 +123,15 @@ export const api = {
     request('POST', '/api/v1/events', { event_type: eventType, ref_type: refType, ref_id: refId ?? null, meta }),
 
 
-  async uploadPhoto(filePath: string, lat: number, lng: number, story: string): Promise<any> {
+  // 坐标可以不传:后端会先从照片自带的 EXIF 里读,读不到才返回 need_location
+  async uploadPhoto(filePath: string, lat: number | null, lng: number | null, story: string): Promise<any> {
     if (!token) await guestLogin()
     return new Promise((resolve, reject) => {
       uni.uploadFile({
         url: BASE_URL + '/api/v1/photos',
         filePath,
         name: 'file',
-        formData: { lat: String(lat), lng: String(lng), story },
+        formData: lat != null && lng != null ? { lat: String(lat), lng: String(lng), story } : { story },
         header: { Authorization: `Bearer ${token}` },
         success: (res) => {
           if (res.statusCode < 400) resolve(JSON.parse(res.data))
