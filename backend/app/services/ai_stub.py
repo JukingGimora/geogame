@@ -29,12 +29,33 @@ AI_PROMPT = (
 )
 
 HINT_PROMPT = (
-    "你在玩一个看图猜中国地点的游戏,这是给玩家的一条付费提示,不是最终答案。"
+    "你在玩一个看图猜地点的游戏,这是给玩家的一条付费提示,不是最终答案。"
     "仔细观察这张照片,只描述你注意到的一个具体视觉线索"
     "(比如某种植被、建筑风格、地形样式、气候特征等),用中文写1到2句话,语气像善意提醒。"
-    "不要提到具体地名、省份或坐标,不要下结论说这是哪里。"
+    "严禁:提到任何国家、省份、城市、景点或建筑的名称;"
+    "严禁念出照片里出现的文字——牌匾、石碑、路牌、招牌、横幅上的字一个都不许引用或转述;"
+    "严禁说出这是哪座具体的塔、寺、桥、遗址或纪念馆;严禁给坐标或下结论。"
     "直接输出这句话本身,不要有多余的引号、前缀或解释。"
 )
+
+RETRY_SUFFIX = (
+    "上一次你违规了:请重新只写视觉观察,"
+    "不要出现任何专有名称,不要引用画面里的任何文字,不要使用引号。"
+)
+
+# 模型偶尔还是会把石碑上的字念出来(线上真出现过"马跃檀溪遗址"),等于直接报答案。
+# 所以生成完再过一道:带引号的专名、省名国名一律判漏,宁可退回兜底文案。
+_QUOTE_CHARS = "「」『』“”\"《》"
+
+
+def _leaks_answer(text: str) -> bool:
+    if any(ch in text for ch in _QUOTE_CHARS):
+        return True
+    from app.services.circles import COUNTRIES
+    from app.services.geo import PROVINCE_ADCODE
+
+    names = set(PROVINCE_ADCODE) | {c[0] for c in COUNTRIES}
+    return any(name in text for name in names if len(name) >= 2)
 
 
 async def fake_ai_guess(photo: Photo) -> AIGuess:
@@ -117,7 +138,20 @@ async def real_ai_guess(photo: Photo) -> AIGuess | None:
 
 
 async def real_ai_hint(photo: Photo) -> str | None:
-    """提示②专用的单独调用——只要一条软性观察线索,不能像 real_ai_guess 那样带坐标/结论(会变相剧透)。"""
+    """提示②专用的单独调用——只要一条软性观察线索,不能像 real_ai_guess 那样带坐标/结论(会变相剧透)。
+
+    漏了答案就重问一次:模型多半只是没把"别念照片里的字"当回事,
+    第二次带上更硬的措辞通常就收敛了,一次调用还不到一分钱。
+    """
+    for attempt in range(2):
+        prompt = HINT_PROMPT if attempt == 0 else HINT_PROMPT + RETRY_SUFFIX
+        text = await _ask_hint(photo, prompt)
+        if text and not _leaks_answer(text):
+            return text[:255]
+    return None
+
+
+async def _ask_hint(photo: Photo, prompt: str) -> str | None:
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
@@ -130,7 +164,7 @@ async def real_ai_hint(photo: Photo) -> str | None:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": HINT_PROMPT},
+                                {"type": "text", "text": prompt},
                                 {"type": "image_url", "image_url": {"url": _image_url(photo)}},
                             ],
                         }
@@ -138,7 +172,6 @@ async def real_ai_hint(photo: Photo) -> str | None:
                 },
             )
             resp.raise_for_status()
-            text = resp.json()["choices"][0]["message"]["content"].strip()
+            return resp.json()["choices"][0]["message"]["content"].strip()
     except (httpx.HTTPError, KeyError, IndexError):
         return None
-    return text[:255] or None
