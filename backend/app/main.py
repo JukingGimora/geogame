@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, auth, events, feedback, geo, leaderboard, photos, play, regions
+from app.api import admin, auth, circles, events, feedback, geo, leaderboard, photos, play, regions
 from app.config import settings
 from app.db import async_session_maker, init_db
 from app.services.geo import seed_regions
@@ -38,6 +38,7 @@ API = "/api/v1"
 LIMITED = [Depends(rate_limit)]
 app.include_router(auth.router, prefix=API, dependencies=LIMITED)
 app.include_router(regions.router, prefix=API, dependencies=LIMITED)
+app.include_router(circles.router, prefix=API, dependencies=LIMITED)
 app.include_router(geo.router, prefix=API, dependencies=LIMITED)
 app.include_router(leaderboard.router, prefix=API, dependencies=LIMITED)
 app.include_router(feedback.router, prefix=API, dependencies=LIMITED)

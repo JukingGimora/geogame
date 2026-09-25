@@ -102,7 +102,8 @@ export const api = {
     return res
   },
   regions: () => request('GET', '/api/v1/regions'),
-  createRun: (regionId?: number, photoId?: number, chapter?: 'china' | 'world') =>
+  circles: () => request('GET', '/api/v1/circles'),
+  createRun: (regionId?: number, photoId?: number, chapter?: string) =>
     request('POST', '/api/v1/runs', {
       region_id: regionId ?? null,
       photo_id: photoId ?? null,

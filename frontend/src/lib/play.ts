@@ -9,7 +9,7 @@ import { errorMessage } from './errors'
  */
 export async function startRun(
   photoId?: number,
-  chapter?: 'china' | 'world',
+  chapter?: string,
   opts: { homeOnError?: boolean } = {},
 ): Promise<void> {
   // 模板里若写成 @tap="startRun",Vue 会把事件对象塞进来,这里挡一道

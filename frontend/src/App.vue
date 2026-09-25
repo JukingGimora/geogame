@@ -14,19 +14,19 @@ onLaunch(() => {
 page,
 :root {
   /* 值在 lib/theme.ts 里,两处要一起改 */
-  --bg: #121417;
-  --bg-sunken: #0d0f11;
-  --card: #1a1d21;
-  --card-alt: #20242a;
-  --line: #262b31;
-  --line-strong: #39414a;
-  --ink: #e8e6e3;
-  --ink-dim: #9aa0a8;
-  --ink-faint: #6a7079;
+  --bg: #16110c;
+  --bg-sunken: #0f0c08;
+  --card: #211a13;
+  --card-alt: #2a2110;
+  --line: #322818;
+  --line-strong: #4b4231;
+  --ink: #e9dfc9;
+  --ink-dim: #a2937b;
+  --ink-faint: #6b5f4a;
   --accent: #f5a33c;
-  --on-accent: #221703;
-  --good: #6fc7a1;
-  --warn: #ff6b5e;
+  --on-accent: #2a1c05;
+  --good: #8fd3a8;
+  --warn: #e0785e;
 }
 
 body {
