@@ -2,15 +2,14 @@ import { ref } from 'vue'
 import { api } from '../api'
 import { logEvent } from './analytics'
 
-const GUEST_DEFAULT_NICKNAME = '旅行者'
-
 export function useProfileHint(location: string) {
   const show = ref(false)
 
   async function check() {
     try {
       const me = await api.me()
-      show.value = me.nickname === GUEST_DEFAULT_NICKNAME
+      // 后端判定:系统给的默认名算没起过名,自己改过就不再打扰
+      show.value = me.default_name === true
       if (show.value) logEvent('profile_hint_view', '', undefined, { location })
     } catch {
       show.value = false

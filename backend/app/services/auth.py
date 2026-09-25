@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_session
 from app.models import AuthIdentity, User
+from app.services.names import default_nickname
 
 
 def create_token(user_id: int) -> str:
@@ -36,9 +37,12 @@ async def guest_login(
             user.avatar_url = avatar_url
         await session.commit()
     else:
-        user = User(nickname=nickname or "旅行者", avatar_url=avatar_url)
+        user = User(nickname=nickname, avatar_url=avatar_url)
         session.add(user)
         await session.flush()
+        # 名字要等 id 出来才能算:同一个 id 永远是同一个名字
+        if not user.nickname:
+            user.nickname = default_nickname(user.id)
         session.add(AuthIdentity(user_id=user.id, provider="guest", provider_uid=device_key))
         await session.commit()
     return user, create_token(user.id)

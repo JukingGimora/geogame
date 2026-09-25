@@ -24,6 +24,7 @@ from app.models import (
 from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
+from app.services.names import is_default
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -104,6 +105,8 @@ async def me(user: User = Depends(get_current_user), session: AsyncSession = Dep
         "nickname": user.nickname,
         "avatar_url": user.avatar_url,
         "points": row.seen or 0,
+        # 还没自己起过名字的人,才提示他去设置
+        "default_name": is_default(user.id, user.nickname),
     }
 
 
