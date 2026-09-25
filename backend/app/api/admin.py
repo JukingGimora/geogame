@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.services.auth import require_admin
+from app.services.circles import CIRCLES, locate
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
 from app.storage import storage
@@ -144,6 +145,18 @@ async def enrich_missing(limit: int = 20, session: AsyncSession = Depends(get_se
         .where(Photo.id.notin_(has_guess) | Photo.id.notin_(has_hint2))
     )
     return {"enriched": len(ids), "remaining": remaining}
+
+
+@router.post("/photos/backfill-circles")
+async def backfill_circles(limit: int = 500, session: AsyncSession = Depends(get_session)):
+    """给还没有文化圈的老照片补上。加字段那次迁移之后跑一遍即可。"""
+    photos = (
+        await session.scalars(select(Photo).where(Photo.circle.is_(None)).limit(limit))
+    ).all()
+    for p in photos:
+        p.country, p.circle = locate(p.lat, p.lng)
+    await session.commit()
+    return {"updated": len(photos)}
 
 
 @router.post("/photos/backfill-hashes")
@@ -391,10 +404,20 @@ async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
     if photo.story:
         teaser = photo.story[: max(6, len(photo.story) // 2)]
         session.add(Hint(photo_id=photo.id, level=1, content=teaser + "…", source="uploader"))
+    # 提示③是文化圈:境外照片没有省,以前这两条提示直接是空的,玩家点了报错
+    if not photo.circle:
+        photo.country, photo.circle = locate(photo.lat, photo.lng)
+    session.add(
+        Hint(
+            photo_id=photo.id,
+            level=3,
+            content=f"在{photo.circle}文化圈——{CIRCLES[photo.circle]}",
+            source="system",
+        )
+    )
     if photo.region_id:
         province = await session.get(Region, photo.region_id)
         if province:
-            macro = await session.get(Region, province.parent_id) if province.parent_id else None
-            if macro:
-                session.add(Hint(photo_id=photo.id, level=3, content=f"在{macro.name}地区", source="system"))
             session.add(Hint(photo_id=photo.id, level=4, content=f"在{province.name}", source="system"))
+    elif photo.country:
+        session.add(Hint(photo_id=photo.id, level=4, content=f"在{photo.country}", source="system"))

@@ -130,7 +130,7 @@ async function submit() {
 <style scoped>
 .upload {
   min-height: 100vh;
-  background: #16110c;
+  background: #efe3c8;
   padding: 90rpx 24rpx 40rpx;
   box-sizing: border-box;
   display: flex;
@@ -138,16 +138,16 @@ async function submit() {
   gap: 20rpx;
 }
 .hint-line {
-  color: #6b5f4a;
+  color: #9a8a6b;
   font-size: 22rpx;
 }
 .title {
-  color: #e9dfc9;
+  color: #3b2f1c;
   font-size: 38rpx;
   display: none;
 }
 .photo-box {
-  background: #211a13;
+  background: #fbf5e6;
   border-radius: 12rpx;
   display: flex;
   align-items: center;
@@ -159,26 +159,26 @@ async function submit() {
   height: 100%;
 }
 .placeholder {
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 28rpx;
 }
 .section {
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 26rpx;
 }
 .story {
   width: 100%;
   min-height: 160rpx;
-  background: #211a13;
+  background: #fbf5e6;
   border-radius: 12rpx;
   padding: 20rpx;
   box-sizing: border-box;
-  color: #e9dfc9;
+  color: #3b2f1c;
   font-size: 28rpx;
 }
 .btn {
   background: #232d3e;
-  color: #c9d4e3;
+  color: #6b5a3c;
   border: none;
   font-size: 30rpx;
   border-radius: 12rpx;
@@ -186,7 +186,7 @@ async function submit() {
   width: 100%;
 }
 .btn.primary {
-  background: #f5a33c;
-  color: #2a1c05;
+  background: #b8531a;
+  color: #fff6e6;
 }
 </style>

@@ -120,8 +120,8 @@ function enter() {
   top: 24rpx;
   right: 40rpx;
   font-size: 24rpx;
-  color: #93856d;
-  border: 1px solid #4b4231;
+  color: #8a795a;
+  border: 1px solid #c8b58a;
   padding: 8rpx 24rpx;
   background: rgba(27, 21, 16, 0.85);
   z-index: 2;
@@ -131,8 +131,8 @@ function enter() {
   top: 24rpx;
   left: 40rpx;
   font-size: 24rpx;
-  color: #93856d;
-  border: 1px solid #4b4231;
+  color: #8a795a;
+  border: 1px solid #c8b58a;
   padding: 8rpx 20rpx;
   background: rgba(27, 21, 16, 0.85);
   z-index: 2;
@@ -145,7 +145,7 @@ function enter() {
 }
 .line {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #e9dfc9;
+  color: #3b2f1c;
   font-size: 30rpx;
   line-height: 1.9;
   opacity: 0;
@@ -158,12 +158,12 @@ function enter() {
   transform: none;
 }
 .line.date {
-  color: #f5a33c;
+  color: #b8531a;
   letter-spacing: 6rpx;
   font-size: 26rpx;
 }
 .line.final {
-  color: #f9f2df;
+  color: #2c2213;
   font-size: 36rpx;
 }
 .tap {
@@ -171,7 +171,7 @@ function enter() {
   position: fixed;
   bottom: 100rpx;
   font-size: 24rpx;
-  color: #d8c9a8;
+  color: #5d4e33;
   letter-spacing: 8rpx;
   opacity: 0;
   transition: opacity 1s ease;

@@ -6,6 +6,8 @@ export default {
     invalidImage: '这张图片打不开，换一张试试',
     storageUnavailable: '服务器暂时存不了图，稍后再试（不是你的问题）',
     invalidCoordinates: '拍摄地点不对，重新在地图上标一下',
+    dailyUploadLimit: '今天传得够多了，明天再来吧',
+    tooManyRequests: '手速太快了，缓一缓再试',
     invalidAvatar: '头像没存成，请更新小程序到最新版本再试',
     duplicatePhoto: '这张照片已经传过了，换一张吧',
     photoAlreadyPlayed: '已经有人玩过这张了，删不掉（不然他们的成绩会丢）',

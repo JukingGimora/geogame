@@ -128,19 +128,19 @@ onShareTimeline(() => ({ title: shareTitle() }))
 <style scoped>
 .rank {
   min-height: 100vh;
-  background: #16110c;
+  background: #efe3c8;
   padding: 90rpx 24rpx 40rpx;
   box-sizing: border-box;
 }
 .pulse {
   display: block;
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 23rpx;
   margin-top: 8rpx;
 }
 .pulse-me {
   display: block;
-  color: #8fd3a8;
+  color: #3f7d55;
   font-size: 24rpx;
   margin-top: 8rpx;
 }
@@ -148,12 +148,12 @@ onShareTimeline(() => ({ title: shareTitle() }))
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #2a2110;
-  border: 1px solid #f5a33c;
+  background: #f7ebd0;
+  border: 1px solid #b8531a;
   border-radius: 8rpx;
   padding: 16rpx 20rpx;
   margin-top: 20rpx;
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 24rpx;
 }
 .hint-arrow {
@@ -169,28 +169,28 @@ onShareTimeline(() => ({ title: shareTitle() }))
   flex: 1;
   text-align: center;
   padding: 16rpx 0;
-  border: 1px solid #4b4231;
+  border: 1px solid #c8b58a;
   border-radius: 8rpx;
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 26rpx;
 }
 .tab.active {
-  background: #f5a33c;
-  border-color: #f5a33c;
-  color: #2a1c05;
+  background: #b8531a;
+  border-color: #b8531a;
+  color: #fff6e6;
 }
 .row {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  background: #211a13;
-  border: 1px solid #322818;
+  background: #fbf5e6;
+  border: 1px solid #ddcca6;
   border-radius: 8rpx;
   padding: 20rpx 24rpx;
   margin-bottom: 12rpx;
 }
 .row.me {
-  border-color: #f5a33c;
+  border-color: #b8531a;
 }
 .footer-me {
   margin-top: 28rpx;
@@ -208,7 +208,7 @@ onShareTimeline(() => ({ title: shareTitle() }))
 }
 .nick {
   flex: 1;
-  color: #e9dfc9;
+  color: #3b2f1c;
   font-size: 28rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -218,7 +218,7 @@ onShareTimeline(() => ({ title: shareTitle() }))
   font-size: 30rpx;
 }
 .empty {
-  color: #a2937b;
+  color: #7a6a4d;
   text-align: center;
   margin-top: 120rpx;
   font-size: 28rpx;

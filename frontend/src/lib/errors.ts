@@ -13,6 +13,8 @@ const MESSAGES: Record<string, string> = {
   photo_already_played: 'errors.photoAlreadyPlayed',
   duplicate_photo: 'errors.duplicatePhoto',
   invalid_avatar_url: 'errors.invalidAvatar',
+  daily_upload_limit: 'errors.dailyUploadLimit',
+  too_many_requests: 'errors.tooManyRequests',
   photo_not_found: 'errors.photoNotFound',
   // 开局
   no_photos_available: 'errors.noPhotos',

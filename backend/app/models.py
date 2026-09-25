@@ -55,6 +55,10 @@ class Photo(Base):
     lat: Mapped[float] = mapped_column(Float)  # WGS-84 truth, never sent to client before guess
     lng: Mapped[float] = mapped_column(Float)
     region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), nullable=True)
+    # 上传时按坐标算一次存下来:文化圈决定这张进哪一章,也决定提示③说什么。
+    # 老数据为 NULL,由 /admin/photos/backfill-circles 补齐。
+    country: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    circle: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
     story: Mapped[str] = mapped_column(Text, default="")
     lang: Mapped[str] = mapped_column(String(8), default="zh-CN")
     status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending | live | rejected

@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     ai_base_url: str | None = None  # OpenAI 兼容地址,不带尾部斜杠
     ai_model: str = "qwen3.7-flash"
 
+    # 待审提醒邮件:没配就不发,不影响其他功能
+    smtp_host: str | None = None
+    smtp_port: int = 465
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    notify_email: str | None = None
+    public_base_url: str = "https://tz5aq2zkxqhc.guyubao.com"
+
     wechat_appid: str | None = None
     wechat_secret: str | None = None
 

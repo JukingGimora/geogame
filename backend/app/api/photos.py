@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import delete as sa_delete
@@ -10,11 +11,14 @@ from app.db import get_session
 from app.models import AIGuess, Hint, Photo, Round, User
 from app.services import understood
 from app.services.auth import get_current_user
+from app.services.circles import locate
 from app.services.geo import in_china, nearest_province
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 logger = logging.getLogger(__name__)
+
+DAILY_UPLOAD_LIMIT = 20
 
 
 @router.post("")
@@ -37,6 +41,14 @@ async def upload_photo(
         logger.warning("cannot decode upload (%d bytes, content_type=%s)", len(data), file.content_type)
         raise HTTPException(422, "invalid_image")
     # 只跟 pending/live 比:被拒或已删的图不占用这张照片,别人还应该能传
+    # 按账号的每日配额:IP 限速挡脚本,这里挡"一个人灌一百张"
+    since = datetime.now(timezone.utc) - timedelta(days=1)
+    today = await session.scalar(
+        select(func.count()).select_from(Photo).where(Photo.uploader_id == user.id, Photo.created_at >= since)
+    )
+    if today >= DAILY_UPLOAD_LIMIT:
+        raise HTTPException(429, "daily_upload_limit")
+
     digest = hashlib.sha256(image).hexdigest()
     dup = await session.scalar(
         select(Photo.id).where(Photo.file_hash == digest, Photo.status.in_(("pending", "live")))
@@ -52,12 +64,15 @@ async def upload_photo(
         raise HTTPException(503, "storage_unavailable")
     # 境外照片没有省可归,硬套最近的省会归到新疆这种离谱结果
     province = await nearest_province(session, lat, lng) if in_china(lat, lng) else None
+    country, circle = locate(lat, lng)
     photo = Photo(
         uploader_id=user.id,
         file_key=file_key,
         lat=lat,
         lng=lng,
         region_id=province.id if province else None,
+        country=country,
+        circle=circle,
         story=story[:2000],
         file_hash=digest,
     )

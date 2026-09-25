@@ -18,16 +18,16 @@ import { computed } from 'vue'
  */
 const props = withDefaults(defineProps<{ seed?: string; size?: number }>(), { seed: '', size: 56 })
 
-// 底色足够深,像素字压在上面才清楚
+// 浅底主题:头像用浅色底 + 深色墨字,和页面同一套纸感
 const PALETTES: [string, string][] = [
-  ['#f5a33c', '#2a1c05'],
-  ['#8fd3a8', '#0f2418'],
-  ['#7bb7e0', '#0c1d2a'],
-  ['#d98cb3', '#2a1220'],
-  ['#c7b083', '#241c10'],
-  ['#9b8cd9', '#1a1430'],
-  ['#e0785e', '#2a1109'],
-  ['#6fc7c1', '#0b2422'],
+  ['#b8531a', '#f7e7c8'],
+  ['#2f6b46', '#e3edda'],
+  ['#2b5a7d', '#dde9f1'],
+  ['#8a3a63', '#f4dfe8'],
+  ['#6b5a3c', '#efe3c8'],
+  ['#4a3f7d', '#e4e1f2'],
+  ['#a13b26', '#f6e2d8'],
+  ['#1f6b66', '#dcece9'],
 ]
 
 function hash(text: string): number {

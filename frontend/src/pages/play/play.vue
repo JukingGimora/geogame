@@ -273,7 +273,7 @@ onShareTimeline(() => ({
 <style scoped>
 .play {
   min-height: 100vh;
-  background: #16110c;
+  background: #efe3c8;
   padding: 24rpx 24rpx 28rpx;
   box-sizing: border-box;
 }
@@ -284,14 +284,14 @@ onShareTimeline(() => ({
   margin-bottom: 12rpx;
 }
 .round-label {
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 24rpx;
 }
 .photo {
   width: 100%;
   border-radius: 8rpx;
-  background: #211a13;
-  border: 1px solid #322818;
+  background: #fbf5e6;
+  border: 1px solid #ddcca6;
   box-sizing: border-box;
 }
 .hints {
@@ -302,8 +302,8 @@ onShareTimeline(() => ({
 }
 .hint-chip {
   background: transparent;
-  border: 1px solid #4b4231;
-  color: #d8c9a8;
+  border: 1px solid #c8b58a;
+  color: #5d4e33;
   font-size: 22rpx;
   padding: 8rpx 14rpx;
   border-radius: 6rpx;
@@ -312,15 +312,15 @@ onShareTimeline(() => ({
   opacity: 0.4;
 }
 .cost {
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 20rpx;
 }
 .hint-content {
   width: 100%;
-  color: #e9dfc9;
+  color: #3b2f1c;
   font-size: 24rpx;
-  background: #211a13;
-  border-left: 4rpx solid #f5a33c;
+  background: #fbf5e6;
+  border-left: 4rpx solid #b8531a;
   padding: 12rpx 16rpx;
   border-radius: 0;
 }
@@ -329,10 +329,10 @@ onShareTimeline(() => ({
 }
 .picker {
   margin-top: 16rpx;
-  border: 1px solid #322818;
+  border: 1px solid #ddcca6;
   border-radius: 12rpx;
   padding: 6rpx;
-  background: #0f0c08;
+  background: #e7dabb;
 }
 .row {
   display: flex;
@@ -354,8 +354,8 @@ onShareTimeline(() => ({
 }
 .stat {
   flex: 1;
-  background: #211a13;
-  border: 1px solid #322818;
+  background: #fbf5e6;
+  border: 1px solid #ddcca6;
   border-radius: 8rpx;
   padding: 20rpx;
   display: flex;
@@ -363,18 +363,18 @@ onShareTimeline(() => ({
   gap: 8rpx;
 }
 .stat-label {
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 24rpx;
 }
 .stat-value {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 48rpx;
 }
 .ai-card,
 .story-card {
-  background: #211a13;
-  border: 1px solid #322818;
+  background: #fbf5e6;
+  border: 1px solid #ddcca6;
   border-radius: 8rpx;
   padding: 22rpx;
   display: flex;
@@ -384,15 +384,15 @@ onShareTimeline(() => ({
 .ai-head {
   display: flex;
   justify-content: space-between;
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 26rpx;
 }
 .ai-badge {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #e08484;
+  color: #b5432a;
 }
 .ai-badge.won {
-  color: #6fe0a8;
+  color: #2f7d4f;
 }
 .ai-reasoning {
   color: #cabfa8;
@@ -403,27 +403,27 @@ onShareTimeline(() => ({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px dashed #4b4231;
+  border: 1px dashed #c8b58a;
   border-radius: 8rpx;
   padding: 20rpx 24rpx;
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 25rpx;
 }
 .invite-arrow {
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 30rpx;
 }
 .story-card {
-  border-left: 4rpx solid #f5a33c;
+  border-left: 4rpx solid #b8531a;
   border-radius: 0 8rpx 8rpx 0;
 }
 .story-from {
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 24rpx;
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
 }
 .story-text {
-  color: #e9dfc9;
+  color: #3b2f1c;
   font-size: 28rpx;
   line-height: 1.9;
   font-family: Georgia, 'Songti SC', 'SimSun', serif;
@@ -437,23 +437,23 @@ onShareTimeline(() => ({
   gap: 24rpx;
 }
 .finale-label {
-  color: #a2937b;
+  color: #7a6a4d;
   font-size: 28rpx;
 }
 .finale-score {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 110rpx;
 }
 .hint-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #2a2110;
-  border: 1px solid #f5a33c;
+  background: #f7ebd0;
+  border: 1px solid #b8531a;
   border-radius: 8rpx;
   padding: 16rpx 20rpx;
-  color: #f5a33c;
+  color: #b8531a;
   font-size: 24rpx;
   width: 100%;
   box-sizing: border-box;

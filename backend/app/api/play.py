@@ -2,13 +2,13 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
-from app.services.geo import CHINA_BOUNDS
+from app.services.circles import CIRCLES
 from app.services.scoring import final_score, haversine_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
@@ -22,7 +22,7 @@ PREFETCH = 2        # 一次多备几关,免得每猜一关都等一次抽题
 
 class RunIn(BaseModel):
     region_id: int | None = None
-    # "迷雾中国" / "放眼世界":两个入口进来的人打不同的题,但排的是同一个榜
+    # 文化圈名,或 china/world:决定这一局从哪个池子抽题,但所有人排同一个榜
     chapter: str | None = None
     # 从"叫朋友猜这张"的分享进来时带上,这一局就从那张开始
     photo_id: int | None = None
@@ -97,12 +97,17 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
 
 
 def _playable(user: User, chapter: str | None):
-    """能发给这个人的题:已上线、不是他自己传的(知道答案等于白送满分)、限定章节。"""
+    """能发给这个人的题:已上线、不是他自己传的(知道答案等于白送满分)、限定文化圈。
+
+    chapter 可以是文化圈名(东亚/西欧/…),也可以是 china/world 这种粗分。
+    """
     q = select(Photo).where(Photo.status == "live", Photo.uploader_id != user.id)
-    if chapter in ("china", "world"):
-        lat_min, lat_max, lng_min, lng_max = CHINA_BOUNDS
-        inside = and_(Photo.lat.between(lat_min, lat_max), Photo.lng.between(lng_min, lng_max))
-        q = q.where(inside if chapter == "china" else ~inside)
+    if chapter in CIRCLES:
+        q = q.where(Photo.circle == chapter)
+    elif chapter == "china":
+        q = q.where(Photo.country == "中国")
+    elif chapter == "world":
+        q = q.where(Photo.country != "中国")
     return q
 
 

@@ -21,16 +21,16 @@ export interface FogPoint extends LngLat {
 }
 
 const COLORS = {
-  bg: '#171e29',
-  land: '#223046',
-  landAlt: '#26364e',
-  border: '#3b4c63',
-  label: '#8fa3bd',
+  bg: '#e7dabb',
+  land: '#f2e7cb',
+  landAlt: '#eadcb9',
+  border: '#b9a273',
+  label: '#6b5a3c',
   fog: 'rgba(10,12,16,0.78)',
-  pick: '#f5a33c',
-  truth: '#6fe0a8',
-  ai: '#e08484',
-  line: '#e9dfc9',
+  pick: '#b8531a',
+  truth: '#2f7d4f',
+  ai: '#b5432a',
+  line: '#3b2f1c',
 }
 
 interface Projector {
