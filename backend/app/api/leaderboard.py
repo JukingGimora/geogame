@@ -46,10 +46,11 @@ async def leaderboard(
     return {
         "board": board,
         "top": [
-            {"rank": i + 1, "nickname": nick, "avatar_url": avatar_url, "value": v, "is_me": uid == user.id}
+            # uid 只用来给前端算头像:昵称默认都叫"旅行者",不带 uid 的话满屏一个样
+            {"rank": i + 1, "uid": uid, "nickname": nick, "value": v, "is_me": uid == user.id}
             for i, (uid, nick, avatar_url, v) in enumerate(rows)
         ],
-        "me": {"rank": my_rank, "value": my_value},
+        "me": {"rank": my_rank, "value": my_value, "uid": user.id, "nickname": user.nickname},
         "pulse": await _pulse(session, user),
     }
 

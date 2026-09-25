@@ -5,22 +5,12 @@
     </view>
 
     <view class="g-card">
-      <button
-        class="avatar-btn"
-        open-type="chooseAvatar"
-        @chooseavatar="onChooseAvatar"
-      >
-        <image v-if="avatarPreview" class="avatar" :src="avatarPreview" mode="aspectFill" />
-        <view v-else class="avatar-placeholder">
-          <text class="px-font avatar-icon">▦</text>
-        </view>
-      </button>
+      <view class="avatar-wrap"><PixelAvatar :seed="nickname" :size="160" /></view>
 
-      <text class="hint">{{ t('login.tapAvatar') }}</text>
+      <text class="hint">{{ t('login.avatarHint') }}</text>
 
       <input
         class="nick-input"
-        type="nickname"
         v-model="nickname"
         :placeholder="t('login.nickPlaceholder')"
         maxlength="12"
@@ -53,11 +43,9 @@ import { computed, onMounted, ref } from 'vue'
 import { t } from '../../locale'
 import { api } from '../../api'
 import { errorMessage } from '../../lib/errors'
+import PixelAvatar from '../../components/PixelAvatar.vue'
 
 const topOffset = ref(0)
-const avatar = ref('') // 已上传成功的真实URL,提交给后端用
-const avatarPreview = ref('') // 本地临时预览,选择后立刻显示
-const avatarUploading = ref(false)
 const nickname = ref('')
 const agreed = ref(true)
 
@@ -68,29 +56,8 @@ const canLogin = computed(() => {
 onMounted(() => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
   const savedNick = uni.getStorageSync('geogame_nickname')
-  const savedAvatar = uni.getStorageSync('geogame_avatar')
   if (savedNick) nickname.value = savedNick
-  if (savedAvatar) {
-    avatar.value = savedAvatar
-    avatarPreview.value = savedAvatar
-  }
 })
-
-async function onChooseAvatar(e: any) {
-  const tempFilePath = e.detail.avatarUrl
-  avatarPreview.value = tempFilePath
-  avatarUploading.value = true
-  try {
-    const res = await api.uploadAvatar(tempFilePath)
-    avatar.value = res.url
-  } catch (err: unknown) {
-    uni.showToast({ title: errorMessage(err), icon: 'none' })
-    avatarPreview.value = ''
-    avatar.value = ''
-  } finally {
-    avatarUploading.value = false
-  }
-}
 
 async function linkWechatSilently() {
   // #ifdef MP-WEIXIN
@@ -107,16 +74,11 @@ async function linkWechatSilently() {
 
 async function doLogin() {
   if (!canLogin.value) return
-  if (avatarUploading.value) {
-    uni.showToast({ title: '头像上传中,请稍候', icon: 'none' })
-    return
-  }
   const nick = nickname.value.trim()
   try {
     await linkWechatSilently()
-    const profile = await api.updateProfile(nick, avatar.value || undefined)
+    const profile = await api.updateProfile(nick)
     uni.setStorageSync('geogame_nickname', profile.nickname)
-    if (profile.avatar_url) uni.setStorageSync('geogame_avatar', profile.avatar_url)
     uni.setStorageSync('geogame_logged_in', '1')
     leave()
   } catch (e: unknown) {
@@ -148,38 +110,9 @@ function leave() {
   margin-bottom: 40rpx;
 }
 
-.avatar-btn {
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  width: 100%;
+.avatar-wrap {
   display: flex;
   justify-content: center;
-}
-
-.avatar {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  border: 1px solid #322818;
-  background: #0f0c08;
-}
-
-.avatar-placeholder {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 50%;
-  border: 1px dashed #4b4231;
-  background: #0f0c08;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.avatar-icon {
-  color: #4b4231;
-  font-size: 60rpx;
 }
 
 .hint {

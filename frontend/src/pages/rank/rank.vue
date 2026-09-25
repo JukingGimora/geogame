@@ -25,8 +25,7 @@
     <view v-for="row in data?.top ?? []" :key="row.rank" class="row" :class="{ me: row.is_me }">
       <text class="pos g-stamp">{{ row.rank }}</text>
       <view class="user-cell">
-        <image v-if="row.avatar_url" class="avatar" :src="row.avatar_url" mode="aspectFill" />
-        <view v-else class="avatar placeholder" />
+        <PixelAvatar :seed="`${row.nickname}#${row.uid}`" :size="56" />
         <text class="nick">{{ row.nickname }}{{ row.is_me ? t('rank.meSuffix') : '' }}</text>
       </view>
       <text class="val g-stamp">{{ row.value }}{{ board === 'points' ? t('rank.peopleUnit') : '' }}</text>
@@ -35,8 +34,7 @@
     <view v-if="data && data.me.rank && !inTop" class="row me footer-me">
       <text class="pos g-stamp">{{ data.me.rank }}</text>
       <view class="user-cell">
-        <image v-if="data.me.avatar_url" class="avatar" :src="data.me.avatar_url" mode="aspectFill" />
-        <view v-else class="avatar placeholder" />
+        <PixelAvatar :seed="meSeed" :size="56" />
         <text class="nick">{{ t('rank.me') }}</text>
       </view>
       <text class="val g-stamp">{{ data.me.value }}{{ board === 'points' ? t('rank.peopleUnit') : '' }}</text>
@@ -62,23 +60,29 @@ import { logEvent } from '../../lib/analytics'
 import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'
 import { startRun } from '../../lib/play'
+import PixelAvatar from '../../components/PixelAvatar.vue'
 
 type Board = 'best_run' | 'points'
 
 interface RankRow {
   rank: number
+  uid: number
   nickname: string
-  avatar_url?: string
   value: number
   is_me: boolean
 }
 
 const board = ref<Board>('best_run')
-const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; avatar_url?: string } } | null>(null)
+const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; uid: number; nickname: string } } | null>(null)
 const pulse = ref<{ active_today: number; photos_live: number; photos_today: number; my_seen_today: number } | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('rank')
 
 const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
+// 榜单外那一行是"我",头像种子要跟榜内的我一致
+const meSeed = computed(() => {
+  const me = data.value?.me
+  return me ? `${me.nickname}#${me.uid}` : ''
+})
 
 async function load() {
   try {
@@ -199,17 +203,6 @@ onShareTimeline(() => ({ title: shareTitle() }))
   align-items: center;
   gap: 12rpx;
   min-width: 0;
-}
-.avatar {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: #16110c;
-  border: 1px solid #4b4231;
-  flex-shrink: 0;
-}
-.avatar.placeholder {
-  background: linear-gradient(135deg, #4b4231, #16110c);
 }
 .nick {
   flex: 1;

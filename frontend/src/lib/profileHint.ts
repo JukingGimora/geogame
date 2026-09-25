@@ -10,7 +10,7 @@ export function useProfileHint(location: string) {
   async function check() {
     try {
       const me = await api.me()
-      show.value = me.nickname === GUEST_DEFAULT_NICKNAME && !me.avatar_url
+      show.value = me.nickname === GUEST_DEFAULT_NICKNAME
       if (show.value) logEvent('profile_hint_view', '', undefined, { location })
     } catch {
       show.value = false

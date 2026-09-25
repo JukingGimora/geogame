@@ -39,7 +39,7 @@ export default {
   },
   login: {
     title: '完善资料',
-    tapAvatar: '点击选择头像',
+    avatarHint: '头像由昵称自动生成',
     nickPlaceholder: '请输入你的昵称',
     agree: '我同意用户协议和隐私政策',
     enter: '保存',
@@ -89,7 +89,7 @@ export default {
   },
   rank: {
     title: '排行榜',
-    profileHint: '设置昵称头像或绑定微信，换设备也能找回你的排名和记录',
+    profileHint: '设置昵称或绑定微信，换设备也能找回你的排名和记录',
     pulse: '今天 {active} 人在猜 · 题库 {photos} 张',
     pulseNew: ' · 今日新增 {n} 张',
     seenToday: '✨ 你的照片今天被 {n} 个人看过',

@@ -3,7 +3,6 @@ export const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://localhost:8020'
 const TOKEN_KEY = 'geogame_token'
 const DEVICE_KEY = 'geogame_device'
 const NICKNAME_KEY = 'geogame_nickname'
-const AVATAR_KEY = 'geogame_avatar'
 const LOGGED_IN_KEY = 'geogame_logged_in'
 const WX_BOUND_KEY = 'geogame_wx_bound'
 
@@ -20,8 +19,7 @@ let token: string = uni.getStorageSync(TOKEN_KEY) || ''
 
 async function guestLogin(): Promise<void> {
   const nickname = (uni.getStorageSync(NICKNAME_KEY) as string | '') || undefined
-  const avatarUrl = (uni.getStorageSync(AVATAR_KEY) as string | '') || undefined
-  const res = await rawRequest('POST', '/api/v1/auth/guest', { device_key: deviceKey(), nickname, avatar_url: avatarUrl })
+  const res = await rawRequest('POST', '/api/v1/auth/guest', { device_key: deviceKey(), nickname })
   token = res.token
   uni.setStorageSync(TOKEN_KEY, token)
   await restoreByWechat()
@@ -118,22 +116,6 @@ export const api = {
   logEvent: (eventType: string, refType = '', refId?: number, meta = '') =>
     request('POST', '/api/v1/events', { event_type: eventType, ref_type: refType, ref_id: refId ?? null, meta }),
 
-  async uploadAvatar(filePath: string): Promise<{ url: string }> {
-    if (!token) await guestLogin()
-    return new Promise((resolve, reject) => {
-      uni.uploadFile({
-        url: BASE_URL + '/api/v1/auth/avatar',
-        filePath,
-        name: 'file',
-        header: { Authorization: `Bearer ${token}` },
-        success: (res) => {
-          if (res.statusCode < 400) resolve(JSON.parse(res.data))
-          else reject({ status: res.statusCode, data: res.data })
-        },
-        fail: reject,
-      })
-    })
-  },
 
   async uploadPhoto(filePath: string, lat: number, lng: number, story: string): Promise<any> {
     if (!token) await guestLogin()
@@ -162,7 +144,6 @@ export function setLoggedIn(): void {
   uni.setStorageSync(LOGGED_IN_KEY, '1')
 }
 
-export function setUserProfile(nickname: string, avatar?: string): void {
+export function setUserProfile(nickname: string): void {
   uni.setStorageSync(NICKNAME_KEY, nickname)
-  if (avatar) uni.setStorageSync(AVATAR_KEY, avatar)
 }
