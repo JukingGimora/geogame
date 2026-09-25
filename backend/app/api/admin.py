@@ -92,6 +92,8 @@ async def pending_photos(
                 "lat": p.lat,
                 "lng": p.lng,
                 "region_name": region_name,
+                "country": p.country,
+                "circle": p.circle,
                 "story": p.story,
                 "uploader_id": p.uploader_id,
                 "created_at": p.created_at.isoformat(),

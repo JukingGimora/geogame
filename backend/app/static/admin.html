@@ -22,6 +22,8 @@
   .ai.dim { color: #6b6558; }
   .reason-ai { font-size: 12px; color: #7a7466; line-height: 1.5; }
   .story { color: #cabfa8; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+  .story-edit { width: 100%; box-sizing: border-box; background: #16110c; border: 1px solid #4b4231;
+    color: #cabfa8; font: inherit; font-size: 14px; line-height: 1.7; border-radius: 6px; padding: 8px 10px; resize: vertical; }
   .dim { color: #a2937b; font-size: 12px; }
   .actions { display: flex; gap: 10px; margin-top: auto; }
   .empty { color: #a2937b; text-align: center; margin-top: 80px; }
@@ -47,7 +49,9 @@
       <img :src="p.url" @click="window.open(p.url)">
       <div class="meta">
         <span class="dim" x-text="'#' + p.id + ' · 上传者 ' + p.uploader_id + ' · ' + p.created_at.slice(0,19).replace('T',' ') + ' UTC'"></span>
-        <span class="coords" x-text="p.lat.toFixed(4) + ', ' + p.lng.toFixed(4) + (p.region_name ? '　·　' + p.region_name : '　·　(无法定位省份)')"></span>
+        <span class="coords" x-text="p.lat.toFixed(4) + ', ' + p.lng.toFixed(4)
+                  + (p.region_name ? '　·　' + p.region_name : (p.country ? '　·　' + p.country : ''))
+                  + (p.circle ? '　·　' + p.circle + '文化圈' : '')"></span>
         <template x-if="p.ai">
           <span class="ai" :class="{ warn: p.ai.distance_km > 300 }"
             x-text="'AI推测：' + (p.ai.region_name || (p.ai.lat.toFixed(4) + ', ' + p.ai.lng.toFixed(4)))
@@ -55,7 +59,12 @@
                     + (p.ai.distance_km > 300 ? '　⚠ 可能标错地点' : '')"></span>
         </template>
         <span class="ai dim" x-show="!p.ai">AI推测：尚未生成（点上方「补算AI」）</span>
-        <span class="story" x-text="p.story || '(无故事)'"></span>
+        <textarea class="story-edit" rows="3" x-model="p.story"
+          :placeholder="'写点什么——批量导入的照片没有故事，而故事是玩家猜完最想看的东西'"></textarea>
+        <div class="actions" style="margin-top:0">
+          <button @click="saveStory(p)" :disabled="p.saving" x-text="p.saving ? '保存中…' : '保存故事'"></button>
+          <span class="dim" x-text="p.storyMsg || ''"></span>
+        </div>
         <template x-if="p.ai">
           <span class="reason-ai" x-text="p.ai.reasoning"></span>
         </template>
@@ -138,6 +147,16 @@ function admin() {
       if (!r.ok) { this.msg = '补算失败 (' + r.status + ')'; return }
       const d = await r.json()
       this.msg = `已补算 ${d.enriched} 张，还差 ${d.remaining} 张`
+    },
+    async saveStory(p) {
+      p.saving = true
+      const r = await fetch(`/api/v1/admin/photos/${p.id}/story`, {
+        method: 'POST', headers: this.headers(), body: JSON.stringify({ story: p.story || '' })
+      })
+      p.saving = false
+      // 提示①是故事的前半句,后端会跟着一起更新,这里不用管
+      p.storyMsg = r.ok ? '已保存' : '保存失败'
+      setTimeout(() => { p.storyMsg = '' }, 2000)
     },
     async approve(id) {
       const r = await fetch(`/api/v1/admin/photos/${id}/approve`, { method: 'POST', headers: this.headers() })
