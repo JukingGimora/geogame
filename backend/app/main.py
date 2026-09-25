@@ -48,6 +48,16 @@ app.include_router(play.router, prefix=API, dependencies=LIMITED)
 app.include_router(admin.router, prefix=API, dependencies=LIMITED)
 
 app.mount("/uploads", StaticFiles(directory=str(settings.upload_path)), name="uploads")
+@app.get("/h5test/")
+async def h5_index():
+    # 不缓存入口页:脚本名带哈希会变,但 index.html 被浏览器缓存住的话,
+    # 新版发出去了用户还在跑旧的——排查这事白白花过一轮
+    return FileResponse(
+        Path(__file__).parent / "static" / "h5test" / "index.html",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 app.mount(
     "/h5test",
     StaticFiles(directory=str(Path(__file__).parent / "static" / "h5test"), html=True),
