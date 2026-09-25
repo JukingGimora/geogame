@@ -5,7 +5,23 @@
       <text class="sub">{{ subtitle }}</text>
     </view>
 
-    <WorldMap :height="mapHeight" :circles="circles" @pick="onPick" />
+    <view class="map-bleed">
+      <WorldMap :height="mapHeight" :circles="circles" @pick="onPick" />
+    </view>
+
+    <view class="legend">
+      <view
+        v-for="c in circles"
+        :key="c.name"
+        class="chip"
+        :class="{ on: activeName === c.name, dim: c.photos === 0 }"
+        @tap="onPick(c.name)"
+      >
+        <view class="dot" :style="{ background: colorOf(c.name), opacity: c.lit ? 1 : 0.45 }" />
+        <text class="chip-name">{{ c.name }}</text>
+        <text class="chip-count">{{ c.photos }}</text>
+      </view>
+    </view>
 
     <view class="picked" v-if="active">
       <view class="picked-head">
@@ -41,6 +57,7 @@ import { t } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
 import { startRun } from '../../lib/play'
 import { logEvent } from '../../lib/analytics'
+import { CIRCLE_COLORS } from '../../lib/theme'
 
 interface Circle {
   name: string
@@ -55,7 +72,12 @@ const activeName = ref('')
 const topOffset = ref(0)
 // 世界地图的宽高比约 2.5:高度按宽度算,画面才不会上下留一大片空
 const windowWidth = uni.getWindowInfo().windowWidth
-const mapHeight = Math.round(((windowWidth * (750 - 56)) / 750) / 2.5)
+// 通栏:地图本来就是宽扁的,左右再留白只会更窄
+const mapHeight = Math.round(windowWidth / 2.3)
+
+function colorOf(name: string): string {
+  return CIRCLE_COLORS[name] ?? '#888'
+}
 
 const active = computed(() => circles.value.find((c) => c.name === activeName.value) || null)
 
@@ -130,6 +152,54 @@ onShareTimeline(() => ({
 
 .header {
   margin-bottom: 20rpx;
+}
+
+.map-bleed {
+  margin: 0 -28rpx;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  background: var(--card);
+  border-radius: 999rpx;
+  padding: 12rpx 20rpx;
+}
+
+.chip.on {
+  background: var(--card-alt);
+}
+
+.chip.dim {
+  opacity: 0.45;
+}
+
+.dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+}
+
+.chip-name {
+  color: var(--ink-dim);
+  font-size: 24rpx;
+}
+
+.chip.on .chip-name {
+  color: var(--ink);
+}
+
+.chip-count {
+  color: var(--ink-faint);
+  font-size: 22rpx;
 }
 
 .sub {

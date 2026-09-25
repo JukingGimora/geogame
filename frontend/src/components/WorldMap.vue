@@ -48,9 +48,16 @@ let features: { c: string; r: Ring[] }[] = []
 let box = { w: 0, h: 0 }
 let retries = 0
 
-// 等距圆柱投影:南北极的形变无所谓,我们只要认得出哪块是哪块
+// 以 150°E 为中心:太平洋文化圈不会被地图边缘劈成两半,中国也大致居中。
+// 接缝落在大西洋(-30°),那儿几乎全是海。
+const CENTER_LNG = 150
 const LNG_MIN = -180
 const LNG_MAX = 180
+
+/** 把真实经度换算成"以中心经线为 0"的相对经度 */
+function rel(lng: number): number {
+  return ((lng - CENTER_LNG + 540) % 360) - 180
+}
 const LAT_MIN = -58 // 南极不画,省下三分之一的画布
 const LAT_MAX = 84
 
@@ -66,12 +73,26 @@ function fit() {
 
 function project(lng: number, lat: number): [number, number] {
   const { scale, offsetX, offsetY } = fit()
-  return [offsetX + (lng - LNG_MIN) * scale, offsetY + (LAT_MAX - lat) * scale]
+  return [offsetX + (rel(lng) - LNG_MIN) * scale, offsetY + (LAT_MAX - lat) * scale]
 }
 
 function unproject(x: number, y: number): [number, number] {
   const { scale, offsetX, offsetY } = fit()
-  return [LNG_MIN + (x - offsetX) / scale, LAT_MAX - (y - offsetY) / scale]
+  const r = LNG_MIN + (x - offsetX) / scale
+  return [((r + CENTER_LNG + 540) % 360) - 180, LAT_MAX - (y - offsetY) / scale]
+}
+
+// 标签落点手工定,自动算重心会把字压到边缘或海里
+const LABELS: Record<string, [number, number]> = {
+  东亚: [36, 108],
+  东南亚: [-2, 112],
+  南亚: [22, 78],
+  伊斯兰: [26, 38],
+  西欧: [50, 8],
+  东欧: [58, 70],
+  非洲: [-12, 22],
+  拉美: [-18, -60],
+  太平洋: [-18, 178],
 }
 
 const state = ref<Record<string, CircleState>>({})
@@ -115,9 +136,12 @@ function paint(ctx: any) {
   ctx.fillStyle = THEME.bgSunken
   ctx.fillRect(0, 0, box.w, box.h)
   for (const f of features) {
-    ctx.fillStyle = fillFor(f.c)
-    ctx.strokeStyle = THEME.bgSunken
-    ctx.lineWidth = 0.6
+    const color = fillFor(f.c)
+    ctx.fillStyle = color
+    // 用同色描边而不是底色:同一个文化圈里的国家会连成一片,
+    // 玩家看到的是"一个文化圈",不是一堆国家拼图
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1
     for (const ring of f.r) {
       ctx.beginPath()
       ring.forEach(([lng, lat]: [number, number], i: number) => {
@@ -129,6 +153,20 @@ function paint(ctx: any) {
       ctx.fill()
       ctx.stroke()
     }
+  }
+  paintLabels(ctx)
+}
+
+/** 圈名标在自己那块地上,否则这张图只是"一堆颜色" */
+function paintLabels(ctx: any) {
+  ctx.font = `${Math.max(9, Math.round(box.w / 34))}px sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  for (const [name, anchor] of Object.entries(LABELS)) {
+    const s = state.value[name]
+    const [x, y] = project(anchor[1], anchor[0])
+    ctx.fillStyle = s?.lit ? '#fff' : 'rgba(255,255,255,0.72)'
+    ctx.fillText(name, x, y)
   }
 }
 
