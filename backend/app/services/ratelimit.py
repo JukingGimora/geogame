@@ -13,7 +13,10 @@ from fastapi import HTTPException, Request
 # 路径前缀 → (允许次数, 时间窗口秒)
 # 阈值放得比"正常人"宽很多:一个教室的学生共用一个出口 IP,按人估会把整班挡在门外。
 # 这里只拦脚本级别的流量,真正的配额按账号算(见 photos.py 的每日上传上限)。
+# 顺序有意义:取第一个匹配上的前缀,所以更具体的路径要排在前面
 LIMITS: dict[str, tuple[int, int]] = {
+    # 批量导入本来就是几百张连着传,跟后台的防撞库阈值不是一回事
+    "/api/v1/admin/photos/import": (600, 300),
     "/api/v1/auth/guest": (100, 600),
     "/api/v1/photos": (60, 3600),
     "/api/v1/runs": (120, 300),
