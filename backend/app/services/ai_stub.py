@@ -12,6 +12,7 @@ import httpx
 
 from app.config import settings
 from app.models import AIGuess, Photo
+from app.services.cities import find_city
 from app.services.scoring import haversine_km, score_from_distance
 from app.storage import storage
 
@@ -26,8 +27,10 @@ AI_PROMPT = (
     "你在玩一个看图猜地点的游戏,照片可能来自世界上任何一个国家。仔细观察这张照片里的线索"
     "(植被、建筑风格、文字与招牌、路牌、车牌、地形、气候特征等),先用中文写一段第一人称推理独白"
     "(比如\"我注意到...,推测...\",3到5句,可以大胆但要基于画面细节),然后给出你最终猜测的坐标。"
+    "同时给出你认为最接近的城市名(用当地常用的英文拼写,如 Bukhara、Tbilisi、Xi'an)。"
     "只输出一个JSON对象,不要有任何多余文字或markdown代码块标记,格式:"
-    '{"reasoning": "推理独白文本", "lat": 纬度小数, "lng": 经度小数, "confidence": 0到100的整数}'
+    '{"reasoning": "推理独白文本", "city": "英文城市名", "lat": 纬度小数, "lng": 经度小数, '
+    '"confidence": 0到100的整数}'
 )
 
 HINT_PROMPT = (
@@ -119,6 +122,13 @@ async def real_ai_guess(photo: Photo) -> AIGuess | None:
     try:
         parsed = json.loads(match.group(0))
         lat, lng = float(parsed["lat"]), float(parsed["lng"])
+        # 模型说得出"布哈拉",却给了个新疆的坐标——地名它记得住,经纬度是编的。
+        # 所以地名归它,坐标归我们自己的城市表,它给的坐标只用来消歧同名城市。
+        city = str(parsed.get("city", "")).strip()
+        if city:
+            found = find_city(city, near=(lat, lng))
+            if found:
+                lat, lng = found
         reasoning = str(parsed["reasoning"])
         confidence = int(parsed.get("confidence", 60))
     except (KeyError, ValueError, TypeError):

@@ -37,3 +37,23 @@ def nearest_city(lat: float, lng: float) -> tuple[str, float] | None:
     name, clat, clng, _, _ = min(near, key=lambda c: haversine_km(lat, lng, c[1], c[2]))
     distance = haversine_km(lat, lng, clat, clng)
     return (name, round(distance, 1)) if distance <= MAX_KM else None
+
+
+def find_city(name: str, near: tuple[float, float] | None = None) -> tuple[float, float] | None:
+    """按名字查城市坐标。同名城市很多(光 Springfield 就一堆),用模型自己给的大致位置消歧。
+
+    模型认得出"布哈拉",却报不准经纬度——地名靠它,坐标靠这张表。
+    """
+    key = name.strip().lower()
+    if not key:
+        return None
+    hits = [c for c in _cities() if c[0].lower() == key]
+    if not hits:
+        hits = [c for c in _cities() if key in c[0].lower() and len(key) >= 4]
+    if not hits:
+        return None
+    if near:
+        best = min(hits, key=lambda c: haversine_km(near[0], near[1], c[1], c[2]))
+    else:
+        best = max(hits, key=lambda c: c[4])  # 没有参考点就取人口最多的那个
+    return best[1], best[2]
