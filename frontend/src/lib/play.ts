@@ -7,11 +7,11 @@ import { errorMessage } from './errors'
  * photoId 来自「叫朋友猜这张」的分享;后端拿不到那张时会自动降级成普通一局,
  * 所以这里不需要区分处理。
  */
-export async function startRun(photoId?: number): Promise<void> {
+export async function startRun(photoId?: number, chapter?: 'china' | 'world'): Promise<void> {
   // 模板里若写成 @tap="startRun",Vue 会把事件对象塞进来,这里挡一道
   const pid = typeof photoId === 'number' && photoId > 0 ? photoId : undefined
   try {
-    const run = await api.createRun(undefined, pid)
+    const run = await api.createRun(undefined, pid, chapter)
     uni.navigateTo({ url: `/pages/play/play?runId=${run.run_id}` })
   } catch (e: unknown) {
     uni.showToast({ title: errorMessage(e), icon: 'none' })

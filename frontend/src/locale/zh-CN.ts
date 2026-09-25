@@ -41,9 +41,15 @@ export default {
     title: '完善资料',
     avatarHint: '头像由昵称自动生成',
     nickPlaceholder: '请输入你的昵称',
-    agree: '我同意用户协议和隐私政策',
     enter: '保存',
     skip: '暂不设置',
+  },
+  chapters: {
+    title: '身处雾境',
+    china: '迷雾中国',
+    chinaDesc: '走过的每一个地方，都在等人认出来',
+    world: '放眼世界',
+    worldDesc: '别人的远方，你猜得到吗',
   },
   map: {
     title: '迷雾中国',
@@ -89,7 +95,7 @@ export default {
   },
   rank: {
     title: '排行榜',
-    profileHint: '设置昵称或绑定微信，换设备也能找回你的排名和记录',
+    profileHint: '设置一个昵称，换设备也能找回你的排名和记录',
     pulse: '今天 {active} 人在猜 · 题库 {photos} 张',
     pulseNew: ' · 今日新增 {n} 张',
     seenToday: '✨ 你的照片今天被 {n} 个人看过',
@@ -106,7 +112,7 @@ export default {
   },
   mine: {
     title: '我的行囊',
-    editProfile: '编辑昵称头像',
+    editProfile: '编辑昵称',
     empty: '还没有上传过照片',
     delete: '删除',
     deleteConfirm: '删掉这张照片？',
@@ -124,5 +130,9 @@ export default {
     fbSend: '发送反馈',
     fbThanks: '收到，谢谢你帮这个游戏变好',
     fbTooShort: '多写两个字吧',
+    deleteAccount: '注销账号',
+    deleteAccountHint: '你的昵称、照片、闯关记录会被彻底删除，无法恢复。',
+    deleteAccountConfirm: '确认注销',
+    deletedAccount: '账号已注销',
   },
 }

@@ -1,6 +1,6 @@
 <template>
-  <view class="pixel-avatar" :style="{ width: sizePx, height: sizePx, background: bg }">
-    <view v-for="(on, i) in cells" :key="i" class="cell" :style="cellStyle(i, on)" />
+  <view class="pixel-avatar" :style="boxStyle">
+    <text class="px-font initials" :style="textStyle">{{ initials }}</text>
   </view>
 </template>
 
@@ -8,25 +8,26 @@
 import { computed } from 'vue'
 
 /**
- * 昵称算出来的像素头像。同一个昵称永远是同一张脸。
+ * 昵称的像素化缩写当头像。同一个人永远是同一张。
  *
  * 不让用户传图:头像是公开展示的内容,传上来就得审(黄赌毒、二维码引流),
- * 而头像没有照片那条人工审核链路。生成的话这类风险根本不存在,
- * 而且人人都有头像——实测 288 个用户里只有 3 个人愿意自己设。
+ * 而头像没有照片那条人工审核链路。画出来就没有这类风险,
+ * 而且人人都有——实测 288 个用户里只有 3 个人愿意自己设头像。
+ *
+ * 配色按 seed 取,所以 279 个都叫"旅行者"的人也能靠颜色区分开。
  */
 const props = withDefaults(defineProps<{ seed?: string; size?: number }>(), { seed: '', size: 56 })
 
-// 五列里只画左边三列,右边镜像——对称的图案比随机噪点更像一张脸
-const GRID = 5
-const HALF = 3
-
-const PALETTES = [
+// 底色足够深,像素字压在上面才清楚
+const PALETTES: [string, string][] = [
   ['#f5a33c', '#2a1c05'],
   ['#8fd3a8', '#0f2418'],
   ['#7bb7e0', '#0c1d2a'],
   ['#d98cb3', '#2a1220'],
   ['#c7b083', '#241c10'],
   ['#9b8cd9', '#1a1430'],
+  ['#e0785e', '#2a1109'],
+  ['#6fc7c1', '#0b2422'],
 ]
 
 function hash(text: string): number {
@@ -38,47 +39,42 @@ function hash(text: string): number {
   return h >>> 0
 }
 
-const seedHash = computed(() => hash(props.seed || '旅行者'))
-const palette = computed(() => PALETTES[seedHash.value % PALETTES.length])
-const bg = computed(() => palette.value[1])
-const sizePx = computed(() => `${props.size}rpx`)
+// 昵称里可能带 #用户编号 这类后缀,只拿名字部分显示
+const name = computed(() => (props.seed || '旅行者').split('#')[0].trim() || '旅')
 
-const cells = computed<boolean[]>(() => {
-  const out: boolean[] = []
-  let bits = seedHash.value
-  for (let row = 0; row < GRID; row++) {
-    const left: boolean[] = []
-    for (let col = 0; col < HALF; col++) {
-      bits = Math.imul(bits, 1103515245) + 12345
-      left.push(((bits >>> 16) & 1) === 1)
-    }
-    out.push(...left, left[1], left[0])
-  }
-  return out
+const initials = computed(() => {
+  const n = name.value
+  // 中文一个字就够认,拉丁字母太窄,取两个
+  return /[一-龥]/.test(n[0]) ? n[0] : n.slice(0, 2).toUpperCase()
 })
 
-function cellStyle(index: number, on: boolean) {
-  const unit = props.size / GRID
-  return {
-    width: `${unit}rpx`,
-    height: `${unit}rpx`,
-    left: `${(index % GRID) * unit}rpx`,
-    top: `${Math.floor(index / GRID) * unit}rpx`,
-    background: on ? palette.value[0] : 'transparent',
-  }
-}
+const palette = computed(() => PALETTES[hash(props.seed || '旅行者') % PALETTES.length])
+
+const boxStyle = computed(() => ({
+  width: `${props.size}rpx`,
+  height: `${props.size}rpx`,
+  background: palette.value[1],
+  borderColor: palette.value[0],
+}))
+
+const textStyle = computed(() => ({
+  color: palette.value[0],
+  fontSize: `${Math.round(props.size * (initials.value.length > 1 ? 0.38 : 0.52))}rpx`,
+}))
 </script>
 
 <style scoped>
 .pixel-avatar {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
-  overflow: hidden;
-  border: 1px solid #4b4231;
+  border: 1px solid;
   box-sizing: border-box;
   flex-shrink: 0;
+  overflow: hidden;
 }
-.cell {
-  position: absolute;
+.initials {
+  line-height: 1;
 }
 </style>

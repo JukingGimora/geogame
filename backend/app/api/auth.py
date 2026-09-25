@@ -2,10 +2,25 @@ import logging
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import User
+from app.models import (
+    AIGuess,
+    AuthIdentity,
+    Comment,
+    Event,
+    Feedback,
+    Hint,
+    Photo,
+    PointsLedger,
+    Report,
+    Round,
+    Run,
+    User,
+)
 from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
@@ -90,3 +105,37 @@ async def me(user: User = Depends(get_current_user), session: AsyncSession = Dep
         "avatar_url": user.avatar_url,
         "points": row.seen or 0,
     }
+
+
+@router.delete("/account")
+async def delete_account(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    """注销:把这个人的一切抹掉,不可恢复。
+
+    平台规则要求用户能自己删掉全部数据,不只是一张张删照片——昵称、设备标识、
+    微信 openid、玩过的记录都算。他上传的照片也是他的数据,一起删,
+    连带删掉别人猜这些照片留下的关卡记录(否则那些记录会指向一张不存在的图)。
+    别人的总分记在 runs 上,不受影响,排行榜不会乱。
+    """
+    photo_ids = (await session.scalars(select(Photo.id).where(Photo.uploader_id == user.id))).all()
+    file_keys = (await session.scalars(select(Photo.file_key).where(Photo.uploader_id == user.id))).all()
+    if photo_ids:
+        for model in (Hint, AIGuess):
+            await session.execute(sa_delete(model).where(model.photo_id.in_(photo_ids)))
+        await session.execute(sa_delete(Round).where(Round.photo_id.in_(photo_ids)))
+        await session.execute(sa_delete(Comment).where(Comment.photo_id.in_(photo_ids)))
+        await session.execute(sa_delete(Report).where(Report.photo_id.in_(photo_ids)))
+        await session.execute(sa_delete(Photo).where(Photo.id.in_(photo_ids)))
+
+    await session.execute(sa_delete(Round).where(Round.run_id.in_(select(Run.id).where(Run.user_id == user.id))))
+    for model in (Run, Event, Feedback, PointsLedger, Comment, Report, AuthIdentity):
+        await session.execute(sa_delete(model).where(model.user_id == user.id))
+    await session.execute(sa_delete(User).where(User.id == user.id))
+    await session.commit()
+
+    # 图片文件放在最后删:数据库提交成功了才动存储,否则删一半会留下引用不到的图
+    for key in file_keys:
+        try:
+            storage.delete(key)
+        except Exception:
+            logger.warning("storage.delete failed for %s (账号已注销,文件残留)", key)
+    return {"deleted": True}

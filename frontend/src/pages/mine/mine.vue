@@ -90,6 +90,8 @@
         <button class="g-btn" :disabled="fbSending" @tap="sendFb">提交反馈</button>
       </view>
     </view>
+
+    <text class="danger" @tap="destroyAccount">{{ t('mine.deleteAccount') }}</text>
   </view>
 </template>
 
@@ -98,7 +100,7 @@ import { computed, onMounted, ref } from 'vue'
 // #ifdef MP-WEIXIN
 import { onShareAppMessage } from '@dcloudio/uni-app'
 // #endif
-import { api, BASE_URL } from '../../api'
+import { api, BASE_URL, forgetIdentity } from '../../api'
 import { t, tMap } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
 import { errorMessage } from '../../lib/errors'
@@ -130,6 +132,28 @@ async function removePhoto(p: any) {
     await api.deletePhoto(p.id)
     photos.value = photos.value.filter((x) => x.id !== p.id)
     uni.showToast({ title: t('mine.deleted'), icon: 'none' })
+  } catch (e: unknown) {
+    uni.showToast({ title: errorMessage(e), icon: 'none' })
+  }
+}
+
+async function destroyAccount() {
+  const first = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: t('mine.deleteAccount'),
+      content: t('mine.deleteAccountHint'),
+      confirmText: t('mine.deleteAccountConfirm'),
+      confirmColor: '#e0785e',
+      success: (res) => resolve(!!res.confirm),
+      fail: () => resolve(false),
+    })
+  })
+  if (!first) return
+  try {
+    await api.deleteAccount()
+    forgetIdentity()
+    uni.showToast({ title: t('mine.deletedAccount'), icon: 'none' })
+    setTimeout(() => uni.reLaunch({ url: '/pages/opening/opening' }), 1200)
   } catch (e: unknown) {
     uni.showToast({ title: errorMessage(e), icon: 'none' })
   }
@@ -225,6 +249,14 @@ function previewPhoto(p: any) {
 </script>
 
 <style scoped>
+.danger {
+  display: block;
+  text-align: center;
+  color: #6b5f4a;
+  font-size: 24rpx;
+  margin: 48rpx 0 16rpx;
+}
+
 .mine {
   min-height: 100vh;
   background: #16110c;

@@ -2,12 +2,13 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
+from app.services.geo import CHINA_BOUNDS
 from app.services.scoring import final_score, haversine_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
@@ -19,6 +20,8 @@ ROUNDS_PER_RUN = 5
 
 class RunIn(BaseModel):
     region_id: int | None = None
+    # "迷雾中国" / "放眼世界":两个入口进来的人打不同的题,但排的是同一个榜
+    chapter: str | None = None
     # 从"叫朋友猜这张"的分享进来时带上,这一局就从那张开始
     photo_id: int | None = None
 
@@ -46,6 +49,10 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         return await run_state(unfinished.id, user, session)
 
     q = select(Photo).where(Photo.status == "live")
+    if body.chapter in ("china", "world"):
+        lat_min, lat_max, lng_min, lng_max = CHINA_BOUNDS
+        inside = and_(Photo.lat.between(lat_min, lat_max), Photo.lng.between(lng_min, lng_max))
+        q = q.where(inside if body.chapter == "china" else ~inside)
     if body.region_id:
         region = await session.get(Region, body.region_id)
         if not region:

@@ -10,7 +10,7 @@ from app.db import get_session
 from app.models import AIGuess, Hint, Photo, Round, User
 from app.services import understood
 from app.services.auth import get_current_user
-from app.services.geo import nearest_province
+from app.services.geo import in_china, nearest_province
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
@@ -50,7 +50,8 @@ async def upload_photo(
         # 存储挂了不能报成"图片有问题":用户会一直换图,而换哪张都不可能成功
         logger.exception("storage.save failed (%d bytes)", len(image))
         raise HTTPException(503, "storage_unavailable")
-    province = await nearest_province(session, lat, lng)
+    # 境外照片没有省可归,硬套最近的省会归到新疆这种离谱结果
+    province = await nearest_province(session, lat, lng) if in_china(lat, lng) else None
     photo = Photo(
         uploader_id=user.id,
         file_key=file_key,

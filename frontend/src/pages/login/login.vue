@@ -16,13 +16,6 @@
         maxlength="12"
       />
 
-      <view class="agree" @tap="agreed = !agreed">
-        <view class="check" :class="{ checked: agreed }">
-          <text v-if="agreed" class="px-font">✓</text>
-        </view>
-        <text class="agree-text">{{ t('login.agree') }}</text>
-      </view>
-
       <button
         class="g-btn primary"
         :disabled="!canLogin"
@@ -47,11 +40,8 @@ import PixelAvatar from '../../components/PixelAvatar.vue'
 
 const topOffset = ref(0)
 const nickname = ref('')
-const agreed = ref(true)
 
-const canLogin = computed(() => {
-  return nickname.value.trim() && agreed.value
-})
+const canLogin = computed(() => nickname.value.trim().length > 0)
 
 onMounted(() => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
@@ -138,33 +128,4 @@ function leave() {
   margin-bottom: 20rpx;
 }
 
-.agree {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-bottom: 24rpx;
-}
-
-.check {
-  width: 32rpx;
-  height: 32rpx;
-  border: 1px solid #4b4231;
-  border-radius: 6rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20rpx;
-  color: #f5a33c;
-}
-
-.check.checked {
-  background: #f5a33c;
-  border-color: #f5a33c;
-  color: #16110c;
-}
-
-.agree-text {
-  color: #a2937b;
-  font-size: 22rpx;
-}
 </style>

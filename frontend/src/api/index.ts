@@ -102,14 +102,19 @@ export const api = {
     return res
   },
   regions: () => request('GET', '/api/v1/regions'),
-  createRun: (regionId?: number, photoId?: number) =>
-    request('POST', '/api/v1/runs', { region_id: regionId ?? null, photo_id: photoId ?? null }),
+  createRun: (regionId?: number, photoId?: number, chapter?: 'china' | 'world') =>
+    request('POST', '/api/v1/runs', {
+      region_id: regionId ?? null,
+      photo_id: photoId ?? null,
+      chapter: chapter ?? null,
+    }),
   getRun: (runId: number) => request('GET', `/api/v1/runs/${runId}`),
   unlockHint: (roundId: number, level: number) => request('POST', `/api/v1/rounds/${roundId}/hints`, { level }),
   guess: (roundId: number, lat: number, lng: number) =>
     request('POST', `/api/v1/rounds/${roundId}/guess`, { lat, lng }),
   myPhotos: () => request('GET', '/api/v1/photos/mine'),
   deletePhoto: (photoId: number) => request('DELETE', `/api/v1/photos/${photoId}`),
+  deleteAccount: () => request('DELETE', '/api/v1/auth/account'),
   leaderboard: (board: 'best_run' | 'points') => request('GET', `/api/v1/leaderboard?board=${board}`),
   sendFeedback: (content: string, contact?: string) =>
     request('POST', '/api/v1/feedback', { content, contact: contact || null }),
@@ -134,6 +139,14 @@ export const api = {
       })
     })
   },
+}
+
+/** 注销之后把本地身份抹干净,下次进来是个全新的人 */
+export function forgetIdentity(): void {
+  token = ''
+  for (const key of [TOKEN_KEY, DEVICE_KEY, NICKNAME_KEY, LOGGED_IN_KEY, WX_BOUND_KEY]) {
+    uni.removeStorageSync(key)
+  }
 }
 
 export function hasLoggedIn(): boolean {
