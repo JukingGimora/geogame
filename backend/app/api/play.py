@@ -9,6 +9,7 @@ from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES
+from app.services.cities import nearest_city
 from app.services.scoring import final_score, haversine_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
@@ -268,6 +269,8 @@ async def submit_guess(
         "streak": streak,
         "ended": ended,
         "truth": {"lat": photo.lat, "lng": photo.lng},
+        # 猜完才给:知道"离 Tbilisi 3 公里"比只看见一个点有意思得多
+        "place": _place_label(photo),
         "story": photo.story,
         "uploader": {"id": uploader.id, "nickname": uploader.nickname},
         "ai": None
@@ -283,6 +286,14 @@ async def submit_guess(
         "run_status": run.status,
         "run_total_score": run.total_score,
     }
+
+
+def _place_label(photo: Photo) -> str | None:
+    hit = nearest_city(photo.lat, photo.lng)
+    if not hit:
+        return photo.country
+    name, km = hit
+    return f"{name} 附近" if km <= 15 else f"{name} 以外 {km:.0f}km"
 
 
 async def _award_uploader(session: AsyncSession, photo: Photo, guesser: User, distance_km: float) -> None:

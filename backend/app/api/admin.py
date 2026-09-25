@@ -28,6 +28,7 @@ from app.models import (
 )
 from app.services.auth import require_admin
 from app.services.circles import coarse_area, locate
+from app.services.cities import nearest_city
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
 from app.storage import process_image, storage
@@ -93,6 +94,10 @@ async def pending_photos(
                 "lng": p.lng,
                 "region_name": region_name,
                 "country": p.country,
+                # 跟玩家看到的提示④一致,方便你核对"这条提示给得合不合适"
+                "area": coarse_area(p.country, p.lat, p.lng) if p.country else None,
+                # 审核要靠它判断坐标标没标对:"俄罗斯·北部"看不出来,"离 Suzdal 2 公里"一眼就知道
+                "city": _city_label(p.lat, p.lng),
                 "circle": p.circle,
                 "story": p.story,
                 "uploader_id": p.uploader_id,
@@ -462,6 +467,11 @@ async def _cohorts(session: AsyncSession) -> dict:
             "finish_rate": round((finishers or 0) / total, 4) if total else None,
         }
     return out
+
+
+def _city_label(lat: float, lng: float) -> str | None:
+    hit = nearest_city(lat, lng)
+    return f"{hit[0]} 附近 {hit[1]}km" if hit else None
 
 
 async def _describe_point(session: AsyncSession, lat: float, lng: float) -> str | None:
