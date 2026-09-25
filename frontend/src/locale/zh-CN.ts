@@ -72,7 +72,7 @@ export default {
     endLives: '三条命用完了',
     endPool: '你把现在所有的照片都走了一遍',
     totalScore: '总分 {n}',
-    hints: ['故事开头', 'AI线索', '大区范围', '省份'],
+    hints: ['故事开头', 'AI线索', '大致范围', '再缩小点'],
     hintCost: ['免费', '×0.8', '×0.6', '×0.4'],
     distance: '距离',
     score: '得分',
