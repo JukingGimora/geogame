@@ -12,7 +12,7 @@ from app.models import AIGuess, Hint, Photo, Round, User
 from app.services import understood
 from app.services.auth import get_current_user
 from app.services.circles import locate
-from app.services.geo import in_china, nearest_province
+from app.services.geo import nearest_province
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
@@ -63,8 +63,10 @@ async def upload_photo(
         logger.exception("storage.save failed (%d bytes)", len(image))
         raise HTTPException(503, "storage_unavailable")
     # 境外照片没有省可归,硬套最近的省会归到新疆这种离谱结果
-    province = await nearest_province(session, lat, lng) if in_china(lat, lng) else None
+    # 先定国家再定省:用经纬度框判"是不是中国"会把斯里兰卡、老挝也框进来,
+    # 结果一张斯里兰卡的照片被标成日喀则
     country, circle = locate(lat, lng)
+    province = await nearest_province(session, lat, lng) if country.startswith("中国") else None
     photo = Photo(
         uploader_id=user.id,
         file_key=file_key,

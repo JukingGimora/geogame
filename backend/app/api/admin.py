@@ -29,7 +29,7 @@ from app.models import (
 from app.services.auth import require_admin
 from app.services.circles import CIRCLES, locate
 from app.services.enrich import enrich_photo
-from app.services.geo import in_china, nearest_province, resolve_city
+from app.services.geo import nearest_province, resolve_city
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -188,8 +188,8 @@ async def import_photo(
     except Exception:
         logger.exception("storage.save failed during import (%d bytes)", len(image))
         raise HTTPException(503, "storage_unavailable")
-    province = await nearest_province(session, lat, lng) if in_china(lat, lng) else None
     country, circle = locate(lat, lng)
+    province = await nearest_province(session, lat, lng) if country.startswith("中国") else None
     photo = Photo(
         uploader_id=uploader_id,
         file_key=file_key,
