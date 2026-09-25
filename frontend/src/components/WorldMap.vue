@@ -268,7 +268,9 @@ async function draw() {
       node.width = box.w * dpr
       node.height = box.h * dpr
       const ctx = node.getContext('2d')
-      ctx.scale(dpr, dpr)
+      // 必须 setTransform 而不是 scale:重画时 scale 会在上一次的基础上再乘一遍,
+      // 第二次就把整张图放大到屏幕外,看着像"地图页什么都没有"
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       paint(ctx)
     })
   // #endif
