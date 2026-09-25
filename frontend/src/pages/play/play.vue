@@ -2,7 +2,9 @@
   <view class="play" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view v-if="run && current" class="stage">
       <view class="topbar">
-        <text class="lives px-font">{{ livesText }}</text>
+        <view class="lives">
+          <text class="heart full">{{ heartsFull }}</text><text class="heart empty">{{ heartsEmpty }}</text>
+        </view>
         <text class="streak g-stamp">{{ t('play.streak', { n: streak }) }}</text>
       </view>
 
@@ -44,7 +46,7 @@
           </view>
           <view class="stat">
             <text class="stat-label">{{ t('play.livesLabel') }}</text>
-            <text class="stat-value">{{ livesText }}</text>
+            <text class="stat-value"><text class="heart full">{{ heartsFull }}</text><text class="heart empty">{{ heartsEmpty }}</text></text>
           </view>
         </view>
         <view v-if="result.ai" class="ai-card">
@@ -124,8 +126,9 @@ let recapShownAt = 0
 const current = computed(() => run.value?.rounds.find((r: any) => !r.finished))
 const streak = computed(() => result.value?.streak ?? run.value?.streak ?? 0)
 const livesLeft = computed(() => result.value?.lives_left ?? run.value?.lives_left ?? 3)
-// ♥♥♡ 一眼就懂,也比"还剩2条命"更有紧张感
-const livesText = computed(() => '♥'.repeat(livesLeft.value) + '♡'.repeat(Math.max(0, 3 - livesLeft.value)))
+// ♥♥♡ 一眼就懂,也比"还剩2条命"更有紧张感。分成两段是为了让满的是红的、空的是灰的
+const heartsFull = computed(() => '♥'.repeat(livesLeft.value))
+const heartsEmpty = computed(() => '♡'.repeat(Math.max(0, 3 - livesLeft.value)))
 const unlockedLevels = computed(() => unlockedContents.value.map((h) => h.level))
 
 const pickMarkers = computed<MapMarker[]>(() =>
@@ -272,6 +275,21 @@ onShareTimeline(() => ({
 </script>
 
 <style scoped>
+.lives {
+  display: flex;
+  align-items: center;
+}
+.heart {
+  font-size: 32rpx;
+  letter-spacing: 4rpx;
+}
+.heart.full {
+  color: var(--warn);
+}
+.heart.empty {
+  color: var(--ink-faint);
+}
+
 .place {
   display: block;
   color: var(--ink-dim);
