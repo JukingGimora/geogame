@@ -20,6 +20,10 @@
         <text v-for="b in badges" :key="b" class="badge">{{ b }}</text>
       </view>
 
+      <view v-if="data && data.circles.length" class="lit">
+        <text class="lit-title">{{ t('card.litTitle') }}</text>
+        <text v-for="c in data.circles" :key="c" class="lit-chip">{{ c }}</text>
+      </view>
       <text v-if="data && trail" class="trail">{{ trail }}</text>
       <text v-if="failed" class="failed">{{ t('card.failed') }}</text>
 
@@ -45,7 +49,7 @@ interface Profile {
   rounds_played: number
   best_streak: number
   circles: string[]
-  countries: string[]
+  countries: { name: string; flag: string }[]
 }
 
 const props = defineProps<{ uid: number | null }>()
@@ -72,8 +76,10 @@ const nums = computed(() => {
 
 // 成就不写成一串 if:每个指标一串台阶,只显示已经踩到的最高那级。
 // 想加一条就在这张表上加个数字
+// 第一档从 10 起:上面那四个数字已经写着"传过 1",成就再说一遍"传过 1 张"
+// 就是同一件事写两遍。成就要标的是里程碑,不是重复读数。
 const LADDERS: { metric: keyof Profile; steps: number[] }[] = [
-  { metric: 'photos', steps: [1, 10, 50] },
+  { metric: 'photos', steps: [10, 50, 200] },
   { metric: 'seen', steps: [10, 50, 200] },
   { metric: 'best_streak', steps: [10, 20, 30] },
   { metric: 'circles', steps: [3, 6, 9] },
@@ -95,9 +101,13 @@ const badges = computed(() => {
 const trail = computed(() => {
   const list = data.value?.countries ?? []
   if (!list.length) return ''
+  // 国旗 + 国名:一排国旗比一排国名好认。认不出代码的就只显示名字
+  const show = list.map((c) => (c.flag ? `${c.flag} ${c.name}` : c.name))
   // 国家多了就只列前六个,剩下的说个数
-  const head = list.slice(0, 6).join('、')
-  return list.length > 6 ? t('card.trailMore', { list: head, n: list.length - 6 }) : t('card.trail', { list: head })
+  const head = show.slice(0, 6).join('  ')
+  return show.length > 6
+    ? t('card.trailMore', { list: head, n: show.length - 6 })
+    : t('card.trail', { list: head })
 })
 
 watch(
@@ -191,6 +201,26 @@ function close() {
   border: 1px solid var(--accent);
   border-radius: 999rpx;
   color: var(--accent);
+  font-size: 21rpx;
+  padding: 6rpx 16rpx;
+}
+.lit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 24rpx;
+}
+.lit-title {
+  color: var(--ink-dim);
+  font-size: 21rpx;
+  margin-right: 4rpx;
+}
+.lit-chip {
+  background: var(--card-alt);
+  border: 1px solid var(--line);
+  border-radius: 999rpx;
+  color: var(--ink);
   font-size: 21rpx;
   padding: 6rpx 16rpx;
 }

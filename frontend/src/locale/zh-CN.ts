@@ -164,6 +164,7 @@ export default {
       best_streak: '连过 {n} 关',
       circles: '点亮 {n} 个文化圈',
     },
+    litTitle: '点亮的文化圈',
     trail: '认出过：{list}',
     trailMore: '认出过：{list}，还有 {n} 个',
     failed: '这个人的战绩暂时拉不到',

@@ -46,8 +46,11 @@ async def guest_login(
         user = User(nickname=nickname, avatar_url=avatar_url)
         session.add(user)
         await session.flush()
-        # 名字要等 id 出来才能算:同一个 id 永远是同一个名字
-        if not user.nickname:
+        # 名字要等 id 出来才能算:同一个 id 永远是同一个名字。
+        # 判断要看**传进来的**有没有名字,不能看 user.nickname——
+        # 那一列有个默认值"旅行者",flush 之后它已经不是空的了,
+        # 于是这一行永远不执行,1920 个有故事的昵称一个都没发出去过。
+        if not nickname:
             user.nickname = default_nickname(user.id)
         session.add(AuthIdentity(user_id=user.id, provider="guest", provider_uid=device_key))
         try:
