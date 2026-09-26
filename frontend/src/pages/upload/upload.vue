@@ -17,7 +17,7 @@
       <NativeMapPicker :height="480" :markers="markers" @pick="onPick" />
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
-      <ChinaMap :height="480" :interactive="true" :markers="markers" @pick="onPick" />
+      <WorldPicker :height="480" :interactive="true" :markers="markers" @pick="onPick" />
       <!-- #endif -->
     </block>
 
@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import ChinaMap from '../../components/ChinaMap.vue'
+import WorldPicker from '../../components/WorldPicker.vue'
 // #ifdef MP-WEIXIN
 import NativeMapPicker from '../../components/NativeMapPicker.vue'
 // #endif

@@ -36,7 +36,7 @@
         <NativeMapPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
-        <ChinaMap :height="pickMapHeight" :interactive="true" :markers="pickMarkers" @pick="onPick" />
+        <WorldPicker :height="pickMapHeight" :interactive="true" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
         <button class="g-btn primary" :disabled="!picked || submitting" @tap="confirmGuess">
           {{ t('play.confirmFlag') }}
@@ -44,7 +44,7 @@
       </view>
 
       <view v-if="phase === 'result' && result" class="result">
-        <ChinaMap :height="260" :markers="resultMarkers" />
+        <WorldPicker :height="260" :markers="resultMarkers" />
         <text v-if="result.place" class="place">{{ t('play.placeLabel', { place: result.place }) }}</text>
         <view class="earned">
           <text v-if="result.circle_lit" class="tag lit">{{ t('play.circleLit', { name: result.circle }) }}</text>
@@ -114,7 +114,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import ChinaMap from '../../components/ChinaMap.vue'
+import WorldPicker from '../../components/WorldPicker.vue'
 // #ifdef MP-WEIXIN
 import NativeMapPicker from '../../components/NativeMapPicker.vue'
 // #endif
