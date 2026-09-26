@@ -47,7 +47,7 @@ async def list_circles(
     # 锁的状态跟开局那里用的是同一套判断,不另写一份——两处算法一旦分叉,
     # 就会出现"地图上看着能点,点了说不让进"
     progress = await circle_progress(session, user)
-    unlocked = unlocked_circles(progress)
+    unlocked = unlocked_circles(progress, user.home_circle)
     return {
         "lives_left": await lives_left(session, user),
         "items": [

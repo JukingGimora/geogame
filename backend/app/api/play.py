@@ -68,7 +68,7 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
             raise HTTPException(409, "no_lives")
         if body.chapter in CIRCLES:
             progress = await circle_progress(session, user)
-            locked = why_locked(body.chapter, progress, unlocked_circles(progress))
+            locked = why_locked(body.chapter, progress, unlocked_circles(progress, user.home_circle))
             if locked:
                 raise HTTPException(409, locked)
 

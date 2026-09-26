@@ -19,9 +19,27 @@ from app.models import Photo, PointsLedger, Round, Run, User
 from app.services.circles import CIRCLE_NEIGHBOURS
 from app.services.scoring import DECAY_KM, miss_km
 
+DEFAULT_HOME = "东亚"  # 小程序只在国内发行;H5 认不出来的也退到这里
 DAILY_LIVES = 3
 LIFE_BACK = "life_back"  # 照片过审回的那一条命,记在积分流水里
 MASTERED = 0.7           # 玩到这个比例才能往外解锁
+
+
+def home_circle(tz_name: str | None) -> str:
+    """从浏览器时区名推出他在哪个文化圈——起点是他自己所在的地方。
+
+    IANA 时区名自带地名(Asia/Shanghai、America/Sao_Paulo),拿最后一段当城市查表,
+    再按坐标判圈。不用查 IP:不碰访客的网络地址,也不依赖外部服务。
+    三十个常见时区里二十七个能直接推对,剩下那几个(Pacific/Fiji 这种写的是国名不是城市)退到默认。
+    小程序拿不到 IANA 时区,不传,于是走默认——它本来就只在国内发行。
+    """
+    from app.services.cities import find_city
+    from app.services.circles import locate
+
+    if not tz_name:
+        return DEFAULT_HOME
+    hit = find_city(tz_name.rsplit("/", 1)[-1])
+    return locate(*hit)[1] if hit else DEFAULT_HOME
 
 
 def day_bounds(user: User) -> tuple[datetime, datetime]:
@@ -83,16 +101,20 @@ async def circle_progress(session: AsyncSession, user: User) -> dict[str, tuple[
     return {c: (played.get(c, 0), n) for c, n in total.items()}
 
 
-def unlocked_circles(progress: dict[str, tuple[int, int]]) -> set[str]:
+def unlocked_circles(progress: dict[str, tuple[int, int]], home: str | None = None) -> set[str]:
     """哪些圈能玩。
 
-    踏进去过的圈直接算解锁(漫游是随机发牌,不受这条规则管);
+    起点是他自己所在的那个圈——在中国就从东亚出发,在巴西就从拉美出发。
+    踏进去过的圈也算解锁(漫游是随机发牌,不受这条规则管);
     玩到七成的圈,把挨着它的圈也打开。一直推到不再有新的为止——
     玩通了东亚就能去东南亚,玩通了东南亚还能再往外,不用每一步都回来重算。
     """
     # 还没有照片的圈不算数:开了也只会得到一句"这里还没有照片"
     playable = {c for c, (_, total) in progress.items() if total}
-    open_set = {c for c, (played, _) in progress.items() if played > 0} & playable
+    open_set = {c for c, (played, _) in progress.items() if played > 0}
+    if home:
+        open_set.add(home)
+    open_set &= playable
     while True:
         grown = set(open_set)
         for circle in open_set:
@@ -115,7 +137,7 @@ def why_locked(circle: str, progress: dict[str, tuple[int, int]], unlocked: set[
     if not progress.get(circle, (0, 0))[1]:
         return {"reason": "circle_empty"}
     if not unlocked:
-        # 一个圈都还没踏进去过:说"先解锁挨着的"等于没说,挨着谁?
+        # 连他所在的那个圈都还没有照片:说"先解锁挨着的"等于没说,挨着谁?
         return {"reason": "circle_locked_start"}
     gates = [c for c in CIRCLE_NEIGHBOURS.get(circle, ()) if c in unlocked and progress.get(c, (0, 0))[1]]
     if not gates:
