@@ -18,7 +18,7 @@
 import json
 from pathlib import Path
 
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Polygon, box
 from shapely.ops import unary_union
 
 WORLD = Path(__file__).resolve().parents[1] / "backend" / "geodata" / "world.json"
@@ -27,7 +27,8 @@ CENTER_LNG = 150  # 跟前端 WorldMap.vue 保持一致
 GROW = 2.2        # 外扩多少度:够把马六甲两岸、加勒比的岛链连起来
 SHRINK = 1.0      # 再收回来,线就不会离海岸太远
 SIMPLIFY = 0.35   # 抽稀容差,主要是为了让文件小到能塞进小程序包
-MIN_AREA = 6.0    # 比这小的碎块不画:一个孤岛画个圈只会让图变脏
+# 比这小的碎块不画:手机上一度约一个像素,再小的圈只是个点,读不出是什么
+MIN_AREA = 8.0
 
 
 def rel(lng: float) -> float:
@@ -52,6 +53,20 @@ def unwrapped(ring: list[list[float]]) -> list[tuple[float, float]]:
                 x += 360
         out.append((x, lat))
         prev = x
+    return out
+
+
+def wrapped_back(poly: Polygon) -> list[Polygon]:
+    """把展开过的多边形按接缝切开,每片各自挪回 [-180, 180]。"""
+    out: list[Polygon] = []
+    for lo in (-540, -180, 180, 540):
+        piece = poly.intersection(box(lo, -90, lo + 360, 90))
+        if piece.is_empty:
+            continue
+        shift = -(lo + 180)
+        for part in (piece.geoms if hasattr(piece, "geoms") else [piece]):
+            if isinstance(part, Polygon) and not part.is_empty:
+                out.append(Polygon([(x + shift, y) for x, y in part.exterior.coords]))
     return out
 
 
@@ -87,9 +102,12 @@ def main() -> None:
         parts = blob.geoms if isinstance(blob, MultiPolygon) else [blob]
         loops = []
         for part in parts:
-            if part.area < MIN_AREA:
-                continue
-            loops.append([[round(unrel(x), 2), round(y, 2)] for x, y in part.exterior.coords])
+            # 展开经度是为了合并,合并完得切回来:一圈跨过接缝再取模,
+            # 点的顺序会绕成个死结,重心能算到经度 2485 去
+            for piece in wrapped_back(part):
+                if piece.area < MIN_AREA:
+                    continue
+                loops.append([[round(unrel(x), 2), round(y, 2)] for x, y in piece.exterior.coords])
         circles[name] = loops
         print(f"{name}: {len(loops)} 块, {sum(len(l) for l in loops)} 个点")
 
