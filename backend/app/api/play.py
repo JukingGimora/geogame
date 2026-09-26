@@ -9,15 +9,9 @@ from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM, locate
-from app.services.progress import (
-    DAILY_LIVES,
-    circle_progress,
-    lives_left,
-    unlocked_circles,
-    why_locked,
-)
+from app.services.progress import DAILY_LIVES, lives_left
 from app.services.cities import nearest_city
-from app.services.scoring import DECAY_KM, final_score, haversine_km, miss_km, pool_decay_km
+from app.services.scoring import DECAY_KM, final_score, haversine_km, pool_decay_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
 
@@ -66,11 +60,6 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         # 命按天算,不按局算:死了重开一局就当没事发生的话,失败没有代价
         if await lives_left(session, user) <= 0:
             raise HTTPException(409, "no_lives")
-        if body.chapter in CIRCLES:
-            progress = await circle_progress(session, user)
-            locked = why_locked(body.chapter, progress, unlocked_circles(progress, user.home_circle))
-            if locked:
-                raise HTTPException(409, locked)
 
     q = _playable(user, body.chapter)
     if body.region_id:

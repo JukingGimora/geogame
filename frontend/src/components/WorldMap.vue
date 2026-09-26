@@ -31,6 +31,7 @@ interface CircleState {
   photos: number
   played: number
   lit: boolean
+  lit_count?: number
 }
 
 const props = withDefaults(
@@ -118,14 +119,20 @@ function mix(hex: string, bg: string, t: number): string {
   return `rgb(${v(0)},${v(1)},${v(2)})`
 }
 
-/** 这个圈该有多亮:认出来过最亮,还没有照片最暗 */
+/**
+ * 这个圈该有多亮:走得越多越亮,认出来的算两倍。
+ *
+ * 一条公式,不分档。原来是四个写死的档位,走过 1 张和走过 50 张一样亮,
+ * 那就没有"越走越亮"这回事了。认出来(300 公里内)才是真的到过,
+ * 所以它的权重是走过的两倍;全都认出来就是满亮。
+ */
+const FLOOR = 0.18  // 没去过的圈也得看得见轮廓,全黑等于没画
+
 function brightness(circle: string): number {
   const s = state.value[circle]
-  if (!s) return 0.25
-  if (s.lit) return 1                 // 认出来过:原色
-  if (s.played > 0) return 0.6        // 走过但没认出来
-  if (s.photos > 0) return 0.38       // 有照片可玩
-  return 0.2                          // 还没有照片
+  if (!s || !s.photos) return FLOOR
+  const walked = (s.played + (s.lit_count ?? 0)) / (2 * s.photos)
+  return FLOOR + (1 - FLOOR) * Math.min(1, walked)
 }
 
 /**

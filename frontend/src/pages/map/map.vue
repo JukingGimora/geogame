@@ -65,6 +65,7 @@ interface Circle {
   photos: number
   played: number
   lit: boolean
+  lit_count?: number
 }
 
 const circles = ref<Circle[]>([])

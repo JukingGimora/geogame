@@ -4,7 +4,7 @@
 这张地图是玩家在这游戏里唯一会一直累积的东西,所以它必须是永久的、看得见的。
 """
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -35,6 +35,8 @@ async def list_circles(
                 Photo.circle,
                 func.count(func.distinct(Round.photo_id)),
                 func.min(Round.distance_km),
+                # 认出来过几张:亮度按这个算,走过不等于认出来
+                func.count(func.distinct(case((Round.distance_km <= LIT_KM, Round.photo_id)))),
             )
             .select_from(Round)
             .join(Run, Round.run_id == Run.id)
@@ -43,7 +45,7 @@ async def list_circles(
             .group_by(Photo.circle)
         )
     ).all()
-    played = {c: (n, best) for c, n, best in mine}
+    played = {c: (n, best, lit) for c, n, best, lit in mine}
     # 锁的状态跟开局那里用的是同一套判断,不另写一份——两处算法一旦分叉,
     # 就会出现"地图上看着能点,点了说不让进"
     progress = await circle_progress(session, user)
@@ -55,8 +57,10 @@ async def list_circles(
                 "name": name,
                 "desc": desc,
                 "photos": live.get(name, 0),
-                "played": played.get(name, (0, None))[0],
-                "lit": (played.get(name, (0, None))[1] or 9e9) <= LIT_KM,
+                "played": played.get(name, (0, None, 0))[0],
+                # 认出来过的张数:地图的亮度按它算,越认得多越亮
+                "lit_count": played.get(name, (0, None, 0))[2],
+                "lit": (played.get(name, (0, None, 0))[1] or 9e9) <= LIT_KM,
                 "locked": why_locked(name, progress, unlocked),
             }
             for name, desc in CIRCLES.items()
