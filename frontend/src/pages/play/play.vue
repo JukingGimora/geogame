@@ -27,7 +27,12 @@
         >
           {{ label }} <text class="cost">{{ hintCosts[i] }}</text>
         </view>
-        <view v-for="h in unlockedContents" :key="h.level" class="hint-content">{{ h.content }}</view>
+        <view v-for="h in unlockedContents" :key="h.level" class="hint-content">
+          {{ h.content }}
+          <!-- AI 那条要标出来:它是推理示范,不是答案,线上它把毛里求斯的唐人街认成了拉包尔 -->
+          <text v-if="h.level === 2" class="hint-warn" @tap="aiNote = !aiNote">{{ t('play.aiFallible') }}</text>
+        </view>
+        <view v-if="aiNote" class="hint-note">{{ t('play.aiFallibleNote') }}</view>
       </view>
 
       <view v-if="phase === 'guess'" class="picker">
@@ -149,6 +154,7 @@ const topOffset = ref(0)
 const picked = ref<LngLat | null>(null)
 const result = ref<any>(null)
 const unlockedContents = ref<{ level: number; content: string }[]>([])
+const aiNote = ref(false)
 const finished = ref(false)
 const cardUid = ref<number | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('finale')
@@ -315,6 +321,7 @@ async function nextRound() {
   result.value = null
   picked.value = null
   unlockedContents.value = []
+  aiNote.value = false
   phase.value = 'guess'
   if (ended || run.value.status !== 'playing') {
     endedReason.value = ended
@@ -515,6 +522,19 @@ onShareTimeline(() => ({
 .cost {
   color: var(--accent);
   font-size: 20rpx;
+}
+.hint-warn {
+  color: var(--warn);
+  font-size: 22rpx;
+  margin-left: 10rpx;
+}
+.hint-note {
+  color: var(--ink-dim);
+  font-size: 22rpx;
+  line-height: 1.6;
+  border-left: 2rpx solid var(--warn);
+  padding-left: 14rpx;
+  margin-top: 8rpx;
 }
 .hint-content {
   width: 100%;

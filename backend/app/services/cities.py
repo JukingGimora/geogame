@@ -39,21 +39,40 @@ def nearest_city(lat: float, lng: float) -> tuple[str, float] | None:
     return (name, round(distance, 1)) if distance <= MAX_KM else None
 
 
-def find_city(name: str, near: tuple[float, float] | None = None) -> tuple[float, float] | None:
-    """按名字查城市坐标。同名城市很多(光 Springfield 就一堆),用模型自己给的大致位置消歧。
+def find_city(
+    name: str, near: tuple[float, float] | None = None, cc: str | None = None
+) -> tuple[float, float] | None:
+    """按名字查城市坐标。同名城市很多(光 Springfield 就一堆),先按国家收窄,再用大致位置消歧。
 
     模型认得出"布哈拉",却报不准经纬度——地名靠它,坐标靠这张表。
+    国家一定要收:线上出现过模型自己说"这是毛里求斯",坐标却落到阿曼去,
+    差了四千多公里,玩家看到的是一段自相矛盾的话。
     """
     key = name.strip().lower()
     if not key:
         return None
-    hits = [c for c in _cities() if c[0].lower() == key]
+    pool = _cities()
+    if cc:
+        same_country = [c for c in pool if c[3] == cc.upper()]
+        # 模型说的国家在表里没有这座城市,那就退到这个国家本身,
+        # 总好过跑到地球另一头去找个同名的
+        pool = same_country or pool
+    hits = [c for c in pool if c[0].lower() == key]
     if not hits:
-        hits = [c for c in _cities() if key in c[0].lower() and len(key) >= 4]
+        hits = [c for c in pool if key in c[0].lower() and len(key) >= 4]
     if not hits:
-        return None
+        return country_center(cc) if cc else None
     if near:
         best = min(hits, key=lambda c: haversine_km(near[0], near[1], c[1], c[2]))
     else:
         best = max(hits, key=lambda c: c[4])  # 没有参考点就取人口最多的那个
+    return best[1], best[2]
+
+
+def country_center(cc: str) -> tuple[float, float] | None:
+    """一个国家的落点,取它人口最多的那座城市。只在城市名查不到时兜底。"""
+    hits = [c for c in _cities() if c[3] == cc.upper()]
+    if not hits:
+        return None
+    best = max(hits, key=lambda c: c[4])
     return best[1], best[2]

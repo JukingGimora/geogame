@@ -12,7 +12,7 @@ import httpx
 
 from app.config import settings
 from app.models import AIGuess, Photo
-from app.services.cities import find_city
+from app.services.cities import country_center, find_city
 from app.services.scoring import haversine_km, score_from_distance
 from app.storage import storage
 
@@ -34,10 +34,11 @@ AI_PROMPT = (
     "后面用一两句说清楚是靠哪一两处特征认出来的。"
     "不要复述所有细节,不要写置信度,不要客套。"
     "另外单独给出 city 字段,用当地常用的英文拼写(如 Bukhara、Tbilisi、Xi\'an),"
-    "我们用它来定位坐标——你给的经纬度只作参考。"
+    "以及 country 字段,两位 ISO 国家代码(毛里求斯 MU、巴布亚新几内亚 PG、乌兹别克斯坦 UZ)。"
+    "我们用这两个字段定位坐标——你给的经纬度只作参考,但国家代码必须和你上面说的结论一致。"
     "只输出一个JSON对象,不要有任何多余文字或markdown代码块标记,格式:"
-    '{"reasoning": "推理文本", "city": "英文城市名", "lat": 纬度小数, "lng": 经度小数, '
-    '"confidence": 0到100的整数}'
+    '{"reasoning": "推理文本", "city": "英文城市名", "country": "两位国家代码", '
+    '"lat": 纬度小数, "lng": 经度小数, "confidence": 0到100的整数}'
 )
 
 HINT_PROMPT = (
@@ -138,18 +139,13 @@ async def real_ai_guess(photo: Photo) -> AIGuess | None:
         lat, lng = float(parsed["lat"]), float(parsed["lng"])
         # 模型说得出"布哈拉",却给了个新疆的坐标:地名它记得住,经纬度是编的。
         # 所以地名归它,坐标查我们自己的城市表,它给的坐标只用来消歧同名城市。
+        # 国家代码一定要用上:不然它嘴上说毛里求斯,针能插到阿曼去,
+        # 玩家看到的就是一段自相矛盾的话——那是我们的毛病,不是它猜错了。
         city = str(parsed.get("city", "")).strip()
-        if city:
-            found = find_city(city, near=(lat, lng))
-            if found:
-                lat, lng = found
-        # 模型说得出"布哈拉",却给了个新疆的坐标——地名它记得住,经纬度是编的。
-        # 所以地名归它,坐标归我们自己的城市表,它给的坐标只用来消歧同名城市。
-        city = str(parsed.get("city", "")).strip()
-        if city:
-            found = find_city(city, near=(lat, lng))
-            if found:
-                lat, lng = found
+        cc = str(parsed.get("country", "")).strip()[:2].upper() or None
+        found = find_city(city, near=(lat, lng), cc=cc) if city else (country_center(cc) if cc else None)
+        if found:
+            lat, lng = found
         reasoning = re.sub(r"[。.]?\s*置信度[^。]*。?\s*$", "。", str(parsed["reasoning"])).strip()
         confidence = int(parsed.get("confidence", 60))
     except (KeyError, ValueError, TypeError):

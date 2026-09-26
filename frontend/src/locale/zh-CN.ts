@@ -93,6 +93,8 @@ export default {
     endPool: '你把现在所有的照片都走了一遍',
     totalScore: '总分 {n}',
     hints: ['故事开头', 'AI线索', '大致范围', '再缩小点'],
+    aiFallible: '❗AI 也会看走眼',
+    aiFallibleNote: '这段是 AI 的推理思路，不是答案。它认错过不止一次——一次把毛里求斯的唐人街当成了南太平洋的拉包尔。照着它的角度看，别照着它的结论走。',
     hintCost: ['免费', '×0.8', '×0.6', '×0.4'],
     placeLabel: '拍摄于 {place}',
     distance: '距离',
