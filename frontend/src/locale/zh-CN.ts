@@ -94,7 +94,7 @@ export default {
     totalScore: '总分 {n}',
     hints: ['故事开头', 'AI线索', '大致范围', '再缩小点'],
     aiFallible: '❗AI 也会看走眼',
-    aiFallibleNote: '这段是 AI 的推理思路，不是答案。它认错过不止一次——一次把毛里求斯的唐人街当成了南太平洋的拉包尔。照着它的角度看，别照着它的结论走。',
+    aiFallibleNote: '这段是 AI 的推理思路，不是答案。它给的角度通常有用，结论经常不对——它把吉隆坡的一间展厅认成了伦敦的博物馆。照着角度看，别照着结论走。',
     hintCost: ['免费', '×0.8', '×0.6', '×0.4'],
     placeLabel: '拍摄于 {place}',
     distance: '距离',
