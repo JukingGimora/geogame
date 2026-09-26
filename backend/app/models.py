@@ -18,8 +18,6 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
     # 每天三条命要按他自己的零点重置,所以得知道他在哪个时区(分钟偏移,东八区=480)
     tz_offset: Mapped[int] = mapped_column(Integer, default=480)
-    # 他所在的文化圈,解锁从这里起步。第一次登录时按浏览器时区认一次就定下来
-    home_circle: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

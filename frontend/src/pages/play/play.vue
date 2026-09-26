@@ -110,14 +110,23 @@
     </view>
 
     <view v-if="finished && run" class="finale">
+      <!-- 大字只放数字:中文一进来就会折行,"平均差 7171 公里"撑成两行占满整屏 -->
       <template v-if="isRoam">
         <text class="finale-label">{{ t('play.endRoam') }}</text>
-        <text class="finale-score">{{ t('play.roamAvg', { n: roamAvg }) }}</text>
+        <view class="finale-figure">
+          <text class="finale-score">{{ roamAvg }}</text>
+          <text class="finale-unit">{{ t('play.kmUnit') }}</text>
+        </view>
+        <text class="finale-caption">{{ t('play.roamAvgCaption') }}</text>
         <text class="finale-sub">{{ t('play.roamBest', { n: roamBest }) }}</text>
       </template>
       <template v-else>
         <text class="finale-label">{{ endedReason === 'pool_empty' ? t('play.endPool') : t('play.endLives') }}</text>
-        <text class="finale-score">{{ t('play.streak', { n: streak }) }}</text>
+        <view class="finale-figure">
+          <text class="finale-score">{{ streak }}</text>
+          <text class="finale-unit">{{ t('play.roundUnit') }}</text>
+        </view>
+        <text class="finale-caption">{{ t('play.streakCaption') }}</text>
         <text class="finale-sub">{{ run.rank ? t('play.rank', { n: run.rank }) : t('play.totalScore', { n: run.total_score }) }}</text>
       </template>
       <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
@@ -679,7 +688,22 @@ onShareTimeline(() => ({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24rpx;
+  gap: 16rpx;
+}
+/* 数字和单位并排,基线对齐:单位跟着数字走,不另起一行 */
+.finale-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+.finale-unit {
+  font-size: 30rpx;
+  color: var(--ink-dim);
+}
+.finale-caption {
+  color: var(--ink-dim);
+  font-size: 26rpx;
+  letter-spacing: 2rpx;
 }
 .finale-label {
   color: var(--ink-dim);
@@ -688,7 +712,8 @@ onShareTimeline(() => ({
 .finale-score {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
   color: var(--accent);
-  font-size: 110rpx;
+  font-size: 120rpx;
+  line-height: 1.1;
 }
 .hint-bar {
   display: flex;

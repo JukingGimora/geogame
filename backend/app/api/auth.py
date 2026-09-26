@@ -27,7 +27,6 @@ from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
 from app.services.names import is_default
-from app.services.progress import home_circle
 from app.services.textcheck import local_reason, nickname_reason
 from app.storage import process_image, storage
 
@@ -38,8 +37,6 @@ logger = logging.getLogger(__name__)
 class GuestIn(BaseModel):
     # 每天三条命按他自己的零点重置,所以要知道他在哪个时区(分钟,东八区 480)
     tz_offset: int | None = None
-    # 浏览器的 IANA 时区名(Asia/Shanghai),用来认他从哪个文化圈出发。小程序不传
-    tz_name: str | None = None
     device_key: str = Field(min_length=8, max_length=128)
     nickname: str | None = None
     avatar_url: str | None = None
@@ -62,15 +59,8 @@ async def login_guest(body: GuestIn, session: AsyncSession = Depends(get_session
     nickname = body.nickname if body.nickname and not local_reason(body.nickname) else None
     user, token = await guest_login(session, body.device_key, nickname, avatar)
     # 时区每次登录都刷一遍:人会出国,手机会改设置
-    changed = False
     if body.tz_offset is not None and -840 <= body.tz_offset <= 840:
         user.tz_offset = body.tz_offset
-        changed = True
-    # 起点只认一次就定下来:出趟国不该把已经解锁的地图重新洗一遍
-    if not user.home_circle:
-        user.home_circle = home_circle(body.tz_name)
-        changed = True
-    if changed:
         await session.commit()
     return {"token": token, "user": {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url}}
 

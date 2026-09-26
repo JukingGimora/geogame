@@ -7,7 +7,8 @@
 
 试过按文化圈解锁(玩到七成才开相邻的),做完拆了:地理是这游戏里最不该设门槛的维度,
 而且西欧和拉美还没有照片,巴黎或圣保罗来的人会一个圈都点不开。
-进度改成用亮度显示——走得越多越亮,不拦人。
+进度改成用亮度显示——走得越多越亮,不拦人。按时区认"他从哪个圈出发"也一起删了,
+那是为解锁服务的,不解锁就没人用它。
 """
 from datetime import datetime, timedelta, timezone
 
@@ -17,26 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import PointsLedger, Round, Run, User
 from app.services.scoring import DECAY_KM, miss_km
 
-DEFAULT_HOME = "东亚"  # 小程序只在国内发行;H5 认不出来的也退到这里
 DAILY_LIVES = 3
 LIFE_BACK = "life_back"  # 照片过审回的那一条命,记在积分流水里
-
-
-def home_circle(tz_name: str | None) -> str:
-    """从浏览器时区名推出他在哪个文化圈——起点是他自己所在的地方。
-
-    IANA 时区名自带地名(Asia/Shanghai、America/Sao_Paulo),拿最后一段当城市查表,
-    再按坐标判圈。不用查 IP:不碰访客的网络地址,也不依赖外部服务。
-    三十个常见时区里二十七个能直接推对,剩下那几个(Pacific/Fiji 这种写的是国名不是城市)退到默认。
-    小程序拿不到 IANA 时区,不传,于是走默认——它本来就只在国内发行。
-    """
-    from app.services.cities import find_city
-    from app.services.circles import locate
-
-    if not tz_name:
-        return DEFAULT_HOME
-    hit = find_city(tz_name.rsplit("/", 1)[-1])
-    return locate(*hit)[1] if hit else DEFAULT_HOME
 
 
 def day_bounds(user: User) -> tuple[datetime, datetime]:
