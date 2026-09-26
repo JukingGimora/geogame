@@ -136,7 +136,10 @@ function admin() {
       const r = await fetch(`/api/v1/admin/photos?${q}`, { headers: this.headers() })
       if (!r.ok) { this.photos = []; this.total = 0; this.msg = '口令错误或服务异常 (' + r.status + ')'; return }
       const d = await r.json()
-      this.photos = d.items
+      // 补上模板要用的两个字段:后端不会给。
+      // 少了它们,:disabled="p.saving" 绑到 undefined,Alpine 会把按钮设成 disabled,
+      // "保存故事"点了没反应,故事写了也存不进去
+      this.photos = d.items.map((p) => ({ ...p, saving: false, storyMsg: '' }))
       this.total = d.total
       // 删到本页空了但后面还有,自动回退一页,免得停在空白页
       if (this.photos.length === 0 && this.offset > 0) { this.offset = Math.max(0, this.offset - this.limit); return this.load() }

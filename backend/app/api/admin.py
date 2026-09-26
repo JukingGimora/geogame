@@ -229,9 +229,6 @@ async def edit_story(photo_id: int, body: StoryIn, session: AsyncSession = Depen
         raise HTTPException(404, "photo_not_found")
     photo.story = body.story[:2000]
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id, Hint.level == 1))
-    # 重新通过一张图(改过故事、之前被驳回过)会再走一遍这里,
-    # 旧的先删掉——不然撞上 (photo_id, level) 的唯一索引,整个「通过」按钮 500
-    await session.execute(sa_delete(Hint).where(Hint.photo_id == photo.id, Hint.level.in_((1, 3, 4))))
     if photo.story:
         teaser = photo.story[: max(6, len(photo.story) // 2)]
         session.add(Hint(photo_id=photo_id, level=1, content=teaser + "…", source="uploader"))
