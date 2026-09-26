@@ -88,6 +88,8 @@ async def pending_photos(
                 "lng": ai.lng,
                 "distance_km": ai.distance_km,
                 "region_name": await _describe_point(session, ai.lat, ai.lng),
+                # 它自己说的地方。跟上面那个对不上,就是小地名查不到、落点退到了国家中心
+                "place": ai.place,
                 "reasoning": ai.reasoning,
             }
 

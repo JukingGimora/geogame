@@ -7,7 +7,6 @@
 
 待审图不会被发到玩家手里(只有 live 状态才进题库),所以提前算不会剧透。
 """
-import asyncio
 import logging
 
 from sqlalchemy import select
@@ -15,7 +14,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.db import async_session_maker
 from app.models import AIGuess, Hint, Photo
-from app.services.ai_stub import fake_ai_guess, real_ai_guess, real_ai_hint
+from app.services.ai_stub import fake_ai_guess, real_ai_read
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +40,8 @@ async def enrich_photo(photo_id: int) -> None:
                 hint2 = None
                 guess = await fake_ai_guess(photo) if need_guess else None
             else:
-                hint2, guess = await asyncio.gather(
-                    real_ai_hint(photo) if need_hint else _none(),
-                    real_ai_guess(photo) if need_guess else _none(),
-                )
+                # 线索和答案来自同一次看图,所以哪怕只缺一样也整个跑一遍
+                hint2, guess = await real_ai_read(photo)
 
             if need_guess and guess:
                 session.add(guess)
@@ -56,7 +53,3 @@ async def enrich_photo(photo_id: int) -> None:
     except Exception:
         # 上传接口已经返回 200 了,这里失败只能记日志;审核通过时会再补一次
         logger.exception("enrich_photo failed for photo %d", photo_id)
-
-
-async def _none() -> None:
-    return None

@@ -12,7 +12,7 @@
     python3 tools/rerun_ai.py --all
     python3 tools/rerun_ai.py --ids 146,147
 
-只动 AI 猜测,不动提示②(猜前线索):那是另一套提示词,重算要另说。
+线索和答案现在是一次调用出来的,所以两样一起换——分开换就会重新变成"言行不一致"。
 """
 import argparse
 import asyncio
@@ -27,7 +27,9 @@ from sqlalchemy import select  # noqa: E402
 
 from app.db import async_session_maker  # noqa: E402
 from app.models import AIGuess, Photo  # noqa: E402
-from app.services.ai_stub import real_ai_guess  # noqa: E402
+from app.models import Hint  # noqa: E402
+from app.services.ai_stub import real_ai_read  # noqa: E402
+from app.services.enrich import HINT2_FALLBACK  # noqa: E402
 
 CONCURRENCY = 3  # 别把模型接口打满
 
@@ -60,7 +62,7 @@ async def main() -> None:
                 [
                     {"photo_id": g.photo_id, "lat": g.lat, "lng": g.lng,
                      "distance_km": g.distance_km, "score": g.score,
-                     "reasoning": g.reasoning, "model": g.model}
+                     "reasoning": g.reasoning, "place": g.place, "model": g.model}
                     for g, _ in rows
                 ],
                 ensure_ascii=False,
@@ -80,15 +82,22 @@ async def main() -> None:
         async def one(old: AIGuess, photo: Photo) -> None:
             nonlocal changed
             async with sem:
-                fresh = await real_ai_guess(photo)
+                clue, fresh = await real_ai_read(photo)
             if not fresh:
                 print(f"  #{photo.id} 算失败,保留旧的")
                 return
+            # 线索和答案是一次算出来的,就得一起换掉,不然又变成各说各的
+            hint = await session.scalar(
+                select(Hint).where(Hint.photo_id == photo.id, Hint.level == 2)
+            )
+            if hint:
+                hint.content = (clue or HINT2_FALLBACK)[:255]
             arrow = "→" if fresh.distance_km < old.distance_km else "↗"
             print(f"  #{photo.id} {photo.country}: {old.distance_km}km {arrow} {fresh.distance_km}km")
             old.lat, old.lng = fresh.lat, fresh.lng
             old.distance_km, old.score = fresh.distance_km, fresh.score
             old.reasoning, old.model = fresh.reasoning, fresh.model
+            old.place = fresh.place
             changed += 1
 
         await asyncio.gather(*(one(g, p) for g, p in rows))

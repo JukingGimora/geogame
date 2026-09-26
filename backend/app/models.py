@@ -88,6 +88,9 @@ class AIGuess(Base):
     distance_km: Mapped[float] = mapped_column(Float)
     score: Mapped[int] = mapped_column(Integer)
     reasoning: Mapped[str] = mapped_column(Text, default="")
+    # AI 自己报的地名("Pereybere, MU")。针的落点另算:小地方查不到就退到国家中心,
+    # 两者对不上时审核页要能分清是它猜错了还是我们搬错了
+    place: Mapped[str] = mapped_column(String(64), default="")
     model: Mapped[str] = mapped_column(String(64), default="fake-ai-v0")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
