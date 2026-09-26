@@ -27,6 +27,7 @@ from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
 from app.services.names import is_default
+from app.services.textcheck import local_reason, nickname_reason
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -52,7 +53,9 @@ class ProfileIn(BaseModel):
 async def login_guest(body: GuestIn, session: AsyncSession = Depends(get_session)):
     # 静默丢弃而不是报错:本地存着个临时路径不该导致登不上
     avatar = clean_avatar_url(body.avatar_url)
-    user, token = await guest_login(session, body.device_key, body.nickname, avatar)
+    # 注册时还没有 openid,只能走本地那一层;不合规就当没填,发个有故事的默认名
+    nickname = body.nickname if body.nickname and not local_reason(body.nickname) else None
+    user, token = await guest_login(session, body.device_key, nickname, avatar)
     return {"token": token, "user": {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url}}
 
 
@@ -88,7 +91,16 @@ async def upload_avatar(file: UploadFile = File(...), user: User = Depends(get_c
 @router.post("/profile")
 async def update_profile(body: ProfileIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     if body.nickname is not None:
-        user.nickname = body.nickname
+        # 昵称会出现在排行榜和别人的揭晓页上,是公开内容,得先过一遍检查
+        openid = await session.scalar(
+            select(AuthIdentity.provider_uid).where(
+                AuthIdentity.user_id == user.id, AuthIdentity.provider == "wechat"
+            )
+        )
+        reason = await nickname_reason(body.nickname, openid)
+        if reason:
+            raise HTTPException(422, reason)
+        user.nickname = body.nickname.strip()
     if body.avatar_url is not None:
         cleaned = clean_avatar_url(body.avatar_url)
         if cleaned is None:
