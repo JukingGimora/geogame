@@ -116,7 +116,7 @@ export default {
     title: '安放一段记忆',
     choose: '选择照片',
     pickLocation: '在地图上标记拍摄地',
-    story: '写下它的故事（可选）',
+    story: '写下它的故事（可选）——说说当时发生了什么，别直接写地名，那是留给别人猜的',
     submit: '提交（人工审核后上线）',
     submitting: '上传中…',
     submitted: '已提交，审核通过后会出现在题库里',

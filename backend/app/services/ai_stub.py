@@ -148,6 +148,11 @@ def _image_url(photo: Photo) -> str:
 
 
 
+def _with_answer(answer: str) -> str:
+    """提示词里带着 JSON 的花括号,所以只能替换占位符,不能用 .format。"""
+    return CLUE_PROMPT.replace("{answer}", answer)
+
+
 async def real_ai_read(photo: Photo) -> tuple[str | None, str | None, AIGuess | None]:
     """先认地方,再让它照着这个结论倒推线索和关键词。返回 (线索, 关键词, 猜测)。
 
@@ -164,7 +169,7 @@ async def real_ai_read(photo: Photo) -> tuple[str | None, str | None, AIGuess | 
         return None, None, None
 
     answer = f"{guess.place}。{guess.reasoning}"
-    prompt = CLUE_PROMPT.format(answer=answer)
+    prompt = _with_answer(answer)
     keyword = None
     for _ in range(2):
         second = await _ask(photo, prompt)
@@ -178,7 +183,7 @@ async def real_ai_read(photo: Photo) -> tuple[str | None, str | None, AIGuess | 
         why = leak_reason(clue) if clue else "没给线索"
         if not why:
             return clue[:255], keyword, guess
-        prompt = CLUE_PROMPT.format(answer=answer) + RETRY_SUFFIX.format(reason=why)
+        prompt = _with_answer(answer) + RETRY_SUFFIX.replace("{reason}", why)
     # 两次都泄底:答案还能用,线索退回兜底文案,别把整张图的结果一起扔了
     return None, keyword, guess
 

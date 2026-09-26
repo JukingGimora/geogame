@@ -118,15 +118,26 @@ function mix(hex: string, bg: string, t: number): string {
   return `rgb(${v(0)},${v(1)},${v(2)})`
 }
 
-/** 色相说明这是哪个圈,亮度说明你走到哪了 */
-function fillFor(circle: string): string {
-  const base = CIRCLE_COLORS[circle] ?? THEME.inkFaint
+/** 这个圈该有多亮:认出来过最亮,还没有照片最暗 */
+function brightness(circle: string): number {
   const s = state.value[circle]
-  if (!s) return mix(base, THEME.bgSunken, 0.25)
-  if (s.lit) return base                                   // 认出来过:原色
-  if (s.played > 0) return mix(base, THEME.bgSunken, 0.6)   // 走过但没认出来
-  if (s.photos > 0) return mix(base, THEME.bgSunken, 0.38)  // 有照片可玩
-  return mix(base, THEME.bgSunken, 0.2)                     // 还没有照片
+  if (!s) return 0.25
+  if (s.lit) return 1                 // 认出来过:原色
+  if (s.played > 0) return 0.6        // 走过但没认出来
+  if (s.photos > 0) return 0.38       // 有照片可玩
+  return 0.2                          // 还没有照片
+}
+
+/**
+ * 色相说明这是哪个圈,亮度说明你走到哪了。
+ *
+ * 亮度一次算完,**绝不能混两遍**:mix 只认 #rrggbb,把它自己吐出来的 rgb(...) 再喂回去
+ * 会算出 rgb(NaN,NaN,7),canvas 遇到非法颜色是"忽略这次赋值、保留上一个",
+ * 于是选中一个圈之后,整张图的陆地被同一种颜色糊满(线上真出现过)。
+ */
+function fillFor(circle: string, muted: boolean): string {
+  const base = CIRCLE_COLORS[circle] ?? THEME.inkFaint
+  return mix(base, THEME.bgSunken, brightness(circle) * (muted ? 0.35 : 1))
 }
 
 async function load() {
@@ -178,9 +189,8 @@ function paint(ctx: any) {
   ctx.fillStyle = THEME.bgSunken
   ctx.fillRect(0, 0, box.w, box.h)
   for (const f of features) {
-    const muted = props.selected && props.selected !== f.c
-    const color = fillFor(f.c)
-    ctx.fillStyle = muted ? mix(color, THEME.bgSunken, 0.35) : color
+    const muted = !!props.selected && props.selected !== f.c
+    ctx.fillStyle = fillFor(f.c, muted)
     // 用同色描边而不是底色:同一个文化圈里的国家会连成一片,
     // 玩家看到的是"一个文化圈",不是一堆国家拼图
     ctx.strokeStyle = ctx.fillStyle
