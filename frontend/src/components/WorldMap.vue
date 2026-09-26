@@ -113,9 +113,19 @@ watch(
   { immediate: true, deep: true },
 )
 
-function mix(hex: string, bg: string, t: number): string {
-  const c = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16)
-  const v = (i: number) => Math.round(c(hex, i) * t + c(bg, i) * (1 - t))
+/** #rrggbb 和 rgb(r,g,b) 都认。只认前者的时候,把自己的输出再喂回来会算出 NaN,
+ *  canvas 遇到非法颜色是"保留上一个",整张图的陆地会被同一种颜色糊满——线上出过这事 */
+function parse(colour: string): [number, number, number] {
+  if (colour.startsWith('#')) {
+    return [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16)) as [number, number, number]
+  }
+  const n = colour.match(/\d+/g) ?? []
+  return [Number(n[0]) || 0, Number(n[1]) || 0, Number(n[2]) || 0]
+}
+
+function mix(a: string, b: string, t: number): string {
+  const [x, y] = [parse(a), parse(b)]
+  const v = (i: number) => Math.round(x[i] * t + y[i] * (1 - t))
   return `rgb(${v(0)},${v(1)},${v(2)})`
 }
 
@@ -126,15 +136,15 @@ function mix(hex: string, bg: string, t: number): string {
  * 那就没有"越走越亮"这回事了。认出来(300 公里内)才是真的到过,
  * 所以它的权重是走过的两倍;全都认出来就是满亮。
  */
-// 一张谁都没走过的地图也得看得清:底调到 0.18 试过,整张图几乎全黑,
-// 新玩家打开只看到一片漆黑。0.42 比改之前还亮一点,走满再升到 1
-const FLOOR = 0.42
+// 没走过的陆地长这样。它跟海(近黑)必须拉开差距——
+// 先让人看见"这是一块陆地",再谈走了多少
+const LAND_BASE = '#4a4238'
 
-function brightness(circle: string): number {
+/** 走了多少:0 到 1。认出来(300 公里内)算两倍,走过不等于到过 */
+function walked(circle: string): number {
   const s = state.value[circle]
-  if (!s || !s.photos) return FLOOR
-  const walked = (s.played + (s.lit_count ?? 0)) / (2 * s.photos)
-  return FLOOR + (1 - FLOOR) * Math.min(1, walked)
+  if (!s || !s.photos) return 0
+  return Math.min(1, (s.played + (s.lit_count ?? 0)) / (2 * s.photos))
 }
 
 /**
@@ -145,8 +155,9 @@ function brightness(circle: string): number {
  * 于是选中一个圈之后,整张图的陆地被同一种颜色糊满(线上真出现过)。
  */
 function fillFor(circle: string, muted: boolean): string {
-  const base = CIRCLE_COLORS[circle] ?? THEME.inkFaint
-  return mix(base, THEME.bgSunken, brightness(circle) * (muted ? 0.35 : 1))
+  const land = mix(CIRCLE_COLORS[circle] ?? THEME.inkFaint, LAND_BASE, walked(circle))
+  // 选中某个圈时别的压暗,但压的是已经成型的颜色,不是重新算一遍亮度
+  return muted ? mix(land, THEME.bgSunken, 0.45) : land
 }
 
 async function load() {
