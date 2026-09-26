@@ -65,13 +65,14 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
 
     playable = q
     played_ids = await _played_photo_ids(session, user)
-    photos = list(
+    want = ROAM_ROUNDS if body.mode == "roam" else PREFETCH
+    # 多抓一些再筛:随机拿到的那几张可能全挤在一个地方
+    candidates = list(
         await session.scalars(
-            playable.where(Photo.id.notin_(played_ids))
-            .order_by(func.random())
-            .limit(ROAM_ROUNDS if body.mode == "roam" else PREFETCH)
+            playable.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(want * 8)
         )
     )
+    photos = _spread(candidates, [], want)
 
     # 朋友指名要你猜的那张,排到第一关。
     # 拿不到就默默按普通一局走——他是被朋友叫来的,不能因为"这张你玩过了"就把人挡在门外。
@@ -112,6 +113,28 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     return await run_state(run.id, user, session)
 
 
+# 同一局里不出两张挨着的照片。20 张斐济照片里有 18 张挤在楠迪:
+# 认出第一张之后,后面每一张都是白送的满分,连关纪录也就成了假的。
+# 0.15 度在赤道上约 16 公里,往高纬度只会更严,宁严勿松。
+NEAR_DEG = 0.15
+
+
+def _spread(candidates: list[Photo], used: list[tuple[float, float]], want: int) -> list[Photo]:
+    """从候选里挑互相不挨着的。挑不够就拿挨着的补——题池小的圈不能因为这条规则提前收摊。"""
+    taken = list(used)
+    picked: list[Photo] = []
+    spare: list[Photo] = []
+    for p in candidates:
+        if len(picked) == want:
+            break
+        if any(abs(p.lat - la) < NEAR_DEG and abs(p.lng - ln) < NEAR_DEG for la, ln in taken):
+            spare.append(p)
+            continue
+        picked.append(p)
+        taken.append((p.lat, p.lng))
+    return (picked + spare)[:want]
+
+
 def _playable(user: User, chapter: str | None):
     """能发给这个人的题:已上线、不是他自己传的(知道答案等于白送满分)、限定文化圈。
 
@@ -150,11 +173,22 @@ async def _lives_used(session: AsyncSession, run: Run) -> int:
 async def _append_round(session: AsyncSession, run: Run, user: User) -> bool:
     """再接一关。题库被他打空就返回 False,由调用方结束这一局。"""
     played = await _played_photo_ids(session, user)
-    photo = await session.scalar(
-        _playable(user, None).where(Photo.id.notin_(played)).order_by(func.random()).limit(1)
+    candidates = list(
+        await session.scalars(
+            _playable(user, None).where(Photo.id.notin_(played)).order_by(func.random()).limit(40)
+        )
     )
-    if not photo:
+    used = (
+        await session.execute(
+            select(Photo.lat, Photo.lng)
+            .join(Round, Round.photo_id == Photo.id)
+            .where(Round.run_id == run.id)
+        )
+    ).all()
+    picked = _spread(candidates, [(la, ln) for la, ln in used], 1)
+    if not picked:
         return False
+    photo = picked[0]
     last = await session.scalar(select(func.max(Round.order_index)).where(Round.run_id == run.id))
     session.add(Round(run_id=run.id, photo_id=photo.id, order_index=(last or 0) + 1))
     return True
