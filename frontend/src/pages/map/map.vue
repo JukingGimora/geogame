@@ -31,6 +31,13 @@
         </text>
       </view>
       <text class="picked-desc">{{ active.desc }}</text>
+      <!-- 点进来就该看见自己在这个圈走到哪了,不然亮度变化没有参照 -->
+      <view v-if="active.photos > 0" class="bar">
+        <view class="bar-fill" :style="{ width: walkedPct + '%', background: colorOf(active.name) }" />
+      </view>
+      <text v-if="active.photos > 0" class="picked-progress">
+        {{ t('map.circleWalked', { played: active.played, total: active.photos, lit: active.lit_count ?? 0 }) }}
+      </text>
     </view>
     <text v-else class="picked-hint">{{ t('map.mapHint') }}</text>
 
@@ -83,6 +90,13 @@ function colorOf(name: string): string {
 const active = computed(() => circles.value.find((c) => c.name === activeName.value) || null)
 
 // 点亮了几个圈,是玩家在这游戏里唯一一直累积的东西
+// 走过算一份,认出来(300 公里内)算两份——地图的亮度用的是同一个式子
+const walkedPct = computed(() => {
+  const c = active.value
+  if (!c || !c.photos) return 0
+  return Math.round(Math.min(1, (c.played + (c.lit_count ?? 0)) / (2 * c.photos)) * 100)
+})
+
 const subtitle = computed(() => {
   const lit = circles.value.filter((c) => c.lit).length
   return t('map.progress', { lit, total: circles.value.length || 9 })
@@ -232,6 +246,23 @@ onShareTimeline(() => ({
   font-size: 22rpx;
 }
 
+.bar {
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: var(--line);
+  margin-top: 16rpx;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 4rpx;
+}
+.picked-progress {
+  display: block;
+  color: var(--ink-dim);
+  font-size: 22rpx;
+  margin-top: 10rpx;
+}
 .picked-desc {
   display: block;
   color: var(--ink-dim);
