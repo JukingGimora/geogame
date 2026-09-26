@@ -225,14 +225,12 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
     rounds = (
         await session.scalars(select(Round).where(Round.run_id == run.id).order_by(Round.order_index))
     ).all()
-    # 圈内局没有③——那是他自己选的圈
-    hidden = {3} if run.chapter in CIRCLES else set()
     out = []
     for r in rounds:
         photo = await session.get(Photo, r.photo_id)
-        # 只列这张图真有的提示:没故事就没①,AI 给不出通名就没⑤,
+        # 只列这张图真有的提示:没故事就没①,AI 给不出通名就没④,
         # 列出来点不开比不列更糟
-        have = set(await session.scalars(select(Hint.level).where(Hint.photo_id == photo.id)))
+        have = sorted(await session.scalars(select(Hint.level).where(Hint.photo_id == photo.id)))
         item = {
             "round_id": r.id,
             "order": r.order_index,
@@ -241,7 +239,7 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
             "finished": r.finished_at is not None,
             "hints_mask": r.hints_mask,
             # 这一关真正能买的提示
-            "hint_levels": sorted(have - hidden),
+            "hint_levels": have,
         }
         if r.finished_at is not None:
             item.update({"score": r.score, "distance_km": r.distance_km})
@@ -288,12 +286,9 @@ async def _get_open_round(session: AsyncSession, round_id: int, user: User) -> t
 async def unlock_hint(
     round_id: int, body: HintIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
 ):
-    if body.level not in (1, 2, 3, 4, 5):
+    if body.level not in (1, 2, 3, 4):
         raise HTTPException(422, "invalid_hint_level")
-    rnd, run = await _get_open_round(session, round_id, user)
-    # 他自己点的「去东亚走一圈」,提示③还告诉他"在东亚文化圈",等于白收 20% 的分
-    if body.level == 3 and run.chapter in CIRCLES:
-        raise HTTPException(404, "hint_not_available")
+    rnd, _ = await _get_open_round(session, round_id, user)
     hint = await session.scalar(
         select(Hint).where(Hint.photo_id == rnd.photo_id, Hint.level == body.level)
     )

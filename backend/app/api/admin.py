@@ -31,7 +31,6 @@ from app.services.circles import coarse_area, locate
 from app.services.cities import nearest_city
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
-from app.services.teaser import story_teaser
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -501,20 +500,23 @@ async def _describe_point(session: AsyncSession, lat: float, lng: float) -> str 
 
 
 async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
-    """提示①(故事前半句)与③④(大区/省份)——纯程序生成,不经AI(幻觉隔离)。
+    """提示①(故事)与③(国家)——纯程序生成,不经AI(幻觉隔离)。
 
-    提示②(AI线索)不在这里:它是网络请求,上传时就由 services/enrich.py 算好入库了。
+    提示②(AI线索)和④(关键字)不在这里:它们是网络请求,上传时由 services/enrich.py 算好入库。
+
+    故事整段给,不再砍半:实测 208 个故事里 187 个压根没提地名,8% 提的是别处的地名
+    (「这里俄罗斯客人特别多」拍的是中国),砍掉反而帮倒忙;真说漏的只有 5 个,审核时改一个字比写一套过滤划算。
     """
     # 重新通过一张图(改过故事、之前被驳回过)会再走一遍这里,
     # 旧的先删掉——不然撞上 (photo_id, level) 的唯一索引,整个「通过」按钮 500
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo.id, Hint.level.in_((1, 3, 4))))
     if photo.story:
-        session.add(Hint(photo_id=photo.id, level=1, content=story_teaser(photo.story), source="uploader"))
-    # 提示③④是同一条规则,没有例外:文化圈 → 国家(国家太大就加个方位)。
-    # 以前中国走省份、境外走国家,等于两套阶梯,玩家点出来的东西对不上按钮的名字。
+        session.add(Hint(photo_id=photo.id, level=1, content=photo.story[:255], source="uploader"))
     if not photo.circle:
         photo.country, photo.circle = locate(photo.lat, photo.lng)
-    session.add(Hint(photo_id=photo.id, level=3, content=f"在{photo.circle}文化圈", source="system"))
+    # 文化圈那一级去掉了:从地图选圈进来的人,等于花钱买自己刚点过的东西。
+    # 剩下两级都从真实坐标算,不经 AI:国家 → 国家的哪一角。
+    session.add(Hint(photo_id=photo.id, level=3, content=f"在{photo.country}", source="system"))
     session.add(
         Hint(
             photo_id=photo.id,

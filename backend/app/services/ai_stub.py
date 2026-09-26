@@ -67,14 +67,7 @@ CLUE_PROMPT = (
     "是个正在翻新的内陆首府\"、\"帐篷上是某国际电信品牌的圆环标\"。\n"
     "也严禁念出或转述画面里的任何文字(招牌、路牌、广告词、说明牌都不行),严禁说出最终结论。\n"
     "\n"
-    "再给一个 keyword:**最后一条线索**,两到六个字,说出这地方\"是个什么\"。"
-    "要的是通名,不是专名——\"盐湖\"、\"关隘\"、\"唐人街\"、\"赛马场\"、\"火山口\"、\"石窟\"、"
-    "\"铁路枢纽\"、\"高山牧场\"都合格;\"察尔汗\"、\"剑门关\"、\"布罗莫\"不合格,那是名字。"
-    "它是玩家花最多代价才买的一条,所以要挑最能缩小范围的那个通名,"
-    "别给\"风景\"、\"城市\"、\"海边\"这种放之四海而皆准的词。\n"
-    "\n"
-    "只输出一个JSON对象,不要有任何多余文字或markdown代码块标记,格式:"
-    '{"clue": "推理示范", "keyword": "通名"}'
+    "直接输出这段话本身,不要 JSON,不要引号,不要前缀。"
 )
 
 # 重问时把上次栽在哪一条告诉它。泛泛说"你违规了"它改不准,
@@ -153,8 +146,8 @@ def _with_answer(answer: str) -> str:
     return CLUE_PROMPT.replace("{answer}", answer)
 
 
-async def real_ai_read(photo: Photo) -> tuple[str | None, str | None, AIGuess | None]:
-    """先认地方,再让它照着这个结论倒推线索和关键词。返回 (线索, 关键词, 猜测)。
+async def real_ai_read(photo: Photo) -> tuple[str | None, AIGuess | None]:
+    """先认地方,再让它照着这个结论倒推线索。返回 (线索, 猜测)。
 
     第二步把第一步的结论原样喂回去,所以线索说的方向必然通向答案认定的那个地方——
     一致性是构造出来的,不靠模型自觉。
@@ -163,29 +156,22 @@ async def real_ai_read(photo: Photo) -> tuple[str | None, str | None, AIGuess | 
     """
     parsed = await _ask(photo, ANSWER_PROMPT)
     if not parsed:
-        return None, None, None
+        return None, None
     guess = _to_guess(photo, parsed)
     if not guess:
-        return None, None, None
+        return None, None
 
     answer = f"{guess.place}。{guess.reasoning}"
     prompt = _with_answer(answer)
-    keyword = None
     for _ in range(2):
-        second = await _ask(photo, prompt)
-        if not second:
-            break
-        clue = str(second.get("clue", "")).strip()
-        word = str(second.get("keyword", "")).strip()
-        # 关键词单独判:线索不合格不该连累它,它自己泄底也不该连累线索
-        if word and not leak_reason(word):
-            keyword = word[:16]
+        clue = await _ask(photo, prompt, as_json=False)
+        clue = clue.strip().strip('"') if clue else ""
         why = leak_reason(clue) if clue else "没给线索"
         if not why:
-            return clue[:255], keyword, guess
+            return clue[:255], guess
         prompt = _with_answer(answer) + RETRY_SUFFIX.replace("{reason}", why)
     # 两次都泄底:答案还能用,线索退回兜底文案,别把整张图的结果一起扔了
-    return None, keyword, guess
+    return None, guess
 
 
 def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:

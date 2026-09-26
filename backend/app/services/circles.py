@@ -10,6 +10,8 @@
 归属用国家中心点最近邻,和省级归属同一套办法:边境几十公里的误差不影响
 "属于哪个文化圈"这个粒度,换国界多边形要几十兆数据,不值。
 """
+import functools
+
 from app.services.scoring import haversine_km
 
 # 说明文字不是百科词条,是"看照片该往哪儿想"的线索
@@ -302,48 +304,71 @@ def locate(lat: float, lng: float) -> tuple[str, str]:
 
 # 横跨几千公里的国家:只说国名等于没缩小范围,按方位再切一刀。
 # 小国家本身就几百公里宽,切了反而接近报答案。中国不在这儿——它有现成的七大区。
-LARGE_COUNTRIES: dict[str, tuple[float, float]] = {
-    "中国": (35.00, 105.00),
-    "俄罗斯": (61.52, 105.32),
-    "美国": (39.83, -98.58),
-    "加拿大": (56.13, -106.35),
-    "巴西": (-14.24, -51.93),
-    "澳大利亚": (-25.27, 133.78),
-    "印度": (20.59, 78.96),
-    "哈萨克斯坦": (48.02, 66.92),
-    "阿根廷": (-38.42, -63.62),
-    "印度尼西亚": (-2.50, 118.00),
-    "蒙古": (46.90, 103.80),
-    "伊朗": (32.43, 53.69),
-    "墨西哥": (23.63, -102.55),
-    "沙特阿拉伯": (23.89, 45.08),
-    "阿尔及利亚": (28.03, 1.66),
-    "利比亚": (26.34, 17.23),
-    "苏丹": (12.86, 30.22),
-    "刚果金": (-4.04, 21.76),
-    "秘鲁": (-9.19, -75.02),
-    "智利": (-35.68, -71.54),
-    "土耳其": (38.96, 35.24),
-}
+# 提示④:在这个国家的哪一角。
+#
+# 原来只给 21 个大国按写死的中心点切方位,别的国家一律只有国名——于是提示④跟提示③
+# 一模一样,等于白收 20% 的分。现在每个国家用**它自己的**外接框三等分,
+# 大国切出一千多公里的块,小国切出几十公里的块,同一条规则,没有例外表要维护。
+_ZONE_CUT = 1 / 3  # 外接框按 1/3、2/3 切,九宫格
 
-# 差不到这个度数就算"中部":约 600 公里,再小就等于在报城市
-_EDGE_DEGREES = 6.0
+
+@functools.lru_cache(maxsize=1)
+def _country_code() -> dict[str, str]:
+    """我们的中文国名 → GeoNames 的两位国家代码。按国家中心点就近认。
+
+    港澳台在 GeoNames 里是独立代码,不能靠"离哪个城市近"去认(澳门最近的城市在广东),
+    所以用国家中心点来认,而不是用照片坐标。
+    """
+    from app.services.cities import nearest_cc
+
+    out = {}
+    for name, lat, lng, _ in COUNTRIES:
+        cc = nearest_cc(lat, lng)
+        if cc:
+            out[name] = cc
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def _country_box() -> dict[str, tuple[float, float, float, float]]:
+    """每个国家的外接框 (南, 北, 西, 东)。
+
+    经度先绕到以该国自己为中心的坐标系里再取范围——不然横跨 180 度经线的国家
+    (斐济、俄罗斯)会算出 358 度宽的框,三等分出来的"东部""西部"纯属胡说。
+    """
+    from app.services.cities import _cities
+
+    lats: dict[str, list[float]] = {}
+    lngs: dict[str, list[float]] = {}
+    for _, lat, lng, cc, _ in _cities():
+        lats.setdefault(cc, []).append(lat)
+        lngs.setdefault(cc, []).append(lng)
+
+    out = {}
+    for cc, xs in lngs.items():
+        pivot = xs[0]
+        rolled = [((x - pivot + 540) % 360) - 180 for x in xs]
+        ys = lats[cc]
+        out[cc] = (min(ys), max(ys), min(rolled) + pivot, max(rolled) + pivot)
+    return out
 
 
 def coarse_area(country: str, lat: float, lng: float) -> str:
-    """提示④用的"一块几百万平方公里的地方"。
-
-    大国按相对国家中心的方位切(西雅图 → 美国·西部),小国直接用国名。
-    方位比当地人的叫法(西伯利亚、中西部)更好懂,也不会精确到泄底。
-    """
-    center = LARGE_COUNTRIES.get(country)
-    if not center:
+    """提示④:国名 + 在这个国家的哪一角。查不到这个国家就退回国名。"""
+    cc = _country_code().get(country)
+    box = _country_box().get(cc) if cc else None
+    if not box:
         return country
-    dlat, dlng = lat - center[0], lng - center[1]
+    south, north, west, east = box
+    # 经度也绕到同一个坐标系里比,理由同上
+    x = ((lng - west + 540) % 360) - 180 + west
+
+    def side(v: float, lo: float, hi: float, low_name: str, high_name: str) -> str:
+        if hi - lo < 1e-6:
+            return ""
+        t = (v - lo) / (hi - lo)
+        return low_name if t < _ZONE_CUT else (high_name if t > 1 - _ZONE_CUT else "")
+
     # 东西在前、南北在后:中文说"西北部",不说"北西部"
-    parts = []
-    if abs(dlng) >= _EDGE_DEGREES:
-        parts.append("东" if dlng > 0 else "西")
-    if abs(dlat) >= _EDGE_DEGREES:
-        parts.append("北" if dlat > 0 else "南")
-    return f"{country}·{''.join(parts)}部" if parts else f"{country}·中部"
+    parts = side(x, west, east, "西", "东") + side(lat, south, north, "南", "北")
+    return f"{country}·{parts}部" if parts else f"{country}·中部"
