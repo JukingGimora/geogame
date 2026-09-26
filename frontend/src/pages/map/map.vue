@@ -35,7 +35,7 @@
     <text v-else class="picked-hint">{{ t('map.mapHint') }}</text>
 
     <button class="g-btn primary start" @tap="onStart">
-      {{ active && active.photos > 0 ? t('map.startCircle', { name: active.name }) : t('map.start') }}
+      {{ active && active.photos > 0 ? t('map.startCircle', { name: active.name }) : t('map.roam') }}
     </button>
     <view class="row">
       <button class="g-btn" @tap="go('/pages/upload/upload')">{{ t('map.upload') }}</button>
@@ -122,7 +122,8 @@ function onStart() {
     return
   }
   logEvent('start_click', 'page', undefined, { from: 'home', circle: c?.name ?? '' })
-  startRun(undefined, c?.name)
+  // 选了圈就是认真打(三条命);没选就是随便走走(三关,不会死)
+  startRun(undefined, c?.name, { mode: c ? 'serious' : 'roam' })
 }
 
 function go(url: string) {

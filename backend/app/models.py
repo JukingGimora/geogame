@@ -100,6 +100,8 @@ class Run(Base):
     region_id: Mapped[int | None] = mapped_column(ForeignKey("regions.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="playing")  # playing | finished
     total_score: Mapped[int] = mapped_column(Integer, default=0)
+    # roam(漫游) = 固定三关、不掉命;serious(认真) = 三条命走到死
+    mode: Mapped[str] = mapped_column(String(8), default="serious")
     # 这一局的判分尺度,开局时按题池算好存下来:同一局里每关用同一把尺子,
     # 期间有新照片上线也不会改写进行中的局。老数据为 NULL,按默认值算。
     decay_km: Mapped[float | None] = mapped_column(Float, nullable=True)

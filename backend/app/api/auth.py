@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -21,6 +21,8 @@ from app.models import (
     Run,
     User,
 )
+from app.models import Round as RoundModel
+from app.models import Run as RunModel
 from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
@@ -100,6 +102,13 @@ async def update_profile(body: ProfileIn, user: User = Depends(get_current_user)
 async def me(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
     # 跟排行榜口径一致:算"多少个不同的人猜过我的照片",不是积分流水求和
     row = (await session.execute(understood.summary_for(user.id))).one()
+    # 开场页据此决定去哪:没玩过的直接丢进第一关,玩过的落到世界地图
+    played = await session.scalar(
+        select(func.count(RoundModel.id))
+        .select_from(RoundModel)
+        .join(RunModel, RoundModel.run_id == RunModel.id)
+        .where(RunModel.user_id == user.id, RoundModel.finished_at.is_not(None))
+    )
     return {
         "id": user.id,
         "nickname": user.nickname,
@@ -107,6 +116,7 @@ async def me(user: User = Depends(get_current_user), session: AsyncSession = Dep
         "points": row.seen or 0,
         # 还没自己起过名字的人,才提示他去设置
         "default_name": is_default(user.id, user.nickname),
+        "rounds_played": played or 0,
     }
 
 

@@ -27,6 +27,7 @@ import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 // #endif
 import { t, tList } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
+import { api } from '../../api'
 import { logEvent } from '../../lib/analytics'
 import { BUILD } from '../../lib/version'
 import { startRun } from '../../lib/play'
@@ -91,6 +92,19 @@ onShareAppMessage(() => ({ title: t('map.shareTitle'), path: '/pages/opening/ope
 onShareTimeline(() => ({ title: t('map.shareTitle') }))
 // #endif
 
+async function enterByHistory() {
+  try {
+    const me = await api.me()
+    if ((me.rounds_played ?? 0) > 0) {
+      uni.reLaunch({ url: '/pages/map/map' })
+      return
+    }
+  } catch {
+    // 拿不到就按新人处理:让他先玩一局,总比丢到空地图强
+  }
+  startRun(undefined, undefined, { homeOnError: true, mode: 'roam' })
+}
+
 function enter() {
   const done = shown.value >= lines.length - 1
   logEvent('opening_leave', '', undefined, { skipped: !done })
@@ -101,8 +115,9 @@ function enter() {
   } else if (target === 'rank') {
     uni.reLaunch({ url: '/pages/rank/rank' })
   } else {
-    // 直接开局,不再经过首页——九成的人就是在首页那一步走掉的
-    startRun(undefined, undefined, { homeOnError: true })
+    // 没玩过的人直接丢进漫游第一关:先玩,玩完三关再把世界地图交给他;
+    // 玩过的人落到地图,那里才是他要的枢纽
+    enterByHistory()
   }
 }
 </script>

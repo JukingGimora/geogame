@@ -13,6 +13,9 @@
 from app.services.scoring import haversine_km
 
 # 说明文字不是百科词条,是"看照片该往哪儿想"的线索
+# 猜进这个距离才算"认出来过",地图上的圈才点亮
+LIT_KM = 300.0
+
 CIRCLES: dict[str, str] = {
     "东亚": "汉字招牌、飞檐灰瓦、方格农田与密集的高楼",
     "东南亚": "金顶佛塔、棕榈与香蕉叶、铁皮屋顶和摩托车流",

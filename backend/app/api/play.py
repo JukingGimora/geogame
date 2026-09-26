@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
-from app.services.circles import CIRCLES
+from app.services.circles import CIRCLES, LIT_KM, locate
 from app.services.cities import nearest_city
 from app.services.scoring import DECAY_KM, final_score, haversine_km, miss_km, pool_decay_km
 from app.services.understood import CLOSE_KM
@@ -20,8 +20,13 @@ LIVES = 3      # 掉光就结束:没有失败就没有"再来一把"
 PREFETCH = 2   # 一次多备几关,免得每猜一关都等一次抽题
 
 
+ROAM_ROUNDS = 3  # 漫游固定三关:5 关的完成率只有 28%,3 关是 38%,而且短局才有"打完了"这回事
+
+
 class RunIn(BaseModel):
     region_id: int | None = None
+    # roam = 新人和随便玩玩的人:不掉命、三关结束、不上连关榜
+    mode: str = "serious"
     # 文化圈名,或 china/world:决定这一局从哪个池子抽题,但所有人排同一个榜
     chapter: str | None = None
     # 从"叫朋友猜这张"的分享进来时带上,这一局就从那张开始
@@ -62,7 +67,9 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     played_ids = await _played_photo_ids(session, user)
     photos = list(
         await session.scalars(
-            playable.where(Photo.id.notin_(played_ids)).order_by(func.random()).limit(PREFETCH)
+            playable.where(Photo.id.notin_(played_ids))
+            .order_by(func.random())
+            .limit(ROAM_ROUNDS if body.mode == "roam" else PREFETCH)
         )
     )
 
@@ -90,7 +97,13 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     # 尺子按这一局的题池算一次就定下来:期间有新照片上线也不改写进行中的局。
     # 取两列遍历一遍是 O(n),现在两百张几十微秒,十万张也就十几毫秒,而且一局只算一次。
     coords = (await session.execute(playable.with_only_columns(Photo.lat, Photo.lng))).all()
-    run = Run(user_id=user.id, region_id=body.region_id, decay_km=pool_decay_km([(lat, lng) for lat, lng in coords]))
+    mode = "roam" if body.mode == "roam" else "serious"
+    run = Run(
+        user_id=user.id,
+        region_id=body.region_id,
+        mode=mode,
+        decay_km=pool_decay_km([(lat, lng) for lat, lng in coords]),
+    )
     session.add(run)
     await session.flush()
     for i, p in enumerate(photos):
@@ -192,12 +205,27 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
             item.update({"score": r.score, "distance_km": r.distance_km})
         out.append(item)
     finished_rounds = sum(1 for r in rounds if r.finished_at is not None)
+    rank = None
+    if run.status == "finished" and run.mode != "roam" and finished_rounds:
+        per_run = (
+            select(Run.user_id.label("uid"), func.count(Round.id).label("n"))
+            .select_from(Round)
+            .join(Run, Round.run_id == Run.id)
+            .where(Round.finished_at.is_not(None), Run.mode != "roam")
+            .group_by(Round.run_id, Run.user_id)
+            .subquery()
+        )
+        best = select(per_run.c.uid, func.max(per_run.c.n).label("v")).group_by(per_run.c.uid).subquery()
+        rank = (await session.scalar(select(func.count()).select_from(best).where(best.c.v > finished_rounds)) or 0) + 1
     return {
         "run_id": run.id,
         "status": run.status,
         "total_score": run.total_score,
-        "lives_left": max(0, LIVES - await _lives_used(session, run)),
+        "mode": run.mode,
+        "lives_left": LIVES if run.mode == "roam" else max(0, LIVES - await _lives_used(session, run)),
         "streak": finished_rounds,
+        "total_rounds": ROAM_ROUNDS if run.mode == "roam" else None,
+        "rank": rank,
         "rounds": out,
     }
 
@@ -245,10 +273,19 @@ async def submit_guess(
     rnd.finished_at = datetime.now(timezone.utc)
     run.total_score += score
 
-    # 三条命掉光,或者题库被他走空,这一局就结束了。除此之外一直往下接。
-    lives_left = LIVES - await _lives_used(session, run)
-    ended = "lives" if lives_left <= 0 else None
-    if not ended:
+    # 漫游走满三关就收,不掉命;认真模式是三条命掉光或题库走空
+    roam = run.mode == "roam"
+    lives_left = LIVES if roam else LIVES - await _lives_used(session, run)
+    ended = None
+    if roam:
+        finished_rounds = await session.scalar(
+            select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_not(None))
+        )
+        if finished_rounds >= ROAM_ROUNDS:
+            ended = "roam_done"
+    elif lives_left <= 0:
+        ended = "lives"
+    if not ended and not roam:
         pending = await session.scalar(
             select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_(None))
         )
@@ -261,6 +298,27 @@ async def submit_guess(
         select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_not(None))
     )
 
+    # 这一关点亮了哪个圈:猜进 LIT_KM 才算"认出来过"。
+    # 之前只在地图上默默变色,猜完那一刻什么都不说,最该被看见的一步反而没人看见。
+    lit_now = False
+    if distance <= LIT_KM and photo.circle:
+        earlier = await session.scalar(
+            select(func.count(Round.id))
+            .select_from(Round)
+            .join(Run, Round.run_id == Run.id)
+            .join(Photo, Round.photo_id == Photo.id)
+            .where(
+                Run.user_id == user.id,
+                Photo.circle == photo.circle,
+                Round.distance_km <= LIT_KM,
+                Round.finished_at.is_not(None),
+                Round.id != rnd.id,
+            )
+        )
+        lit_now = not earlier
+
+    # 差几百公里但国家猜对了,在全球题库里已经算认出来了,该说一句
+    guess_country, _ = locate(body.lat, body.lng)
     await _award_uploader(session, photo, user, distance)
 
     ai = await session.scalar(select(AIGuess).where(AIGuess.photo_id == photo.id))
@@ -269,10 +327,15 @@ async def submit_guess(
     return {
         "distance_km": rnd.distance_km,
         "score": score,
+        "mode": run.mode,
         "lives_left": max(0, lives_left),
         "streak": streak,
         "ended": ended,
         "truth": {"lat": photo.lat, "lng": photo.lng},
+        "circle": photo.circle,
+        "circle_lit": lit_now,
+        "country": photo.country,
+        "country_match": bool(photo.country) and guess_country == photo.country,
         # 猜完才给:知道"离 Tbilisi 3 公里"比只看见一个点有意思得多
         "place": _place_label(photo),
         "story": photo.story,

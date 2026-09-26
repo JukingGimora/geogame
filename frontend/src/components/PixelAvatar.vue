@@ -18,17 +18,13 @@ import { computed } from 'vue'
  */
 const props = withDefaults(defineProps<{ seed?: string; size?: number }>(), { seed: '', size: 56 })
 
-// 浅底主题:头像用浅色底 + 深色墨字,和页面同一套纸感
-const PALETTES: [string, string][] = [
-  ['#f5a33c', '#2a1f10'],
-  ['#6fc7a1', '#10231c'],
-  ['#7bb7e0', '#0f1c27'],
-  ['#d98cb3', '#241521'],
-  ['#c9bd8f', '#211f16'],
-  ['#9b8cd9', '#191630'],
-  ['#ff8f7a', '#2a1512'],
-  ['#6fc7c1', '#0e2220'],
+// 实色圆底 + 挖空的字:深色背景上最干净。
+// 之前是浅底深字,一堆小圆点糊在页面上,像贴纸
+const COLORS = [
+  '#f5a33c', '#e0785e', '#8fd3a8', '#7bb7e0',
+  '#d98cb3', '#c9bd8f', '#9b8cd9', '#6fc7c1',
 ]
+
 
 function hash(text: string): number {
   let h = 2166136261
@@ -48,17 +44,16 @@ const initials = computed(() => {
   return /[一-龥]/.test(n[0]) ? n[0] : n.slice(0, 2).toUpperCase()
 })
 
-const palette = computed(() => PALETTES[hash(props.seed || '旅行者') % PALETTES.length])
+const color = computed(() => COLORS[hash(props.seed || '旅行者') % COLORS.length])
 
 const boxStyle = computed(() => ({
   width: `${props.size}rpx`,
   height: `${props.size}rpx`,
-  background: palette.value[1],
-  borderColor: palette.value[0],
+  background: color.value,
 }))
 
 const textStyle = computed(() => ({
-  color: palette.value[0],
+  color: '#16110c',
   fontSize: `${Math.round(props.size * (initials.value.length > 1 ? 0.38 : 0.52))}rpx`,
 }))
 </script>
@@ -69,7 +64,6 @@ const textStyle = computed(() => ({
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1px solid;
   box-sizing: border-box;
   flex-shrink: 0;
   overflow: hidden;
