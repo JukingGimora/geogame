@@ -114,6 +114,9 @@ def why_locked(circle: str, progress: dict[str, tuple[int, int]], unlocked: set[
         return None
     if not progress.get(circle, (0, 0))[1]:
         return {"reason": "circle_empty"}
+    if not unlocked:
+        # 一个圈都还没踏进去过:说"先解锁挨着的"等于没说,挨着谁?
+        return {"reason": "circle_locked_start"}
     gates = [c for c in CIRCLE_NEIGHBOURS.get(circle, ()) if c in unlocked and progress.get(c, (0, 0))[1]]
     if not gates:
         return {"reason": "circle_locked_far"}
