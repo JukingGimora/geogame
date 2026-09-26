@@ -67,9 +67,12 @@ READ_PROMPT = (
     '"country": "两位国家代码", "lat": 纬度小数, "lng": 经度小数, "confidence": 0到100的整数}'
 )
 
+# 重问时把上次栽在哪一条告诉它。泛泛说"你违规了"它改不准,
+# 指名道姓说"你写了『南亚』"基本一次就收敛
 RETRY_SUFFIX = (
-    "上一次 clue 违规了:请重写 clue,只写视觉观察,"
-    "不要出现任何专有名称,不要引用画面里的任何文字,不要使用引号。reasoning 照常写。"
+    "\n\n上一次你的 clue 违规了,原因是:{reason}。"
+    "请重写 clue,把那个词换成对这类地方的描述,别再出现任何专有名称、"
+    "画面里的文字或引号。reasoning 照常写。"
 )
 
 # 模型偶尔还是会把石碑上的字念出来(线上真出现过"马跃檀溪遗址"),等于直接报答案。
@@ -144,19 +147,20 @@ async def real_ai_read(photo: Photo) -> tuple[str | None, AIGuess | None]:
 
     线索泄底就整个重问一次(措辞更硬),不到一分钱的事。
     """
+    prompt = READ_PROMPT
+    guess = None
     for attempt in range(2):
-        prompt = READ_PROMPT if attempt == 0 else READ_PROMPT + RETRY_SUFFIX
         parsed = await _ask(photo, prompt)
         if not parsed:
-            return None, None
-        clue = str(parsed.get("clue", "")).strip()
-        guess = _to_guess(photo, parsed)
-        if clue and not _leaks_answer(clue):
-            return clue[:255], guess
-        # 线索不合格但答案还能用:最后一轮就只丢线索,别把答案一起扔了
-        if attempt == 1:
             return None, guess
-    return None, None
+        clue = str(parsed.get("clue", "")).strip()
+        guess = _to_guess(photo, parsed) or guess
+        why = leak_reason(clue) if clue else "没给 clue"
+        if not why:
+            return clue[:255], guess
+        prompt = READ_PROMPT + RETRY_SUFFIX.format(reason=why)
+    # 两次都泄底:答案还能用,线索退回兜底文案,别把整张图的 AI 结果一起扔了
+    return None, guess
 
 
 def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:
