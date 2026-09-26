@@ -79,19 +79,28 @@ _REGION_WORDS = (
 )
 
 
-def _leaks_answer(text: str) -> bool:
-    if any(ch in text for ch in _QUOTE_CHARS):
-        return True
-    if any(w in text for w in _REGION_WORDS):
-        return True
+def leak_reason(text: str) -> str | None:
+    """线索哪里泄了底。返回具体原因,给调参时看;没泄就返回 None。"""
+    hit = next((ch for ch in _QUOTE_CHARS if ch in text), None)
+    if hit:
+        return f"引号 {hit}(多半在念画面里的字)"
+    hit = next((w for w in _REGION_WORDS if w in text), None)
+    if hit:
+        return f"大区名 {hit}(等于白送提示③)"
     # 拉丁字母连成一串,多半是招牌上的字或者品牌名被念出来了
-    if re.search(r"[A-Za-z]{3,}", text):
-        return True
+    m = re.search(r"[A-Za-z]{3,}", text)
+    if m:
+        return f"拉丁字母 {m.group(0)}"
     from app.services.circles import COUNTRIES
     from app.services.geo import PROVINCE_ADCODE
 
     names = set(PROVINCE_ADCODE) | {c[0] for c in COUNTRIES}
-    return any(name in text for name in names if len(name) >= 2)
+    hit = next((n for n in names if len(n) >= 2 and n in text), None)
+    return f"地名 {hit}" if hit else None
+
+
+def _leaks_answer(text: str) -> bool:
+    return leak_reason(text) is not None
 
 
 async def fake_ai_guess(photo: Photo) -> AIGuess:
