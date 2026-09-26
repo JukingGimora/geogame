@@ -33,8 +33,12 @@ let map: any = null
 let layer: any = null
 let L: any = null
 
-const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+// 用 Esri 而不是 OSM:OSM 的标注是当地文字(亚美尼亚是 Երևան、俄罗斯是西里尔、泰国是泰文),
+// 玩家不认识就没法玩。Esri 这套是罗马化的(Yerevan、Vanadzor),全球一致。
+const TILES =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+const ATTRIBUTION = 'Tiles &copy; Esri'
+const MAX_ZOOM = 17
 
 function pin(kind: MapMarker['kind']): string {
   const colour =
@@ -75,7 +79,7 @@ onMounted(async () => {
   // 起始视野给整个世界,但不让它缩到能看见好几个地球
   map.setView([20, 10], 2)
   map.setMinZoom(2)
-  L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 18, noWrap: false }).addTo(map)
+  L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: MAX_ZOOM, noWrap: false }).addTo(map)
   layer = L.layerGroup().addTo(map)
 
   map.on('click', (e: any) => {
