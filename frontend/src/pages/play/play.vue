@@ -42,8 +42,8 @@
         <!-- #ifdef MP-WEIXIN -->
         <NativeMapPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <WorldPicker :height="pickMapHeight" :interactive="true" :markers="pickMarkers" @pick="onPick" />
+        <!-- #ifdef H5 -->
+        <LeafletPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
         <button
           class="g-btn primary"
@@ -56,7 +56,13 @@
       </view>
 
       <view v-if="phase === 'result' && result" class="result">
+        <!-- #ifdef H5 -->
+        <!-- 揭晓时真地图更有用:能看清"丽江"到底在哪,轮廓图看不出来 -->
+        <LeafletPicker :height="260" :markers="resultMarkers" />
+        <!-- #endif -->
+        <!-- #ifndef H5 -->
         <WorldPicker :height="260" :markers="resultMarkers" />
+        <!-- #endif -->
         <text v-if="result.place" class="place">{{ t('play.placeLabel', { place: result.place }) }}</text>
         <view class="earned">
           <text v-if="result.circle_lit" class="tag lit">{{ t('play.circleLit', { name: result.circle }) }}</text>
@@ -129,6 +135,9 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import WorldPicker from '../../components/WorldPicker.vue'
+// #ifdef H5
+import LeafletPicker from '../../components/LeafletPicker.vue'
+// #endif
 import UserCard from '../../components/UserCard.vue'
 // #ifdef MP-WEIXIN
 import NativeMapPicker from '../../components/NativeMapPicker.vue'
