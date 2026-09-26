@@ -72,8 +72,16 @@ def chaikin(ring: list[tuple[float, float]], rounds: int) -> list[tuple[float, f
 
 def partition(smooth: bool = True) -> dict[str, object]:
     """把整张图切成九块。返回 {文化圈: 形状},形状之间不重叠、不留缝。"""
-    seeds = [(rel(lng), lat, circle) for _, lat, lng, circle in COUNTRIES]
-    seeds += [(rel(lng), lat, circle) for _, lat, lng, circle in ANCHORS]
+    # 去重:两个锚点坐标完全一样的话 Voronoi 会直接报错("同一格里有多个点"),
+    # 而锚点表是人手维护的,补密时撞上是迟早的事
+    seen: set[tuple[float, float]] = set()
+    seeds = []
+    for _, lat, lng, circle in COUNTRIES + ANCHORS:
+        key = (round(rel(lng), 4), round(lat, 4))
+        if key in seen:
+            continue
+        seen.add(key)
+        seeds.append((key[0], key[1], circle))
 
     # 接缝在 rel ±180。把点向两侧各复制一份,接缝附近的格子才算得对,算完再裁回来——
     # 不这么做,最左和最右那两块会被切成互不相干的半块。
