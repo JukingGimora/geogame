@@ -126,7 +126,9 @@ function mix(hex: string, bg: string, t: number): string {
  * 那就没有"越走越亮"这回事了。认出来(300 公里内)才是真的到过,
  * 所以它的权重是走过的两倍;全都认出来就是满亮。
  */
-const FLOOR = 0.18  // 没去过的圈也得看得见轮廓,全黑等于没画
+// 一张谁都没走过的地图也得看得清:底调到 0.18 试过,整张图几乎全黑,
+// 新玩家打开只看到一片漆黑。0.42 比改之前还亮一点,走满再升到 1
+const FLOOR = 0.42
 
 function brightness(circle: string): number {
   const s = state.value[circle]
