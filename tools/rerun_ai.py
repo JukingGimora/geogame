@@ -46,12 +46,18 @@ async def main() -> None:
         ap.error("要指定 --over / --ids / --all 之一")
 
     async with async_session_maker() as session:
-        q = select(AIGuess, Photo).join(Photo, AIGuess.photo_id == Photo.id)
+        # 从照片出发,不是从 AI 记录出发:待审的图可能一次都没算过,
+        # 原来那个 join 会把它们整批漏掉
+        q = (
+            select(Photo, AIGuess)
+            .outerjoin(AIGuess, AIGuess.photo_id == Photo.id)
+            .where(Photo.status.in_(("live", "pending")))
+        )
         if args.over:
             q = q.where(AIGuess.distance_km > args.over)
         if args.ids:
             q = q.where(Photo.id.in_([int(i) for i in args.ids.split(",")]))
-        rows = (await session.execute(q)).all()
+        rows = [(g, p) for p, g in (await session.execute(q)).all()]
         if not rows:
             print("没有匹配的照片")
             return
@@ -64,7 +70,7 @@ async def main() -> None:
                     {"photo_id": g.photo_id, "lat": g.lat, "lng": g.lng,
                      "distance_km": g.distance_km, "score": g.score,
                      "reasoning": g.reasoning, "place": g.place, "model": g.model}
-                    for g, _ in rows
+                    for g, _ in rows if g
                 ],
                 ensure_ascii=False,
                 indent=1,
@@ -74,31 +80,42 @@ async def main() -> None:
         print(f"{len(rows)} 张,旧结果备份在 {backup}")
         if args.dry_run:
             for g, p in rows:
-                print(f"  #{p.id} {p.country} 现在差 {g.distance_km}km")
+                now = f"现在差 {g.distance_km}km" if g else "**从没算过**"
+                print(f"  #{p.id} {p.status} {p.country} {now}")
             return
 
         sem = asyncio.Semaphore(CONCURRENCY)
         changed = 0
 
-        async def one(old: AIGuess, photo: Photo) -> None:
+        async def one(old: AIGuess | None, photo: Photo) -> None:
             nonlocal changed
             async with sem:
                 clue, fresh = await real_ai_read(photo)
             if not fresh:
-                print(f"  #{photo.id} 算失败,保留旧的")
+                print(f"  #{photo.id} 算失败,原样保留")
                 return
-            # 线索和答案是一次算出来的,就得一起换掉,不然又变成各说各的
+
+            was = f"{old.distance_km}km" if old else "新算"
+            arrow = "→" if old is None or fresh.distance_km < old.distance_km else "↗"
+            print(f"  #{photo.id} {photo.country}: {was} {arrow} {fresh.distance_km}km")
+
+            if old is None:
+                session.add(fresh)
+            else:
+                old.lat, old.lng = fresh.lat, fresh.lng
+                old.distance_km, old.score = fresh.distance_km, fresh.score
+                old.reasoning, old.model = fresh.reasoning, fresh.model
+                old.place = fresh.place
+
+            # 线索和答案是一次算出来的,就得一起换,不然又变成各说各的
+            text = (clue or HINT2_FALLBACK)[:255]
             hint = await session.scalar(
                 select(Hint).where(Hint.photo_id == photo.id, Hint.level == 2)
             )
             if hint:
-                hint.content = (clue or HINT2_FALLBACK)[:255]
-            arrow = "→" if fresh.distance_km < old.distance_km else "↗"
-            print(f"  #{photo.id} {photo.country}: {old.distance_km}km {arrow} {fresh.distance_km}km")
-            old.lat, old.lng = fresh.lat, fresh.lng
-            old.distance_km, old.score = fresh.distance_km, fresh.score
-            old.reasoning, old.model = fresh.reasoning, fresh.model
-            old.place = fresh.place
+                hint.content = text
+            else:
+                session.add(Hint(photo_id=photo.id, level=2, content=text, source="ai"))
             changed += 1
 
         await asyncio.gather(*(one(g, p) for g, p in rows))
