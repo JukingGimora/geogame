@@ -31,17 +31,17 @@ async def enrich_photo(photo_id: int) -> None:
                 return
             need_guess = not await session.scalar(select(AIGuess).where(AIGuess.photo_id == photo_id))
             need_hint = not await session.scalar(
-                select(Hint).where(Hint.photo_id == photo_id, Hint.level == 2)
+                select(Hint).where(Hint.photo_id == photo_id, Hint.level.in_((2, 5)))
             )
             if not (need_guess or need_hint):
                 return
 
             if settings.fake_ai:
-                hint2 = None
+                hint2 = keyword = None
                 guess = await fake_ai_guess(photo) if need_guess else None
             else:
-                # 线索和答案来自同一次看图,所以哪怕只缺一样也整个跑一遍
-                hint2, guess = await real_ai_read(photo)
+                # 线索、关键词和答案来自同一次判断,所以哪怕只缺一样也整个跑一遍
+                hint2, keyword, guess = await real_ai_read(photo)
 
             if need_guess and guess:
                 session.add(guess)
@@ -49,6 +49,9 @@ async def enrich_photo(photo_id: int) -> None:
                 session.add(
                     Hint(photo_id=photo_id, level=2, content=hint2 or HINT2_FALLBACK, source="ai")
                 )
+                # 提示⑤给不出来就不给:最后一条线索宁可没有,也不能是句废话
+                if keyword:
+                    session.add(Hint(photo_id=photo_id, level=5, content=keyword, source="ai"))
             await session.commit()
     except Exception:
         # 上传接口已经返回 200 了,这里失败只能记日志;审核通过时会再补一次

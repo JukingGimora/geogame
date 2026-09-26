@@ -12,7 +12,8 @@ MIN_DECAY_KM = 300.0   # 太平洋那 22 张全在斐济一个岛上,尺度只�
 MAX_DECAY_KM = 1500.0  # 全球池子的上限,和 GeoGuessr 世界模式的量级一致
 MISS_FACTOR = 1.5      # 掉命线 = 判分尺度 × 它
 
-HINT_MULTIPLIERS = {1: 1.0, 2: 0.8, 3: 0.6, 4: 0.4}
+# 每多买一级扣两成:①免费 ②0.8 ③0.6 ④0.4 ⑤0.2。一条公式,加一级不用改表
+HINT_STEP = 0.2
 
 EARTH_RADIUS_KM = 6371.0088
 
@@ -57,11 +58,9 @@ def miss_km(decay_km: float) -> float:
 
 
 def hint_multiplier(hints_mask: int) -> float:
-    m = 1.0
-    for level, mult in HINT_MULTIPLIERS.items():
-        if hints_mask & (1 << (level - 1)):
-            m = min(m, mult)
-    return m
+    """按买到的最贵那一级算。买了④就是四折,再买⑤就是二折。"""
+    highest = hints_mask.bit_length()
+    return round(max(0.0, 1.0 - HINT_STEP * (highest - 1)), 2) if highest else 1.0
 
 
 def final_score(distance_km: float, hints_mask: int, decay_km: float = DECAY_KM) -> int:

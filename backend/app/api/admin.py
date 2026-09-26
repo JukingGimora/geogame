@@ -31,6 +31,7 @@ from app.services.circles import coarse_area, locate
 from app.services.cities import nearest_city
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
+from app.services.teaser import story_teaser
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -232,8 +233,7 @@ async def edit_story(photo_id: int, body: StoryIn, session: AsyncSession = Depen
     photo.story = body.story[:2000]
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id, Hint.level == 1))
     if photo.story:
-        teaser = photo.story[: max(6, len(photo.story) // 2)]
-        session.add(Hint(photo_id=photo_id, level=1, content=teaser + "…", source="uploader"))
+        session.add(Hint(photo_id=photo_id, level=1, content=story_teaser(photo.story), source="uploader"))
     await session.commit()
     return {"id": photo.id, "story": photo.story}
 
@@ -509,8 +509,7 @@ async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
     # 旧的先删掉——不然撞上 (photo_id, level) 的唯一索引,整个「通过」按钮 500
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo.id, Hint.level.in_((1, 3, 4))))
     if photo.story:
-        teaser = photo.story[: max(6, len(photo.story) // 2)]
-        session.add(Hint(photo_id=photo.id, level=1, content=teaser + "…", source="uploader"))
+        session.add(Hint(photo_id=photo.id, level=1, content=story_teaser(photo.story), source="uploader"))
     # 提示③④是同一条规则,没有例外:文化圈 → 国家(国家太大就加个方位)。
     # 以前中国走省份、境外走国家,等于两套阶梯,玩家点出来的东西对不上按钮的名字。
     if not photo.circle:

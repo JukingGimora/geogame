@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
+from sqlalchemy import delete as sa_delete  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from app.db import async_session_maker  # noqa: E402
@@ -82,7 +83,7 @@ async def main() -> None:
         async def one(old: AIGuess, photo: Photo) -> None:
             nonlocal changed
             async with sem:
-                clue, fresh = await real_ai_read(photo)
+                clue, keyword, fresh = await real_ai_read(photo)
             if not fresh:
                 print(f"  #{photo.id} 算失败,保留旧的")
                 return
@@ -92,6 +93,10 @@ async def main() -> None:
             )
             if hint:
                 hint.content = (clue or HINT2_FALLBACK)[:255]
+            # 提示⑤(关键词)跟线索同一次算出来,一起换;给不出来就把旧的删掉
+            await session.execute(sa_delete(Hint).where(Hint.photo_id == photo.id, Hint.level == 5))
+            if keyword:
+                session.add(Hint(photo_id=photo.id, level=5, content=keyword, source="ai"))
             arrow = "→" if fresh.distance_km < old.distance_km else "↗"
             print(f"  #{photo.id} {photo.country}: {old.distance_km}km {arrow} {fresh.distance_km}km")
             old.lat, old.lng = fresh.lat, fresh.lng

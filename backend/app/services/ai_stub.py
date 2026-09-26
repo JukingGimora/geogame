@@ -12,7 +12,7 @@ import httpx
 
 from app.config import settings
 from app.models import AIGuess, Photo
-from app.services.cities import country_fallback, find_city
+from app.services.cities import country_fallback, find_city, nearest_cc
 from app.services.scoring import haversine_km, score_from_distance
 from app.storage import storage
 
@@ -66,7 +66,15 @@ CLUE_PROMPT = (
     "\"殖民者修的红砖教堂,配着热带港口的旧广场\"、\"石头砌的老楼和裹着绿网的新楼挤在一起,"
     "是个正在翻新的内陆首府\"、\"帐篷上是某国际电信品牌的圆环标\"。\n"
     "也严禁念出或转述画面里的任何文字(招牌、路牌、广告词、说明牌都不行),严禁说出最终结论。\n"
-    "直接输出这段话本身,不要 JSON,不要引号,不要前缀。"
+    "\n"
+    "再给一个 keyword:**最后一条线索**,两到六个字,说出这地方\"是个什么\"。"
+    "要的是通名,不是专名——\"盐湖\"、\"关隘\"、\"唐人街\"、\"赛马场\"、\"火山口\"、\"石窟\"、"
+    "\"铁路枢纽\"、\"高山牧场\"都合格;\"察尔汗\"、\"剑门关\"、\"布罗莫\"不合格,那是名字。"
+    "它是玩家花最多代价才买的一条,所以要挑最能缩小范围的那个通名,"
+    "别给\"风景\"、\"城市\"、\"海边\"这种放之四海而皆准的词。\n"
+    "\n"
+    "只输出一个JSON对象,不要有任何多余文字或markdown代码块标记,格式:"
+    '{"clue": "推理示范", "keyword": "通名"}'
 )
 
 # 重问时把上次栽在哪一条告诉它。泛泛说"你违规了"它改不准,
@@ -140,8 +148,8 @@ def _image_url(photo: Photo) -> str:
 
 
 
-async def real_ai_read(photo: Photo) -> tuple[str | None, AIGuess | None]:
-    """先认地方,再让它照着这个结论倒推线索。返回 (线索, 猜测)。
+async def real_ai_read(photo: Photo) -> tuple[str | None, str | None, AIGuess | None]:
+    """先认地方,再让它照着这个结论倒推线索和关键词。返回 (线索, 关键词, 猜测)。
 
     第二步把第一步的结论原样喂回去,所以线索说的方向必然通向答案认定的那个地方——
     一致性是构造出来的,不靠模型自觉。
@@ -150,26 +158,29 @@ async def real_ai_read(photo: Photo) -> tuple[str | None, AIGuess | None]:
     """
     parsed = await _ask(photo, ANSWER_PROMPT)
     if not parsed:
-        return None, None
+        return None, None, None
     guess = _to_guess(photo, parsed)
     if not guess:
-        return None, None
+        return None, None, None
 
     answer = f"{guess.place}。{guess.reasoning}"
     prompt = CLUE_PROMPT.format(answer=answer)
+    keyword = None
     for _ in range(2):
-        clue = await _ask_text(photo, prompt)
+        second = await _ask(photo, prompt)
+        if not second:
+            break
+        clue = str(second.get("clue", "")).strip()
+        word = str(second.get("keyword", "")).strip()
+        # 关键词单独判:线索不合格不该连累它,它自己泄底也不该连累线索
+        if word and not leak_reason(word):
+            keyword = word[:16]
         why = leak_reason(clue) if clue else "没给线索"
         if not why:
-            return clue[:255], guess
+            return clue[:255], keyword, guess
         prompt = CLUE_PROMPT.format(answer=answer) + RETRY_SUFFIX.format(reason=why)
     # 两次都泄底:答案还能用,线索退回兜底文案,别把整张图的结果一起扔了
-    return None, guess
-
-
-async def _ask_text(photo: Photo, prompt: str) -> str | None:
-    raw = await _ask(photo, prompt, as_json=False)
-    return raw.strip().strip('"') if raw else None
+    return None, keyword, guess
 
 
 def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:
@@ -183,7 +194,11 @@ def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:
         cc = str(parsed.get("country", "")).strip()[:2].upper()
         found = find_city(city, near=(lat, lng), cc=cc or None) if city else None
         if not found and cc:
-            found = country_fallback(cc, near=(lat, lng))
+            # 城市表里没有它说的那个地方——景点、小岛、村子本来就不是城市。
+            # 这时它自己给的坐标只要落在它说的国家里,就用它的:
+            # 针插在它说的那个东西上,才跟它那句话对得上。
+            # 落到别的国家去了才兜底,那说明坐标是编的(布哈拉给成新疆就是这种)。
+            found = (lat, lng) if nearest_cc(lat, lng) == cc else country_fallback(cc, near=(lat, lng))
         if found:
             lat, lng = found
         reasoning = re.sub(r"[。.]?\s*置信度[^。]*。?\s*$", "。", str(parsed["reasoning"])).strip()
