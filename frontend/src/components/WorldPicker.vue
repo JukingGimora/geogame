@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, watch } from 'vue'
 import { BASE_URL } from '../api'
-import { CIRCLE_COLORS, THEME } from '../lib/theme'
+import { CIRCLE_COLORS, CIRCLE_OUTLINES, THEME } from '../lib/theme'
 import type { LngLat } from '../lib/geo'
 import type { MapMarker } from '../lib/mapRender'
 
@@ -107,6 +107,21 @@ function splitAtSeam(ring: Ring): Ring[] {
   return out.filter((r) => r.length >= 3)
 }
 
+// 和首页那张图用同一批落点,免得两处对不上
+const LABELS: [string, number, number][] = [
+  ['东亚', 36, 108],
+  ['东南亚', -2, 112],
+  ['南亚', 22, 78],
+  ['伊斯兰', 26, 38],
+  ['西欧', 50, 10],
+  ['西欧', 44, -100],
+  ['西欧', -26, 134],
+  ['东欧', 60, 80],
+  ['非洲', -8, 22],
+  ['拉美', -18, -60],
+  ['太平洋', -12, -170],
+]
+
 function mix(hex: string, bg: string, t: number): string {
   const c = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16)
   const v = (i: number) => Math.round(c(hex, i) * t + c(bg, i) * (1 - t))
@@ -139,6 +154,35 @@ function paint(ctx: any) {
         ctx.fill()
         ctx.stroke()
       }
+    }
+  }
+  // 圈的范围线:提示③说的就是"在南亚文化圈",插旗时得知道那圈在哪。
+  // 放大之后收起来,不然挡住要看的细节
+  if (scale < 3) {
+    ctx.font = `${Math.max(9, Math.round(box.w / 38))}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    for (const [name, loops] of Object.entries(CIRCLE_OUTLINES)) {
+      const color = CIRCLE_COLORS[name] ?? THEME.inkFaint
+      ctx.strokeStyle = mix(color, THEME.bgSunken, 0.55)
+      ctx.lineWidth = 1
+      for (const loop of loops) {
+        for (const piece of splitAtSeam(loop as Ring)) {
+          ctx.beginPath()
+          piece.forEach(([lng, lat], i) => {
+            const [x, y] = project(lng, lat)
+            if (i === 0) ctx.moveTo(x, y)
+            else ctx.lineTo(x, y)
+          })
+          ctx.closePath()
+          ctx.stroke()
+        }
+      }
+    }
+    for (const [name, lat, lng] of LABELS) {
+      const [x, y] = project(lng, lat)
+      ctx.fillStyle = 'rgba(233,223,201,0.45)'
+      ctx.fillText(name, x, y)
     }
   }
   ctx.restore()

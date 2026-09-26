@@ -31,14 +31,21 @@
       </view>
 
       <view v-if="phase === 'guess'" class="picker">
-        <text class="pick-tip">{{ picked ? t('play.pickedTip') : t('play.pickTip') }}</text>
+        <text class="pick-tip" :class="{ guide: showGuide }">
+          {{ picked ? t('play.pickedTip') : t('play.pickTip') }}
+        </text>
         <!-- #ifdef MP-WEIXIN -->
         <NativeMapPicker :height="pickMapHeight" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
         <WorldPicker :height="pickMapHeight" :interactive="true" :markers="pickMarkers" @pick="onPick" />
         <!-- #endif -->
-        <button class="g-btn primary" :disabled="!picked || submitting" @tap="confirmGuess">
+        <button
+          class="g-btn primary"
+          :class="{ guide: showGuide && picked }"
+          :disabled="!picked || submitting"
+          @tap="confirmGuess"
+        >
           {{ t('play.confirmFlag') }}
         </button>
       </view>
@@ -250,7 +257,15 @@ async function unlockHint(level: number) {
   }
 }
 
+// 第一次玩的人不知道要点地图。引导只出现一次,一落点就消失——
+// 常驻的教学提示会变成噪音,而且会挡住照片
+const showGuide = ref(!uni.getStorageSync('geogame_guided'))
+
 function onPick(p: LngLat) {
+  if (showGuide.value && !picked.value) {
+    showGuide.value = false
+    uni.setStorageSync('geogame_guided', '1')
+  }
   // 第一次落点单独记一次:开局到插旗之间流失最狠,不打这个点就看不见人死在哪
   if (!picked.value && current.value) logEvent('pick_first', 'round', current.value.round_id)
   picked.value = p
@@ -343,6 +358,26 @@ onShareTimeline(() => ({
 </script>
 
 <style scoped>
+/* 引导:提示语呼吸、按钮发光,落点之后立刻停 */
+.pick-tip.guide {
+  color: var(--accent);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+.g-btn.primary.guide {
+  animation: glow 1.4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(245, 163, 60, 0); }
+  50% { box-shadow: 0 0 16rpx rgba(245, 163, 60, 0.7); }
+}
+
 .dots {
   display: flex;
   gap: 10rpx;
