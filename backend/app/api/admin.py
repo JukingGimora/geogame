@@ -232,7 +232,8 @@ async def edit_story(photo_id: int, body: StoryIn, session: AsyncSession = Depen
     photo.story = body.story[:2000]
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id, Hint.level == 1))
     if photo.story:
-        session.add(Hint(photo_id=photo_id, level=1, content=story_teaser(photo.story), source="uploader"))
+        # 提示①是整段故事,不再砍半——砍半会把"这里俄罗斯客人特别多"砍成"这里俄罗斯客人特别多,等"
+        session.add(Hint(photo_id=photo_id, level=1, content=photo.story[:255], source="uploader"))
     await session.commit()
     return {"id": photo.id, "story": photo.story}
 
