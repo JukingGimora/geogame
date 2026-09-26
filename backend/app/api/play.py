@@ -103,6 +103,7 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         user_id=user.id,
         region_id=body.region_id,
         mode=mode,
+        chapter=body.chapter,
         decay_km=pool_decay_km([(lat, lng) for lat, lng in coords]),
     )
     session.add(run)
@@ -175,7 +176,7 @@ async def _append_round(session: AsyncSession, run: Run, user: User) -> bool:
     played = await _played_photo_ids(session, user)
     candidates = list(
         await session.scalars(
-            _playable(user, None).where(Photo.id.notin_(played)).order_by(func.random()).limit(40)
+            _playable(user, run.chapter).where(Photo.id.notin_(played)).order_by(func.random()).limit(40)
         )
     )
     used = (
@@ -224,6 +225,8 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
     rounds = (
         await session.scalars(select(Round).where(Round.run_id == run.id).order_by(Round.order_index))
     ).all()
+    # 一局之内是固定的,循环外算一次
+    hint_levels = [lv for lv in (1, 2, 3, 4) if not (lv == 3 and run.chapter in CIRCLES)]
     out = []
     for r in rounds:
         photo = await session.get(Photo, r.photo_id)
@@ -234,6 +237,8 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
             "story_teaser": photo.story[:30] + "…" if len(photo.story) > 30 else photo.story,
             "finished": r.finished_at is not None,
             "hints_mask": r.hints_mask,
+            # 这一关真正能买的提示。圈内局没有③——那是他自己选的圈
+            "hint_levels": hint_levels,
         }
         if r.finished_at is not None:
             item.update({"score": r.score, "distance_km": r.distance_km})
@@ -282,7 +287,10 @@ async def unlock_hint(
 ):
     if body.level not in (1, 2, 3, 4):
         raise HTTPException(422, "invalid_hint_level")
-    rnd, _ = await _get_open_round(session, round_id, user)
+    rnd, run = await _get_open_round(session, round_id, user)
+    # 他自己点的「去东亚走一圈」,提示③还告诉他"在东亚文化圈",等于白收 20% 的分
+    if body.level == 3 and run.chapter in CIRCLES:
+        raise HTTPException(404, "hint_not_available")
     hint = await session.scalar(
         select(Hint).where(Hint.photo_id == rnd.photo_id, Hint.level == body.level)
     )

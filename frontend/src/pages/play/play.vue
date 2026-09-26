@@ -19,13 +19,13 @@
 
       <view v-if="phase !== 'result'" class="hints">
         <view
-          v-for="(label, i) in hintLabels"
-          :key="i"
+          v-for="lv in hintLevels"
+          :key="lv"
           class="hint-chip"
-          :class="{ used: unlockedLevels.includes(i + 1) }"
-          @tap="unlockHint(i + 1)"
+          :class="{ used: unlockedLevels.includes(lv) }"
+          @tap="unlockHint(lv)"
         >
-          {{ label }} <text class="cost">{{ hintCosts[i] }}</text>
+          {{ hintLabels[lv - 1] }} <text class="cost">{{ hintCosts[lv - 1] }}</text>
         </view>
         <view v-for="h in unlockedContents" :key="h.level" class="hint-content">
           {{ h.content }}
@@ -178,6 +178,8 @@ let recapRoundId: number | null = null
 let recapShownAt = 0
 
 const current = computed(() => run.value?.rounds.find((r: any) => !r.finished))
+// 圈内局不给提示③:他自己点的「去东亚走一圈」,再告诉他一遍"在东亚文化圈"等于白收分
+const hintLevels = computed<number[]>(() => current.value?.hint_levels ?? [1, 2, 3, 4])
 const streak = computed(() => result.value?.streak ?? run.value?.streak ?? 0)
 const isRoam = computed(() => (result.value?.mode ?? run.value?.mode) === 'roam')
 const totalRounds = computed(() => run.value?.total_rounds ?? 3)

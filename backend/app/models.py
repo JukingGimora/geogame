@@ -105,6 +105,9 @@ class Run(Base):
     total_score: Mapped[int] = mapped_column(Integer, default=0)
     # roam(漫游) = 固定三关、不掉命;serious(认真) = 三条命走到死
     mode: Mapped[str] = mapped_column(String(8), default="serious")
+    # 这一局锁在哪个文化圈。不存的话续关时会悄悄走出这个圈——
+    # 玩家点的是「去东亚走一圈」,第三关却给了智利
+    chapter: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # 这一局的判分尺度,开局时按题池算好存下来:同一局里每关用同一把尺子,
     # 期间有新照片上线也不会改写进行中的局。老数据为 NULL,按默认值算。
     decay_km: Mapped[float | None] = mapped_column(Float, nullable=True)
