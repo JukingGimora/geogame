@@ -10,15 +10,14 @@ from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region,
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES
 from app.services.cities import nearest_city
-from app.services.scoring import final_score, haversine_km
+from app.services.scoring import DECAY_KM, final_score, haversine_km, miss_km, pool_decay_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
 
 router = APIRouter(tags=["play"])
 
-LIVES = 3           # 掉光就结束:没有失败就没有"再来一把"
-MISS_KM = 1000.0    # 超过这个距离算失手,掉一条命
-PREFETCH = 2        # 一次多备几关,免得每猜一关都等一次抽题
+LIVES = 3      # 掉光就结束:没有失败就没有"再来一把"
+PREFETCH = 2   # 一次多备几关,免得每猜一关都等一次抽题
 
 
 class RunIn(BaseModel):
@@ -88,7 +87,10 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         else:
             detail = "no_photos_available"
         raise HTTPException(409, detail)
-    run = Run(user_id=user.id, region_id=body.region_id)
+    # 尺子按这一局的题池算一次就定下来:期间有新照片上线也不改写进行中的局。
+    # 取两列遍历一遍是 O(n),现在两百张几十微秒,十万张也就十几毫秒,而且一局只算一次。
+    coords = (await session.execute(playable.with_only_columns(Photo.lat, Photo.lng))).all()
+    run = Run(user_id=user.id, region_id=body.region_id, decay_km=pool_decay_km([(lat, lng) for lat, lng in coords]))
     session.add(run)
     await session.flush()
     for i, p in enumerate(photos):
@@ -125,7 +127,9 @@ async def _lives_used(session: AsyncSession, run: Run) -> int:
     """失手次数由关卡记录现算,不存字段,省一次线上迁移。"""
     return await session.scalar(
         select(func.count(Round.id)).where(
-            Round.run_id == run.id, Round.distance_km > MISS_KM, Round.finished_at.is_not(None)
+            Round.run_id == run.id,
+            Round.distance_km > miss_km(run.decay_km or DECAY_KM),
+            Round.finished_at.is_not(None),
         )
     ) or 0
 
@@ -234,7 +238,7 @@ async def submit_guess(
     rnd, run = await _get_open_round(session, round_id, user)
     photo = await session.get(Photo, rnd.photo_id)
     distance = haversine_km(photo.lat, photo.lng, body.lat, body.lng)
-    score = final_score(distance, rnd.hints_mask)
+    score = final_score(distance, rnd.hints_mask, run.decay_km or DECAY_KM)
     rnd.guess_lat, rnd.guess_lng = body.lat, body.lng
     rnd.distance_km = round(distance, 2)
     rnd.score = score
