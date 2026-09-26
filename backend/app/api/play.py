@@ -10,7 +10,6 @@ from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region,
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM, locate
 from app.services.progress import DAILY_LIVES, lives_left
-from app.services.cities import nearest_city
 from app.services.scoring import DECAY_KM, final_score, haversine_km, pool_decay_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
@@ -400,12 +399,15 @@ async def submit_guess(
     }
 
 
-def _place_label(photo: Photo) -> str | None:
-    hit = nearest_city(photo.lat, photo.lng)
-    if not hit:
-        return photo.country
-    name, km = hit
-    return f"{name} 附近" if km <= 15 else f"{name} 以外 {km:.0f}km"
+def _place_label(photo: Photo) -> str:
+    """揭晓时报拍摄点的坐标,不再反查最近的城市。
+
+    反查会挑出人口五百的村子,名字玩家没听过,有时离拍摄点还挺远——报得越具体越像报错。
+    而揭晓页的地图本来就标着城市名,地名那件事它做得更准。坐标是原始事实,永远不会错。
+    """
+    ns = "N" if photo.lat >= 0 else "S"
+    ew = "E" if photo.lng >= 0 else "W"
+    return f"{abs(photo.lat):.4f}°{ns}, {abs(photo.lng):.4f}°{ew}"
 
 
 async def _award_uploader(session: AsyncSession, photo: Photo, guesser: User, distance_km: float) -> None:

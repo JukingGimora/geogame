@@ -98,7 +98,7 @@ export default {
     aiFallibleNote: '这段是 AI 的推理思路，不是答案。它给的角度通常有用，结论经常不对——它把吉隆坡的一间展厅认成了伦敦的博物馆。照着角度看，别照着结论走。',
     // 说代价,不说倍率:×0.8 没人看得懂,而且跟「免费」混了两种语气
     hintCost: ['不扣分', '扣两成', '扣四成', '扣六成'],
-    placeLabel: '拍摄于 {place}',
+    placeLabel: '拍摄点 {place}',
     distance: '距离',
     score: '得分',
     beatAi: '你比 AI 准',
