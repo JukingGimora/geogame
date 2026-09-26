@@ -53,10 +53,10 @@
         </view>
         <view v-if="result.ai" class="ai-card">
           <view class="ai-head">
-            <text>{{ t('play.aiThinks') }}</text>
-            <text class="ai-badge" :class="{ won: result.ai.beaten }">
-              {{ result.ai.beaten ? t('play.beatAi') : t('play.lostAi') }} · AI {{ result.ai.score }}
-            </text>
+            <text class="ai-dist">{{ t('play.aiDistance', { n: Math.round(result.ai.distance_km) }) }}</text>
+            <!-- 赢了才说一句,输了不提;AI 跑偏了要标出来,那是这局最有意思的地方 -->
+            <text v-if="result.ai.beaten" class="ai-badge won">{{ t('play.beatAi') }}</text>
+            <text v-else-if="result.ai.distance_km > 1000" class="ai-badge off">{{ t('play.aiWayOff') }}</text>
           </view>
           <text class="ai-reasoning">{{ result.ai.reasoning }}</text>
         </view>
@@ -479,6 +479,15 @@ onShareTimeline(() => ({
   color: var(--ink-dim);
   font-size: 26rpx;
 }
+.ai-dist {
+  color: var(--ink-dim);
+  font-size: 24rpx;
+}
+
+.ai-badge.off {
+  color: var(--warn);
+}
+
 .ai-badge {
   font-family: 'Fusion Pixel 12px Proportional SC', monospace;
   color: var(--warn);

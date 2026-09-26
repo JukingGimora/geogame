@@ -73,6 +73,11 @@ async def pending_photos(
                 parts = [n for n in (macro.name if macro else None, province.name, city) if n]
                 region_name = "·".join(parts)
 
+        # AI 一共给三样东西,审核页要能一次看全:
+        #   猜前的线索(玩家花分数买的)、猜后的结论、以及它推断的位置。
+        clue = await session.scalar(
+            select(Hint.content).where(Hint.photo_id == p.id, Hint.level == 2)
+        )
         # AI 推测的位置,用来对照上传者标注的坐标——标错地点的图肉眼很难发现,
         # 但"AI说陕西、他标海南"这种矛盾一眼就能看出来。
         ai = await session.scalar(select(AIGuess).where(AIGuess.photo_id == p.id))
@@ -102,6 +107,7 @@ async def pending_photos(
                 "story": p.story,
                 "uploader_id": p.uploader_id,
                 "created_at": p.created_at.isoformat(),
+                "clue": clue,
                 "ai": ai_out,
             }
         )

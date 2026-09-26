@@ -21,6 +21,8 @@
   .ai.warn { color: #ff9d6b; font-weight: bold; }
   .ai.dim { color: #6b6558; }
   .reason-ai { font-size: 12px; color: #7a7466; line-height: 1.5; }
+  .clue { font-size: 12px; color: #8a9c7a; line-height: 1.5; }
+  .clue b, .reason-ai b { color: #a2937b; font-weight: 600; margin-right: 4px; }
   .story { color: #cabfa8; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
   .story-edit { width: 100%; box-sizing: border-box; background: #16110c; border: 1px solid #4b4231;
     color: #cabfa8; font: inherit; font-size: 14px; line-height: 1.7; border-radius: 6px; padding: 8px 10px; resize: vertical; }
@@ -67,8 +69,11 @@
           <button @click="saveStory(p)" :disabled="p.saving" x-text="p.saving ? '保存中…' : '保存故事'"></button>
           <span class="dim" x-text="p.storyMsg || ''"></span>
         </div>
+        <template x-if="p.clue">
+          <span class="clue"><b>猜前线索</b> <span x-text="p.clue"></span></span>
+        </template>
         <template x-if="p.ai">
-          <span class="reason-ai" x-text="p.ai.reasoning"></span>
+          <span class="reason-ai"><b>猜后答案</b> <span x-text="p.ai.reasoning"></span></span>
         </template>
         <div class="actions" x-show="status === 'pending'">
           <button class="ok" @click="approve(p.id)">通过</button>
