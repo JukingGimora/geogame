@@ -20,6 +20,7 @@ const MESSAGES: Record<string, string> = {
   no_photos_available: 'errors.noPhotos',
   all_photos_played: 'errors.allPlayed',
   only_own_photos: 'errors.onlyOwnPhotos',
+  no_lives: 'errors.noLives',
   region_not_found: 'errors.regionNotFound',
   // 关卡
   run_not_found: 'errors.runNotFound',

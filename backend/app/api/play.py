@@ -316,6 +316,9 @@ async def submit_guess(
     rnd.score = score
     rnd.finished_at = datetime.now(timezone.utc)
     run.total_score += score
+    # 先把这一关落库再数命:剩几条是去数据库 COUNT 的,不 flush 的话当前这关还在内存里,
+    # 数不到。掉第三条命的那一关因此被漏掉,玩家多打了一关才结束。
+    await session.flush()
 
     # 漫游走满三关就收,不掉命;认真模式是三条命掉光或题库走空
     roam = run.mode == "roam"

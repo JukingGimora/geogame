@@ -154,8 +154,12 @@ function walked(circle: string): number {
  * 会算出 rgb(NaN,NaN,7),canvas 遇到非法颜色是"忽略这次赋值、保留上一个",
  * 于是选中一个圈之后,整张图的陆地被同一种颜色糊满(线上真出现过)。
  */
+// 没走过也要看得出是哪个圈:底色里先掺三成半自己的颜色,剩下的靠走
+const TINT_FLOOR = 0.35
+
 function fillFor(circle: string, muted: boolean): string {
-  const land = mix(CIRCLE_COLORS[circle] ?? THEME.inkFaint, LAND_BASE, walked(circle))
+  const t = TINT_FLOOR + (1 - TINT_FLOOR) * walked(circle)
+  const land = mix(CIRCLE_COLORS[circle] ?? THEME.inkFaint, LAND_BASE, t)
   // 选中某个圈时别的压暗,但压的是已经成型的颜色,不是重新算一遍亮度
   return muted ? mix(land, THEME.bgSunken, 0.45) : land
 }

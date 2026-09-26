@@ -15,6 +15,7 @@ export default {
     noPhotos: '题库还没有照片，先上传几张吧',
     allPlayed: '别人传的照片你都玩过了，等新图上线吧',
     onlyOwnPhotos: '现在库里只有你自己传的照片，等别人上传吧',
+    noLives: '今天三条命都用完了，明天再来；传一张照片过审也能回一条',
     regionNotFound: '这个区域暂时玩不了',
     runNotFound: '这一局找不到了，回地图重新开始吧',
     roundNotFound: '这一关找不到了，回地图重新开始吧',
