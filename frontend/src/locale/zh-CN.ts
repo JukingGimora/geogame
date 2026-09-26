@@ -137,6 +137,23 @@ export default {
     shareTitle: '来「身处雾境」比比谁的眼力更准',
     shareTitleRanked: '我在「身处雾境」排第 {rank} 名，你能超过我吗？',
   },
+  card: {
+    since: '出发第 {n} 天',
+    photos: '传过',
+    seen: '被看过',
+    countries: '认出',
+    streak: '最长连关',
+    badge: {
+      photos: '传过 {n} 张',
+      seen: '被 {n} 人看过',
+      best_streak: '连过 {n} 关',
+      circles: '点亮 {n} 个文化圈',
+    },
+    trail: '认出过：{list}',
+    trailMore: '认出过：{list}，还有 {n} 个',
+    failed: '这个人的战绩暂时拉不到',
+    close: '收起',
+  },
   mine: {
     title: '我的行囊',
     editProfile: '编辑昵称',

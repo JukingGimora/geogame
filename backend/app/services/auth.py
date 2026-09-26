@@ -11,6 +11,7 @@ from app.config import settings
 from app.db import get_session
 from app.models import AuthIdentity, User
 from app.services.names import default_nickname
+from app.services.ratelimit import admin_gate
 
 
 def create_token(user_id: int) -> str:
@@ -109,5 +110,7 @@ async def get_current_user(request: Request, session: AsyncSession = Depends(get
 
 
 async def require_admin(request: Request) -> None:
-    if request.headers.get("X-Admin-Token") != settings.admin_token:
+    ok = request.headers.get("X-Admin-Token") == settings.admin_token
+    admin_gate(request, ok)
+    if not ok:
         raise HTTPException(403, "admin_only")

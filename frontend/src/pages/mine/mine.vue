@@ -7,6 +7,11 @@
     <text v-if="summary && summary.photos > 0" class="summary">
       {{ t('mine.summary', { photos: summary.photos, seen: summary.seen, understood: summary.understood }) }}
     </text>
+    <view v-if="me" class="me-row" @tap="cardUid = me.id">
+      <PixelAvatar :seed="`${me.nickname}#${me.id}`" :size="64" />
+      <text class="me-nick">{{ me.nickname }}</text>
+      <text class="me-arrow">›</text>
+    </view>
     <button class="g-btn" @tap="editProfile">{{ t('mine.editProfile') }}</button>
     <view v-if="photos.length === 0" class="empty">{{ t('mine.empty') }}</view>
 
@@ -92,6 +97,8 @@
     </view>
 
     <text class="danger" @tap="destroyAccount">{{ t('mine.deleteAccount') }}</text>
+
+    <UserCard :uid="cardUid" @close="cardUid = null" />
   </view>
 </template>
 
@@ -105,9 +112,12 @@ import { t, tMap } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
 import { errorMessage } from '../../lib/errors'
 import { logEvent } from '../../lib/analytics'
+import PixelAvatar from '../../components/PixelAvatar.vue'
+import UserCard from '../../components/UserCard.vue'
 
 const photos = ref<any[]>([])
-const me = ref<{ points: number } | null>(null)
+const me = ref<{ id: number; nickname: string; points: number } | null>(null)
+const cardUid = ref<number | null>(null)
 const topOffset = ref(0)
 const statusText = tMap('mine.status')
 
@@ -394,6 +404,25 @@ function previewPhoto(p: any) {
 }
 .status.rejected {
   color: var(--warn);
+}
+.me-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8rpx;
+  padding: 18rpx 24rpx;
+  margin-top: 24rpx;
+}
+.me-nick {
+  flex: 1;
+  color: var(--ink);
+  font-size: 28rpx;
+}
+.me-arrow {
+  color: var(--ink-dim);
+  font-size: 30rpx;
 }
 .summary {
   display: block;

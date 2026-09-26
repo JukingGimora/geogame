@@ -81,7 +81,7 @@
           <text class="ai-reasoning">{{ result.ai.reasoning }}</text>
         </view>
         <view class="story-card" v-if="result.story">
-          <text class="story-from">{{ t('play.storyFrom', { name: result.uploader.nickname }) }}</text>
+          <text class="story-from tappable" @tap="cardUid = result.uploader.id">{{ t('play.storyFrom', { name: result.uploader.nickname }) }}</text>
           <text class="story-text">{{ result.story }}</text>
         </view>
         <view class="invite" @tap="goUpload">
@@ -115,6 +115,8 @@
       </view>
       <button class="g-btn primary" @tap="backHome">{{ t('play.backHome') }}</button>
     </view>
+
+    <UserCard :uid="cardUid" @close="cardUid = null" />
   </view>
 </template>
 
@@ -122,6 +124,7 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import WorldPicker from '../../components/WorldPicker.vue'
+import UserCard from '../../components/UserCard.vue'
 // #ifdef MP-WEIXIN
 import NativeMapPicker from '../../components/NativeMapPicker.vue'
 // #endif
@@ -147,6 +150,7 @@ const picked = ref<LngLat | null>(null)
 const result = ref<any>(null)
 const unlockedContents = ref<{ level: number; content: string }[]>([])
 const finished = ref(false)
+const cardUid = ref<number | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('finale')
 
 // 漫游结算报"平均差多少、最准的一关":一局三关,这两个数就够说明今天手感如何
@@ -622,6 +626,10 @@ onShareTimeline(() => ({
 .story-card {
   border-left: 4rpx solid var(--accent);
   border-radius: 0 8rpx 8rpx 0;
+}
+.story-from.tappable {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
 }
 .story-from {
   color: var(--accent);

@@ -117,6 +117,7 @@ export const api = {
   myPhotos: () => request('GET', '/api/v1/photos/mine'),
   deletePhoto: (photoId: number) => request('DELETE', `/api/v1/photos/${photoId}`),
   deleteAccount: () => request('DELETE', '/api/v1/auth/account'),
+  userProfile: (uid: number) => request('GET', `/api/v1/users/${uid}`),
   leaderboard: (board: 'streak' | 'points') => request('GET', `/api/v1/leaderboard?board=${board}`),
   sendFeedback: (content: string, contact?: string) =>
     request('POST', '/api/v1/feedback', { content, contact: contact || null }),

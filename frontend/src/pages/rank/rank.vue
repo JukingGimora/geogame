@@ -22,7 +22,7 @@
     </view>
 
     <view v-if="data && data.top.length === 0" class="empty">{{ t('rank.empty') }}</view>
-    <view v-for="row in data?.top ?? []" :key="row.rank" class="row" :class="{ me: row.is_me }">
+    <view v-for="row in data?.top ?? []" :key="row.rank" class="row" :class="{ me: row.is_me }" @tap="openCard(row.uid)">
       <text class="pos g-stamp">{{ row.rank }}</text>
       <view class="user-cell">
         <PixelAvatar :seed="`${row.nickname}#${row.uid}`" :size="56" />
@@ -45,6 +45,7 @@
     <!-- #ifdef MP-WEIXIN -->
     <button class="g-btn share-btn" open-type="share" @tap="onShareTap">{{ t('rank.share') }}</button>
     <!-- #endif -->
+    <UserCard :uid="cardUid" @close="cardUid = null" />
   </view>
 </template>
 
@@ -61,6 +62,7 @@ import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'
 import { startRun } from '../../lib/play'
 import PixelAvatar from '../../components/PixelAvatar.vue'
+import UserCard from '../../components/UserCard.vue'
 
 type Board = 'streak' | 'points'
 
@@ -76,6 +78,12 @@ const board = ref<Board>('streak')
 const data = ref<{ top: RankRow[]; me: { rank: number | null; value: number | null; uid: number; nickname: string } } | null>(null)
 const pulse = ref<{ active_today: number; photos_live: number; photos_today: number; my_seen_today: number } | null>(null)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('rank')
+
+const cardUid = ref<number | null>(null)
+
+function openCard(uid: number) {
+  cardUid.value = uid
+}
 
 const inTop = computed(() => data.value?.top.some((r) => r.is_me) ?? false)
 // 榜单外那一行是"我",头像种子要跟榜内的我一致

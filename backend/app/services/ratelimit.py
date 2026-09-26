@@ -20,8 +20,13 @@ LIMITS: dict[str, tuple[int, int]] = {
     "/api/v1/auth/guest": (100, 600),
     "/api/v1/photos": (60, 3600),
     "/api/v1/runs": (120, 300),
-    "/api/v1/admin": (60, 300),  # 后台口令没有失败次数限制,先用限速兜着
+    # 后台只防跑飞的脚本;猜口令由 admin_gate 单独挡,审一轮图要点几百下
+    "/api/v1/admin": (1200, 300),
 }
+
+# 口令猜错多少次就把这个 IP 关在门外
+ADMIN_FAIL_QUOTA = 10
+ADMIN_FAIL_WINDOW = 900
 
 _hits: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 
@@ -47,3 +52,20 @@ async def rate_limit(request: Request) -> None:
     if len(hits) >= quota:
         raise HTTPException(429, "too_many_requests")
     hits.append(now)
+
+
+def admin_gate(request: Request, ok: bool) -> None:
+    """后台口令的失败计数。
+
+    猜对的请求不计数:审图是连着点几百下的活,不能跟撞库共用一个额度
+    (之前共用,结果审到一半整个后台 429)。要挡的只有猜错的那些。
+    """
+    key = ("admin-fail", _client_ip(request))
+    now = time.monotonic()
+    hits = _hits[key]
+    while hits and now - hits[0] > ADMIN_FAIL_WINDOW:
+        hits.popleft()
+    if len(hits) >= ADMIN_FAIL_QUOTA:
+        raise HTTPException(429, "too_many_requests")
+    if not ok:
+        hits.append(now)
