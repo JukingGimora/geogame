@@ -24,32 +24,37 @@ CANNED_REASONING = (
 # AI 出两套东西,按时间分开给玩家:
 #   猜之前 —— clue,只说"该从哪几个角度看",严禁任何地名;
 #   猜完之后 —— reasoning,亮出它的答案和依据,地名该说就说。
-# 但两套必须是**同一次看图**的产物。以前分两次调用,同一张毛里求斯唐人街,
-# 线索说"南洋华人聚落",答案说"拉包尔"——玩家照着线索推,推到的地方跟 AI 自己的结论都对不上。
-READ_PROMPT = (
+#
+# 两次调用,但**不是各看各的**:先认地方,再把认出来的结论交给第二次调用,
+# 让它照着这个结论倒推线索。这样线索和答案在构造上就不可能打架。
+# (试过合成一次调用出两样:线索确实一致了,可中位误差从 15km 掉到 24km——
+#  同一套提示词重跑 20 张有 19 张一字不差,所以那是真亏,不是模型在抖。)
+ANSWER_PROMPT = (
     "你在玩一个看图猜地点的游戏,照片可能来自世界上任何一个国家。"
-    "看一遍这张照片,一次给出两样东西。\n"
-    "\n"
-    "**先认地方,再写线索**,顺序不能反:先认出这是哪里,再回过头写一条不点破名字的线索。"
-    "反过来先写线索,你会被自己那句含糊的描述带偏,把本来认得出的地方认丢。\n"
-    "\n"
-    "一、reasoning:玩家猜完之后才看的,所以要说出你的结论。"
+    "这段话是在玩家已经猜完之后才给他看的,所以要说出你的结论。"
     "用中文写2到3句:第一句直接说你认为这是哪里(具体到城市或地标),"
     "后面用一两句说清楚是靠哪一两处特征认出来的。"
-    "不要复述所有细节,不要写置信度,不要客套。\n"
-    "同时给 city 字段,用当地常用的英文拼写(如 Bukhara、Tbilisi、Xi\'an),"
+    "不要复述所有细节,不要写置信度,不要客套。"
+    "另外单独给出 city 字段,用当地常用的英文拼写(如 Bukhara、Tbilisi、Xi\'an),"
     "以及 country 字段,两位 ISO 国家代码(毛里求斯 MU、巴布亚新几内亚 PG、乌兹别克斯坦 UZ)。"
     "city 必须就是 reasoning 第一句里说的那个地方,不要换成附近更有名的城市;"
-    "我们用这两个字段定位坐标,你给的经纬度只作参考。\n"
+    "我们用这两个字段定位坐标,你给的经纬度只作参考。"
+    "只输出一个JSON对象,不要有任何多余文字或markdown代码块标记,格式:"
+    '{"reasoning": "结论与依据", "city": "英文城市名", "country": "两位国家代码", '
+    '"lat": 纬度小数, "lng": 经度小数, "confidence": 0到100的整数}'
+)
+
+CLUE_PROMPT = (
+    "你刚看过这张照片,并且已经认定它拍摄于:{answer}\n"
     "\n"
-    "二、clue:玩家猜之前看的,示范**你刚才是怎么推出来的**,但不能点破名字。"
+    "现在回到玩家猜之前。写一条线索,示范**你是怎么推到这个结论的**,但一个字都不能点破。"
     "挑出画面里两三处最能说明问题的特征,每处一句说清它能把范围缩到多小。"
     "最后一句只描述这几处交起来剩下的是**什么样的地方**——说它的样子、气候、生计、历史处境,"
     "绝不能说它叫什么,连大区名都不行。"
     "全文不超过80个汉字,每句都要有信息量,不要铺垫、不要形容词堆砌、不要感叹词。"
     "例如:\"屋顶铺筒瓦,是用汉字那一带的老做法;墙体却是夯土,说明比沿海干旱得多;"
     "院里那几棵杨树,把范围又往北压了一截。\"\n"
-    "clue 里严禁出现任何专有名称。以下这些**全都违规**,它们是真实出现过的错误:\n"
+    "严禁出现任何专有名称。以下这些**全都违规**,它们是真实出现过的错误:\n"
     "  \"指向苏瓦的商业区\"、\"旁遮普或德里宫廷特色\"、\"莫卧儿帝国核心区域\"——点了城市/王朝的名字;\n"
     "  \"指向南太平洋岛国的印裔聚居区\"、\"东南亚某处历史贸易港口\"、\"中亚某正在发展的首都\"、"
     "\"仅见于东亚文化圈\"、\"南亚老城典型基建\"——**大区名也是名字**,东亚/东南亚/南亚/中亚/"
@@ -60,20 +65,14 @@ READ_PROMPT = (
     "\"殖民者修的红砖教堂,配着热带港口的旧广场\"、\"石头砌的老楼和裹着绿网的新楼挤在一起,"
     "是个正在翻新的内陆首府\"、\"帐篷上是某国际电信品牌的圆环标\"。\n"
     "也严禁念出或转述画面里的任何文字(招牌、路牌、广告词、说明牌都不行),严禁说出最终结论。\n"
-    "clue 和 reasoning 必须指向同一个判断:照着 clue 推,该推到 reasoning 认定的那个地方。\n"
-    "\n"
-    "只输出一个JSON对象,不要有任何多余文字或markdown代码块标记,格式:"
-    # 键的顺序就是它生成的顺序:答案在前,线索在后
-    '{"reasoning": "结论与依据", "city": "英文城市名", "country": "两位国家代码", '
-    '"lat": 纬度小数, "lng": 经度小数, "confidence": 0到100的整数, "clue": "推理示范"}'
+    "直接输出这段话本身,不要 JSON,不要引号,不要前缀。"
 )
 
 # 重问时把上次栽在哪一条告诉它。泛泛说"你违规了"它改不准,
 # 指名道姓说"你写了『南亚』"基本一次就收敛
 RETRY_SUFFIX = (
-    "\n\n上一次你的 clue 违规了,原因是:{reason}。"
-    "请重写 clue,把那个词换成对这类地方的描述,别再出现任何专有名称、"
-    "画面里的文字或引号。reasoning 照常写。"
+    "\n\n上一次你写的线索违规了,原因是:{reason}。"
+    "请重写,把那个词换成对这类地方的描述,别再出现任何专有名称、画面里的文字或引号。"
 )
 
 # 模型偶尔还是会把石碑上的字念出来(线上真出现过"马跃檀溪遗址"),等于直接报答案。
@@ -141,27 +140,35 @@ def _image_url(photo: Photo) -> str:
 
 
 async def real_ai_read(photo: Photo) -> tuple[str | None, AIGuess | None]:
-    """看一次图,同时拿到猜前的线索和猜后的答案。
+    """先认地方,再让它照着这个结论倒推线索。返回 (线索, 猜测)。
 
-    以前是两次调用,各看各的图,结果线索和答案能指向两个地方——玩家照着线索推,
-    推出来的跟 AI 自己的结论对不上。一次调用出两样东西,它们至少来自同一个判断。
+    第二步把第一步的结论原样喂回去,所以线索说的方向必然通向答案认定的那个地方——
+    一致性是构造出来的,不靠模型自觉。
 
-    线索泄底就整个重问一次(措辞更硬),不到一分钱的事。
+    线索泄底只重问线索那一步,答案不用再认一遍。
     """
-    prompt = READ_PROMPT
-    guess = None
-    for attempt in range(2):
-        parsed = await _ask(photo, prompt)
-        if not parsed:
-            return None, guess
-        clue = str(parsed.get("clue", "")).strip()
-        guess = _to_guess(photo, parsed) or guess
-        why = leak_reason(clue) if clue else "没给 clue"
+    parsed = await _ask(photo, ANSWER_PROMPT)
+    if not parsed:
+        return None, None
+    guess = _to_guess(photo, parsed)
+    if not guess:
+        return None, None
+
+    answer = f"{guess.place}。{guess.reasoning}"
+    prompt = CLUE_PROMPT.format(answer=answer)
+    for _ in range(2):
+        clue = await _ask_text(photo, prompt)
+        why = leak_reason(clue) if clue else "没给线索"
         if not why:
             return clue[:255], guess
-        prompt = READ_PROMPT + RETRY_SUFFIX.format(reason=why)
-    # 两次都泄底:答案还能用,线索退回兜底文案,别把整张图的 AI 结果一起扔了
+        prompt = CLUE_PROMPT.format(answer=answer) + RETRY_SUFFIX.format(reason=why)
+    # 两次都泄底:答案还能用,线索退回兜底文案,别把整张图的结果一起扔了
     return None, guess
+
+
+async def _ask_text(photo: Photo, prompt: str) -> str | None:
+    raw = await _ask(photo, prompt, as_json=False)
+    return raw.strip().strip('"') if raw else None
 
 
 def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:
@@ -199,7 +206,7 @@ def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:
     )
 
 
-async def _ask(photo: Photo, prompt: str) -> dict | None:
+async def _ask(photo: Photo, prompt: str, as_json: bool = True):
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
@@ -224,6 +231,8 @@ async def _ask(photo: Photo, prompt: str) -> dict | None:
             text = resp.json()["choices"][0]["message"]["content"]
     except (httpx.HTTPError, KeyError, IndexError):
         return None
+    if not as_json:
+        return text
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
         return None
