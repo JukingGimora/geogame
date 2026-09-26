@@ -57,6 +57,17 @@ def unwrapped(ring: list[list[float]]) -> list[tuple[float, float]]:
 
 def main() -> None:
     data = json.loads(WORLD.read_text(encoding="utf-8"))
+
+    # 南极洲要丢掉。它在等距圆柱投影下摊成横贯全图的一条带子,
+    # 而且按最近邻被判进了非洲文化圈,连带把非洲的边界线拽到图的最下沿。
+    # 那儿不会有照片,不画。
+    before = len(data["features"])
+    data["features"] = [
+        f for f in data["features"] if max(p[1] for r in f["r"] for p in r) > -60
+    ]
+    if before != len(data["features"]):
+        print(f"丢掉 {before - len(data['features'])} 块南极")
+
     by_circle: dict[str, list[Polygon]] = {}
     for f in data["features"]:
         for ring in f["r"]:
