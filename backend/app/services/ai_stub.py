@@ -12,7 +12,7 @@ import httpx
 
 from app.config import settings
 from app.models import AIGuess, Photo
-from app.services.cities import country_center, find_city
+from app.services.cities import country_fallback, find_city
 from app.services.scoring import haversine_km, score_from_distance
 from app.storage import storage
 
@@ -183,7 +183,7 @@ def _to_guess(photo: Photo, parsed: dict) -> AIGuess | None:
         cc = str(parsed.get("country", "")).strip()[:2].upper()
         found = find_city(city, near=(lat, lng), cc=cc or None) if city else None
         if not found and cc:
-            found = country_center(cc)
+            found = country_fallback(cc, near=(lat, lng))
         if found:
             lat, lng = found
         reasoning = re.sub(r"[。.]?\s*置信度[^。]*。?\s*$", "。", str(parsed["reasoning"])).strip()

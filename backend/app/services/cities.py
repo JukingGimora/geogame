@@ -9,6 +9,7 @@
 中文名那一栏没要:数据里混着繁体,还把 Cape Town 标成"好望角镇",错的比对的显眼。
 """
 import functools
+import unicodedata
 from pathlib import Path
 
 from app.services.scoring import haversine_km
@@ -39,6 +40,28 @@ def nearest_city(lat: float, lng: float) -> tuple[str, float] | None:
     return (name, round(distance, 1)) if distance <= MAX_KM else None
 
 
+# GeoNames 用本地拼写:Ürümqi、Malmö、Kraków。模型报的是 Urumqi、Malmo、Krakow,
+# 直接比对一个都对不上——三万四千条里有七千条带变音符号。
+# 之前查不到就退到"这个国家最大的城市",乌鲁木齐因此被标到了上海,差 3765 公里。
+_FOLD = str.maketrans({"ø": "o", "ł": "l", "đ": "d", "ß": "ss", "æ": "ae", "œ": "oe", "ı": "i", "ð": "d", "þ": "th"})
+
+
+def _fold(name: str) -> str:
+    """去掉变音符号和撇号,好让 Urumqi 认出 Ürümqi、Xian 认出 Xi’an。
+
+    撇号必须去:表里写的是弯撇号 Xi’an,模型打的是直撇号或者干脆不打,
+    对不上就退到模糊匹配,把西安匹配成了襄阳。
+    """
+    lowered = name.strip().lower().translate(_FOLD)
+    stripped = unicodedata.normalize("NFKD", lowered)
+    return "".join(c for c in stripped if not unicodedata.combining(c) and c not in "'’‘`´")
+
+
+@functools.lru_cache(maxsize=1)
+def _folded() -> list[tuple[str, float, float, str, int]]:
+    return [(_fold(n), lat, lng, cc, pop) for n, lat, lng, cc, pop in _cities()]
+
+
 def find_city(
     name: str, near: tuple[float, float] | None = None, cc: str | None = None
 ) -> tuple[float, float] | None:
@@ -48,20 +71,20 @@ def find_city(
     国家一定要收:线上出现过模型自己说"这是毛里求斯",坐标却落到阿曼去,
     差了四千多公里,玩家看到的是一段自相矛盾的话。
     """
-    key = name.strip().lower()
+    key = _fold(name)
     if not key:
         return None
-    pool = _cities()
+    pool = _folded()
     if cc:
         same_country = [c for c in pool if c[3] == cc.upper()]
-        # 模型说的国家在表里没有这座城市,那就退到这个国家本身,
-        # 总好过跑到地球另一头去找个同名的
+        # 模型说的国家在表里没有这座城市,那就退到这个国家里离它自己给的坐标最近的城市,
+        # 总好过跑到地球另一头找个同名的,也好过一律丢到首都去
         pool = same_country or pool
-    hits = [c for c in pool if c[0].lower() == key]
+    hits = [c for c in pool if c[0] == key]
     if not hits:
-        hits = [c for c in pool if key in c[0].lower() and len(key) >= 4]
+        hits = [c for c in pool if key in c[0] and len(key) >= 4]
     if not hits:
-        return country_center(cc) if cc else None
+        return country_fallback(cc, near) if cc else None
     if near:
         best = min(hits, key=lambda c: haversine_km(near[0], near[1], c[1], c[2]))
     else:
@@ -69,10 +92,17 @@ def find_city(
     return best[1], best[2]
 
 
-def country_center(cc: str) -> tuple[float, float] | None:
-    """一个国家的落点,取它人口最多的那座城市。只在城市名查不到时兜底。"""
+def country_fallback(cc: str, near: tuple[float, float] | None = None) -> tuple[float, float] | None:
+    """城市名查不到时的落点:这个国家里离模型自己给的坐标最近的城市。
+
+    模型的经纬度不准,但通常大方向没错;拿它在正确的国家里挑个最近的,
+    比一律丢到人口最多的城市强得多。没给坐标才退回最大的城市。
+    """
     hits = [c for c in _cities() if c[3] == cc.upper()]
     if not hits:
         return None
-    best = max(hits, key=lambda c: c[4])
+    if near:
+        best = min(hits, key=lambda c: haversine_km(near[0], near[1], c[1], c[2]))
+    else:
+        best = max(hits, key=lambda c: c[4])
     return best[1], best[2]
