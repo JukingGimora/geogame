@@ -159,10 +159,7 @@ export default {
     seen: '被看过',
     countries: '认出',
     streak: '最长连关',
-    badge: {
-      understood: '被 {n} 人认出来过',
-      rounds_played: '走过 {n} 关',
-    },
+    reach: '{seen} 个人翻到过这些照片，其中 {understood} 个人认出了地方',
     litTitle: '点亮的文化圈',
     trail: '认出过：{list}',
     trailMore: '认出过：{list}，还有 {n} 个',

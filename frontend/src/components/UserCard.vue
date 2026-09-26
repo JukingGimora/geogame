@@ -16,9 +16,11 @@
         </view>
       </view>
 
-      <view v-if="badges.length" class="badges">
-        <text v-for="b in badges" :key="b" class="badge">{{ b }}</text>
-      </view>
+      <!-- 被看过 vs 被认出来:前者是有人翻到了你的照片,后者是他真的猜到了地方。
+           这句话是这张卡片上唯一说得出"你分享的东西起了什么作用"的地方 -->
+      <text v-if="data && data.seen > 0" class="reach">
+        {{ t('card.reach', { seen: data.seen, understood: data.understood }) }}
+      </text>
 
       <view v-if="data && data.circles.length" class="lit">
         <text class="lit-title">{{ t('card.litTitle') }}</text>
@@ -72,33 +74,6 @@ const nums = computed(() => {
     { value: d.countries.length, label: t('card.countries') },
     { value: d.best_streak, label: t('card.streak') },
   ]
-})
-
-// 成就不写成一串 if:每个指标一串台阶,只显示已经踩到的最高那级。
-// 想加一条就在这张表上加个数字。
-//
-// 这四个指标**刻意避开上面那排数字**:传过多少、被看过多少、最长连关,
-// 面板上已经写着了,成就再说一遍就是同一件事写两遍。
-// 这里说的是面板上没有的东西——点亮了几个圈、被多少人真正认出来、玩了多少关、走了多少天。
-// 卡片上已经写着的:出发第几天(顶部)、传过/被看过/认出几国/最长连关(面板)、
-// 点亮了哪几个圈(下面的圈名)、认出过哪些国家(国旗那行)。
-// 剩下没被写出来的只有这两个,成就就只说这两个。
-const LADDERS: { metric: keyof Profile; steps: number[] }[] = [
-  { metric: 'understood', steps: [10, 50, 200] },
-  { metric: 'rounds_played', steps: [50, 200, 500] },
-]
-
-const badges = computed(() => {
-  const d = data.value
-  if (!d) return []
-  const out: string[] = []
-  for (const { metric, steps } of LADDERS) {
-    const raw = d[metric]
-    const value = Array.isArray(raw) ? raw.length : Number(raw)
-    const reached = steps.filter((s) => value >= s).pop()
-    if (reached) out.push(t(`card.badge.${metric}`, { n: reached }))
-  }
-  return out
 })
 
 const trail = computed(() => {
@@ -194,18 +169,12 @@ function close() {
   font-size: 21rpx;
   margin-top: 6rpx;
 }
-.badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-  margin-top: 28rpx;
-}
-.badge {
-  border: 1px solid var(--accent);
-  border-radius: 999rpx;
-  color: var(--accent);
-  font-size: 21rpx;
-  padding: 6rpx 16rpx;
+.reach {
+  display: block;
+  color: var(--ink-dim);
+  font-size: 23rpx;
+  line-height: 1.7;
+  margin-top: 24rpx;
 }
 .lit {
   display: flex;
