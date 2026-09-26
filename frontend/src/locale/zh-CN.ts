@@ -72,6 +72,13 @@ export default {
   play: {
     round: '第 {n} 关',
     streak: '连过 {n} 关',
+    roamProgress: '第 {n} / {total} 关',
+    circleLit: '点亮了{name}文化圈',
+    countryMatch: '国家猜对了：{name}',
+    endRoam: '三关走完了',
+    roamAvg: '平均差 {n} 公里',
+    roamBest: '最准的一关差 {n} 公里',
+    rank: '最长连关排第 {n}',
     livesLabel: '剩余机会',
     pickTip: '点一下地图，或拖动让十字对准',
     pickedTip: '就插这里？也可以继续拖',

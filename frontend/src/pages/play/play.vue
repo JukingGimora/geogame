@@ -2,12 +2,17 @@
   <view class="play" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view v-if="run && current" class="stage">
       <view class="topbar">
-        <view class="lives" :class="{ hurt: hurting }">
+        <view v-if="isRoam" class="dots">
+          <view v-for="i in totalRounds" :key="i" class="dot" :class="{ on: i <= streak }" />
+        </view>
+        <view v-else class="lives" :class="{ hurt: hurting }">
           <text class="heart full">{{ heartsFull }}</text><text class="heart empty">{{ heartsEmpty }}</text>
           <text v-if="hurting" class="lost">−1</text>
         </view>
         <text class="mute" @tap="toggleMute">{{ muted ? '🔇' : '🔊' }}</text>
-        <text class="streak g-stamp">{{ t('play.streak', { n: streak }) }}</text>
+        <text class="streak g-stamp">
+          {{ isRoam ? t('play.roamProgress', { n: Math.min(streak + 1, totalRounds), total: totalRounds }) : t('play.streak', { n: streak }) }}
+        </text>
       </view>
 
       <image class="photo" :src="photoUrl(current.photo_url)" mode="widthFix" @tap="previewPhoto" />
@@ -41,14 +46,22 @@
       <view v-if="phase === 'result' && result" class="result">
         <ChinaMap :height="260" :markers="resultMarkers" />
         <text v-if="result.place" class="place">{{ t('play.placeLabel', { place: result.place }) }}</text>
+        <view class="earned">
+          <text v-if="result.circle_lit" class="tag lit">{{ t('play.circleLit', { name: result.circle }) }}</text>
+          <text v-else-if="result.country_match" class="tag ok">{{ t('play.countryMatch', { name: result.country }) }}</text>
+        </view>
         <view class="stats">
           <view class="stat">
             <text class="stat-label">{{ t('play.distance') }}</text>
             <text class="stat-value">{{ result.distance_km }} km</text>
           </view>
-          <view class="stat">
+          <view class="stat" v-if="!isRoam">
             <text class="stat-label">{{ t('play.livesLabel') }}</text>
             <text class="stat-value"><text class="heart full">{{ heartsFull }}</text><text class="heart empty">{{ heartsEmpty }}</text></text>
+          </view>
+          <view class="stat" v-else>
+            <text class="stat-label">{{ t('play.score') }}</text>
+            <text class="stat-value">{{ result.score }}</text>
           </view>
         </view>
         <view v-if="result.ai" class="ai-card">
@@ -79,9 +92,16 @@
     </view>
 
     <view v-if="finished && run" class="finale">
-      <text class="finale-label">{{ endedReason === 'pool_empty' ? t('play.endPool') : t('play.endLives') }}</text>
-      <text class="finale-score">{{ t('play.streak', { n: streak }) }}</text>
-      <text class="finale-sub">{{ t('play.totalScore', { n: run.total_score }) }}</text>
+      <template v-if="isRoam">
+        <text class="finale-label">{{ t('play.endRoam') }}</text>
+        <text class="finale-score">{{ t('play.roamAvg', { n: roamAvg }) }}</text>
+        <text class="finale-sub">{{ t('play.roamBest', { n: roamBest }) }}</text>
+      </template>
+      <template v-else>
+        <text class="finale-label">{{ endedReason === 'pool_empty' ? t('play.endPool') : t('play.endLives') }}</text>
+        <text class="finale-score">{{ t('play.streak', { n: streak }) }}</text>
+        <text class="finale-sub">{{ run.rank ? t('play.rank', { n: run.rank }) : t('play.totalScore', { n: run.total_score }) }}</text>
+      </template>
       <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
         <text>{{ t('rank.profileHint') }}</text>
         <text class="hint-arrow">›</text>
@@ -121,12 +141,29 @@ const result = ref<any>(null)
 const unlockedContents = ref<{ level: number; content: string }[]>([])
 const finished = ref(false)
 const { show: showProfileHint, check: checkProfile, go: goProfile } = useProfileHint('finale')
+
+// 漫游结算报"平均差多少、最准的一关":一局三关,这两个数就够说明今天手感如何
+const roamDistances = computed<number[]>(() =>
+  (run.value?.rounds ?? [])
+    .filter((r: any) => r.finished && typeof r.distance_km === 'number')
+    .map((r: any) => r.distance_km),
+)
+const roamAvg = computed(() =>
+  roamDistances.value.length
+    ? Math.round(roamDistances.value.reduce((a, b) => a + b, 0) / roamDistances.value.length)
+    : 0,
+)
+const roamBest = computed(() =>
+  roamDistances.value.length ? Math.round(Math.min(...roamDistances.value)) : 0,
+)
 const pickMapHeight = Math.round(uni.getWindowInfo().windowHeight * 0.35)
 let recapRoundId: number | null = null
 let recapShownAt = 0
 
 const current = computed(() => run.value?.rounds.find((r: any) => !r.finished))
 const streak = computed(() => result.value?.streak ?? run.value?.streak ?? 0)
+const isRoam = computed(() => (result.value?.mode ?? run.value?.mode) === 'roam')
+const totalRounds = computed(() => run.value?.total_rounds ?? 3)
 const livesLeft = computed(() => result.value?.lives_left ?? run.value?.lives_left ?? 3)
 // ♥♥♡ 一眼就懂,也比"还剩2条命"更有紧张感。分成两段是为了让满的是红的、空的是灰的
 const hurting = ref(false)
@@ -306,6 +343,39 @@ onShareTimeline(() => ({
 </script>
 
 <style scoped>
+.dots {
+  display: flex;
+  gap: 10rpx;
+  align-items: center;
+}
+.dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.dot.on {
+  background: var(--accent);
+}
+.earned {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+.tag {
+  font-size: 23rpx;
+  border-radius: 999rpx;
+  padding: 6rpx 16rpx;
+}
+.tag.lit {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tag.ok {
+  color: var(--good);
+  border: 1px solid var(--good);
+}
+
 .lives {
   display: flex;
   align-items: center;
