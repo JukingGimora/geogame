@@ -28,6 +28,7 @@ from app.models import (
 )
 from app.services.auth import require_admin
 from app.services.circles import coarse_area, locate
+from app.services.progress import LIFE_BACK
 from app.services.cities import nearest_city
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
@@ -123,6 +124,13 @@ async def approve_photo(photo_id: int, session: AsyncSession = Depends(get_sessi
     if not photo or photo.status != "pending":
         raise HTTPException(404, "photo_not_pending")
     photo.status = "live"
+    # 照片过审给上传者回一条命(当天最多回到三条,见 services/progress.py)。
+    # 审核是人工的,所以"传完马上能玩"做不到——这是有意的:
+    # 想继续玩,就得给题库添一张图。
+    session.add(
+        PointsLedger(user_id=photo.uploader_id, delta=0, kind=LIFE_BACK,
+                     ref_type="photo", ref_id=photo.id)
+    )
     # AI 猜测和提示②在上传时就已经算好了(services/enrich.py),这里只补纯程序生成的提示①③④。
     # 万一当时后台任务失败,兜底再跑一次,不让图带着空 AI 上线。
     await enrich_photo(photo.id)

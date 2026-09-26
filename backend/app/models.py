@@ -16,6 +16,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nickname: Mapped[str] = mapped_column(String(64), default="旅行者")
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True, default=None)
+    # 每天三条命要按他自己的零点重置,所以得知道他在哪个时区(分钟偏移,东八区=480)
+    tz_offset: Mapped[int] = mapped_column(Integer, default=480)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

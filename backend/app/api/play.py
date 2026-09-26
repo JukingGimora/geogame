@@ -9,6 +9,13 @@ from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM, locate
+from app.services.progress import (
+    DAILY_LIVES,
+    circle_progress,
+    lives_left,
+    unlocked_circles,
+    why_locked,
+)
 from app.services.cities import nearest_city
 from app.services.scoring import DECAY_KM, final_score, haversine_km, miss_km, pool_decay_km
 from app.services.understood import CLOSE_KM
@@ -16,7 +23,6 @@ from app.storage import storage
 
 router = APIRouter(tags=["play"])
 
-LIVES = 3      # 掉光就结束:没有失败就没有"再来一把"
 PREFETCH = 2   # 一次多备几关,免得每猜一关都等一次抽题
 
 
@@ -54,6 +60,17 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         if body.photo_id:
             await _swap_in_photo(session, unfinished, body.photo_id, user)
         return await run_state(unfinished.id, user, session)
+
+    serious = body.mode != "roam"
+    if serious:
+        # 命按天算,不按局算:死了重开一局就当没事发生的话,失败没有代价
+        if await lives_left(session, user) <= 0:
+            raise HTTPException(409, "no_lives")
+        if body.chapter in CIRCLES:
+            progress = await circle_progress(session, user)
+            locked = why_locked(body.chapter, progress, unlocked_circles(progress))
+            if locked:
+                raise HTTPException(409, locked)
 
     q = _playable(user, body.chapter)
     if body.region_id:
@@ -170,17 +187,6 @@ async def _played_photo_ids(session: AsyncSession, user: User) -> list[int]:
     )
 
 
-async def _lives_used(session: AsyncSession, run: Run) -> int:
-    """失手次数由关卡记录现算,不存字段,省一次线上迁移。"""
-    return await session.scalar(
-        select(func.count(Round.id)).where(
-            Round.run_id == run.id,
-            Round.distance_km > miss_km(run.decay_km or DECAY_KM),
-            Round.finished_at.is_not(None),
-        )
-    ) or 0
-
-
 async def _append_round(session: AsyncSession, run: Run, user: User) -> bool:
     """再接一关。题库被他打空就返回 False,由调用方结束这一局。"""
     played = await _played_photo_ids(session, user)
@@ -272,7 +278,7 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
         "status": run.status,
         "total_score": run.total_score,
         "mode": run.mode,
-        "lives_left": LIVES if run.mode == "roam" else max(0, LIVES - await _lives_used(session, run)),
+        "lives_left": DAILY_LIVES if run.mode == "roam" else await lives_left(session, user),
         "streak": finished_rounds,
         "total_rounds": ROAM_ROUNDS if run.mode == "roam" else None,
         "rank": rank,
@@ -325,7 +331,7 @@ async def submit_guess(
 
     # 漫游走满三关就收,不掉命;认真模式是三条命掉光或题库走空
     roam = run.mode == "roam"
-    lives_left = LIVES if roam else LIVES - await _lives_used(session, run)
+    left = DAILY_LIVES if roam else await lives_left(session, user)
     ended = None
     if roam:
         finished_rounds = await session.scalar(
@@ -333,7 +339,7 @@ async def submit_guess(
         )
         if finished_rounds >= ROAM_ROUNDS:
             ended = "roam_done"
-    elif lives_left <= 0:
+    elif left <= 0:
         ended = "lives"
     if not ended and not roam:
         pending = await session.scalar(
@@ -378,7 +384,7 @@ async def submit_guess(
         "distance_km": rnd.distance_km,
         "score": score,
         "mode": run.mode,
-        "lives_left": max(0, lives_left),
+        "lives_left": max(0, left),
         "streak": streak,
         "ended": ended,
         "truth": {"lat": photo.lat, "lng": photo.lng},

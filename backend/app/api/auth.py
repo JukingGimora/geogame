@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 class GuestIn(BaseModel):
+    # 每天三条命按他自己的零点重置,所以要知道他在哪个时区(分钟,东八区 480)
+    tz_offset: int | None = None
     device_key: str = Field(min_length=8, max_length=128)
     nickname: str | None = None
     avatar_url: str | None = None
@@ -56,6 +58,10 @@ async def login_guest(body: GuestIn, session: AsyncSession = Depends(get_session
     # 注册时还没有 openid,只能走本地那一层;不合规就当没填,发个有故事的默认名
     nickname = body.nickname if body.nickname and not local_reason(body.nickname) else None
     user, token = await guest_login(session, body.device_key, nickname, avatar)
+    # 时区每次登录都刷一遍:人会出国,手机会改设置
+    if body.tz_offset is not None and -840 <= body.tz_offset <= 840:
+        user.tz_offset = body.tz_offset
+        await session.commit()
     return {"token": token, "user": {"id": user.id, "nickname": user.nickname, "avatar_url": user.avatar_url}}
 
 

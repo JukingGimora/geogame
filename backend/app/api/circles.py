@@ -11,6 +11,7 @@ from app.db import get_session
 from app.models import Photo, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM
+from app.services.progress import circle_progress, lives_left, unlocked_circles, why_locked
 
 router = APIRouter(prefix="/circles", tags=["circles"])
 
@@ -43,7 +44,12 @@ async def list_circles(
         )
     ).all()
     played = {c: (n, best) for c, n, best in mine}
+    # 锁的状态跟开局那里用的是同一套判断,不另写一份——两处算法一旦分叉,
+    # 就会出现"地图上看着能点,点了说不让进"
+    progress = await circle_progress(session, user)
+    unlocked = unlocked_circles(progress)
     return {
+        "lives_left": await lives_left(session, user),
         "items": [
             {
                 "name": name,
@@ -51,6 +57,7 @@ async def list_circles(
                 "photos": live.get(name, 0),
                 "played": played.get(name, (0, None))[0],
                 "lit": (played.get(name, (0, None))[1] or 9e9) <= LIT_KM,
+                "locked": why_locked(name, progress, unlocked),
             }
             for name, desc in CIRCLES.items()
         ]
