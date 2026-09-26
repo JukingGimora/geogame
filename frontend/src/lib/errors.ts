@@ -24,6 +24,7 @@ const MESSAGES: Record<string, string> = {
   region_not_found: 'errors.regionNotFound',
   // 关卡
   run_not_found: 'errors.runNotFound',
+  run_finished: 'errors.runFinished',
   round_not_found: 'errors.roundNotFound',
   round_already_finished: 'errors.roundFinished',
   hint_not_available: 'errors.hintNotAvailable',

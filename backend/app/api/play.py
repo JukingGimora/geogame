@@ -283,6 +283,10 @@ async def _get_open_round(session: AsyncSession, round_id: int, user: User) -> t
         raise HTTPException(404, "round_not_found")
     if rnd.finished_at is not None:
         raise HTTPException(409, "round_already_finished")
+    # 局结束时还剩着预取好的关没做完。光看"这一关做没做完"挡不住它们:
+    # 三条命掉光之后刷新一下页面,那一关就又被端出来,玩家能多打一关。
+    if run.status != "playing":
+        raise HTTPException(409, "run_finished")
     return rnd, run
 
 

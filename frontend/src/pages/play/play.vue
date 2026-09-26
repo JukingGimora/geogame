@@ -254,6 +254,13 @@ onLoad(async (query) => {
   const runId = Number(query?.runId)
   try {
     run.value = await api.getRun(runId)
+    // 这一局已经打完了(掉光命、走空题库)还进得来,说明是刷新或者从历史记录回来的。
+    // 局里可能还留着预取好没做完的关,直接给结算页,别让他再打一关
+    if (run.value.status !== 'playing') {
+      finished.value = true
+      endedReason.value = run.value.mode === 'roam' ? 'roam_done' : 'lives'
+      return
+    }
     logRoundStart()
   } catch (e: unknown) {
     // 拿不到这一局就没有任何东西可渲染,页面会是全黑的。宁可说清楚再退回地图
