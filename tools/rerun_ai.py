@@ -54,8 +54,8 @@ async def main() -> None:
             json.dumps(
                 [
                     {"photo_id": g.photo_id, "lat": g.lat, "lng": g.lng,
-                     "distance_km": g.distance_km, "reasoning": g.reasoning,
-                     "confidence": g.confidence}
+                     "distance_km": g.distance_km, "score": g.score,
+                     "reasoning": g.reasoning, "model": g.model}
                     for g, _ in rows
                 ],
                 ensure_ascii=False,
@@ -82,8 +82,8 @@ async def main() -> None:
             arrow = "→" if fresh.distance_km < old.distance_km else "↗"
             print(f"  #{photo.id} {photo.country}: {old.distance_km}km {arrow} {fresh.distance_km}km")
             old.lat, old.lng = fresh.lat, fresh.lng
-            old.distance_km, old.reasoning = fresh.distance_km, fresh.reasoning
-            old.confidence = fresh.confidence
+            old.distance_km, old.score = fresh.distance_km, fresh.score
+            old.reasoning, old.model = fresh.reasoning, fresh.model
             changed += 1
 
         await asyncio.gather(*(one(g, p) for g, p in rows))
