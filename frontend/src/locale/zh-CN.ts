@@ -21,6 +21,12 @@ export default {
     roundFinished: '这一关已经猜过了',
     hintNotAvailable: '这条提示暂时没有',
     wechatInvalid: '微信登录没成功，再试一次',
+    nicknameEmpty: '昵称不能是空的',
+    nicknameTooLong: '昵称最多 16 个字',
+    nicknameBadChars: '昵称里有不能显示的字符',
+    nicknameBanned: '这个昵称不能用，换一个吧',
+    nicknameContact: '昵称里不要留联系方式',
+    nicknameRejected: '这个昵称没通过内容检查，换一个吧',
   },
   opening: {
     lines: [

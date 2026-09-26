@@ -29,6 +29,13 @@ const MESSAGES: Record<string, string> = {
   invalid_hint_level: 'errors.hintNotAvailable',
   // 登录
   wechat_code_invalid: 'errors.wechatInvalid',
+  // 昵称
+  nickname_empty: 'errors.nicknameEmpty',
+  nickname_too_long: 'errors.nicknameTooLong',
+  nickname_bad_chars: 'errors.nicknameBadChars',
+  nickname_banned: 'errors.nicknameBanned',
+  nickname_contact: 'errors.nicknameContact',
+  nickname_rejected: 'errors.nicknameRejected',
 }
 
 export function errorMessage(e: unknown): string {

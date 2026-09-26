@@ -42,19 +42,19 @@ _token: tuple[str, float] | None = None
 
 
 def local_reason(name: str) -> str | None:
-    """本地那一层。返回不通过的原因,通过则返回 None。"""
+    """本地那一层。返回错误码(前端翻成人话),通过则返回 None。"""
     text = name.strip()
     if not text:
-        return "昵称不能是空的"
+        return "nickname_empty"
     if len(text) > MAX_LEN:
-        return f"昵称最多 {MAX_LEN} 个字"
+        return "nickname_too_long"
     if any(ord(c) < 32 or ord(c) == 127 for c in text):
-        return "昵称里有不能显示的字符"
+        return "nickname_bad_chars"
     low = text.lower()
     if any(w in low for w in BANNED):
-        return "这个昵称不能用,换一个吧"
+        return "nickname_banned"
     if CONTACT.search(text):
-        return "昵称里不要留联系方式"
+        return "nickname_contact"
     return None
 
 
@@ -101,7 +101,7 @@ async def wechat_reason(name: str, openid: str) -> str | None:
         return None
     # 87014 是老版本的"命中违规";新版本看 result.suggest
     if data.get("errcode") == 87014 or data.get("result", {}).get("suggest") in ("risky", "review"):
-        return "这个昵称没通过内容检查,换一个吧"
+        return "nickname_rejected"
     return None
 
 
