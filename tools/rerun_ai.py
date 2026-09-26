@@ -3,6 +3,11 @@
 改过提示词或改过坐标定位的办法之后跑它。旧结果先备份成 json,
 不满意能整批退回去——这东西是要花钱的,别让一次手抖白烧一遍。
 
+服务器上跑要先把环境带上——配置是 systemd 的 EnvironmentFile 给的,
+不是 pydantic 自己读 .env,手工跑会拿到默认值(fake_ai=True、没有 OSS):
+
+    cd backend && set -a && . ./.env && set +a && python3 ../tools/rerun_ai.py --over 800
+
     python3 tools/rerun_ai.py --over 800      # 只重算差得远的那些
     python3 tools/rerun_ai.py --all
     python3 tools/rerun_ai.py --ids 146,147
