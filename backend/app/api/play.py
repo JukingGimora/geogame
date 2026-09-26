@@ -87,10 +87,16 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
             photos = [wanted] + [p for p in photos if p.id != wanted.id][: PREFETCH - 1]
 
     if not photos:
-        # 三种空库的原因,前端提示各不相同
-        if await session.scalar(select(func.count()).select_from(playable.subquery())):
+        # 三种空库的原因,前端提示各不相同。
+        # 原来这两个分支查的是同一个 q,"库里只剩自己传的图"那条永远走不到——
+        # 一个人把题库填满之后,他看到的是"你都玩过了",208 张摆在那儿却没人告诉他为什么。
+        others = await session.scalar(select(func.count()).select_from(playable.subquery()))
+        anyones = await session.scalar(
+            select(func.count()).select_from(_playable(user, body.chapter, include_own=True).subquery())
+        )
+        if others:
             detail = "all_photos_played"
-        elif await session.scalar(select(func.count()).select_from(q.subquery())):
+        elif anyones:
             detail = "only_own_photos"  # 库里只剩自己传的图,种子期很常见
         else:
             detail = "no_photos_available"
@@ -136,12 +142,16 @@ def _spread(candidates: list[Photo], used: list[tuple[float, float]], want: int)
     return (picked + spare)[:want]
 
 
-def _playable(user: User, chapter: str | None):
+def _playable(user: User, chapter: str | None, include_own: bool = False):
     """能发给这个人的题:已上线、不是他自己传的(知道答案等于白送满分)、限定文化圈。
 
     chapter 可以是文化圈名(东亚/西欧/…),也可以是 china/world 这种粗分。
+    include_own 只在开不出局、要判断"到底为什么"时用:
+    题库里除了他自己的没别的图,和他把别人的都玩过了,是两回事,提示也不一样。
     """
-    q = select(Photo).where(Photo.status == "live", Photo.uploader_id != user.id)
+    q = select(Photo).where(Photo.status == "live")
+    if not include_own:
+        q = q.where(Photo.uploader_id != user.id)
     if chapter in CIRCLES:
         q = q.where(Photo.circle == chapter)
     elif chapter == "china":

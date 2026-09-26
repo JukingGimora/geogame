@@ -13,7 +13,7 @@ export default {
     photoAlreadyPlayed: '已经有人玩过这张了，删不掉（不然他们的成绩会丢）',
     photoNotFound: '这张照片找不到了',
     noPhotos: '题库还没有照片，先上传几张吧',
-    allPlayed: '库里的照片你都玩过了，等新图上线吧',
+    allPlayed: '别人传的照片你都玩过了，等新图上线吧',
     onlyOwnPhotos: '现在库里只有你自己传的照片，等别人上传吧',
     regionNotFound: '这个区域暂时玩不了',
     runNotFound: '这一局找不到了，回地图重新开始吧',
