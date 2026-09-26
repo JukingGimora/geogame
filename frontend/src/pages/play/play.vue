@@ -2,9 +2,11 @@
   <view class="play" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view v-if="run && current" class="stage">
       <view class="topbar">
-        <view class="lives">
+        <view class="lives" :class="{ hurt: hurting }">
           <text class="heart full">{{ heartsFull }}</text><text class="heart empty">{{ heartsEmpty }}</text>
+          <text v-if="hurting" class="lost">−1</text>
         </view>
+        <text class="mute" @tap="toggleMute">{{ muted ? '🔇' : '🔊' }}</text>
         <text class="streak g-stamp">{{ t('play.streak', { n: streak }) }}</text>
       </view>
 
@@ -127,6 +129,34 @@ const current = computed(() => run.value?.rounds.find((r: any) => !r.finished))
 const streak = computed(() => result.value?.streak ?? run.value?.streak ?? 0)
 const livesLeft = computed(() => result.value?.lives_left ?? run.value?.lives_left ?? 3)
 // ♥♥♡ 一眼就懂,也比"还剩2条命"更有紧张感。分成两段是为了让满的是红的、空的是灰的
+const hurting = ref(false)
+const muted = ref(!!uni.getStorageSync('geogame_muted'))
+
+function toggleMute() {
+  muted.value = !muted.value
+  uni.setStorageSync('geogame_muted', muted.value ? '1' : '')
+}
+let audio: UniApp.InnerAudioContext | null = null
+
+/** 掉血要看得见也听得见:只震动的话,玩家常常没意识到自己少了一条命 */
+function playHurt() {
+  hurting.value = true
+  setTimeout(() => (hurting.value = false), 700)
+  uni.vibrateShort({ fail: () => {} })
+  if (muted.value) return
+  try {
+    if (!audio) {
+      audio = uni.createInnerAudioContext()
+      audio.src = '/static/audio/life-lost.mp3'
+      audio.volume = 0.5
+    }
+    audio.stop()
+    audio.play()
+  } catch {
+    // 有的机型不给放,不值得为它打断一局
+  }
+}
+
 const heartsFull = computed(() => '♥'.repeat(livesLeft.value))
 const heartsEmpty = computed(() => '♡'.repeat(Math.max(0, 3 - livesLeft.value)))
 const unlockedLevels = computed(() => unlockedContents.value.map((h) => h.level))
@@ -202,8 +232,9 @@ async function confirmGuess() {
     return
   }
   submitting.value = false
-  // 猜完那一下要有反馈,不然揭晓像是页面自己刷新了
-  uni.vibrateShort({ fail: () => {} })
+  const before = run.value?.lives_left ?? 3
+  if ((result.value?.lives_left ?? before) < before) playHurt()
+  else uni.vibrateShort({ fail: () => {} })
   phase.value = 'result'
   recapShownAt = Date.now()
   addFogPoint({
@@ -278,6 +309,41 @@ onShareTimeline(() => ({
 .lives {
   display: flex;
   align-items: center;
+  position: relative;
+}
+
+.lives.hurt {
+  animation: shake 0.45s ease-in-out;
+}
+
+.lives.hurt .heart.full {
+  animation: dim 0.45s ease-out;
+}
+
+.lost {
+  position: absolute;
+  left: 100%;
+  margin-left: 10rpx;
+  color: var(--warn);
+  font-size: 26rpx;
+  animation: rise 0.7s ease-out forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6rpx); }
+  45% { transform: translateX(5rpx); }
+  70% { transform: translateX(-3rpx); }
+}
+
+@keyframes dim {
+  0% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rise {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-28rpx); }
 }
 .heart {
   font-size: 32rpx;
