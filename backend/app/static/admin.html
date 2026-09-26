@@ -58,10 +58,7 @@
                   + (p.circle ? '　·　' + p.circle + '文化圈' : '')"></span>
         <template x-if="p.ai">
           <span class="ai" :class="{ warn: p.ai.distance_km > 300 }"
-            x-text="'AI推测：' + (p.ai.place || '?')
-                    + (p.ai.region_name && p.ai.place && !p.ai.region_name.includes(p.ai.place.split(',')[0])
-                        ? '　（落点 ' + p.ai.region_name + '，小地名查不到，退到了国家中心）'
-                        : (p.ai.region_name ? '　·　' + p.ai.region_name : ''))
+            x-text="'AI推测：' + (p.ai.place || (p.ai.lat.toFixed(4) + ', ' + p.ai.lng.toFixed(4)))
                     + '　·　相差 ' + p.ai.distance_km + ' km'
                     + (p.ai.distance_km > 300 ? '　⚠ 可能标错地点' : '')"></span>
         </template>

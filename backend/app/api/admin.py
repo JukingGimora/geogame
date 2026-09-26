@@ -87,8 +87,9 @@ async def pending_photos(
                 "lat": ai.lat,
                 "lng": ai.lng,
                 "distance_km": ai.distance_km,
-                "region_name": await _describe_point(session, ai.lat, ai.lng),
-                # 它自己说的地方。跟上面那个对不上,就是小地名查不到、落点退到了国家中心
+                # 它自己报的地名。针就是拿这个名字查城市表定的坐标,
+                # 所以这里直接显示它的话——早先还会拿坐标再反查一个最近城市名摆在旁边,
+                # 结果显示出「AI说南五台 / 针在五台」,那个"五台"是我们替它翻的,它没说过
                 "place": ai.place,
                 "reasoning": ai.reasoning,
             }
@@ -480,24 +481,6 @@ async def _cohorts(session: AsyncSession) -> dict:
 def _city_label(lat: float, lng: float) -> str | None:
     hit = nearest_city(lat, lng)
     return f"{hit[0]} 附近 {hit[1]}km" if hit else None
-
-
-async def _describe_point(session: AsyncSession, lat: float, lng: float) -> str | None:
-    """任意坐标 → 人话描述,给审核页并排对照用。
-
-    以前一律走中国省份表:AI 猜在撒马尔罕,这里却显示"新疆·喀什"——
-    AI 是对的,标签把它冤枉了。境外的点要按国家和最近的城市说。
-    """
-    country, _ = locate(lat, lng)
-    if country.startswith("中国"):
-        province = await nearest_province(session, lat, lng)
-        if not province:
-            return country
-        macro = await session.get(Region, province.parent_id) if province.parent_id else None
-        city = await resolve_city(province.name, lat, lng)
-        return "·".join(n for n in (macro.name if macro else None, province.name, city) if n)
-    hit = nearest_city(lat, lng)
-    return f"{country}·{hit[0]}" if hit else country
 
 
 async def _generate_system_hints(session: AsyncSession, photo: Photo) -> None:
