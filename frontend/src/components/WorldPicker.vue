@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, watch } from 'vue'
 import { BASE_URL } from '../api'
-import { CIRCLE_COLORS, CIRCLE_OUTLINES, THEME } from '../lib/theme'
+import { CIRCLE_COLORS, THEME } from '../lib/theme'
 import type { LngLat } from '../lib/geo'
 import type { MapMarker } from '../lib/mapRender'
 
@@ -51,6 +51,8 @@ const instance = getCurrentInstance()
 const canvasId = 'world-picker'
 type Ring = [number, number][]
 let features: { c: string; r: Ring[] }[] = []
+// 文化圈的边界线跟国家轮廓来自同一个文件,由 tools/build_circle_outlines.py 算好
+let outlines: Record<string, Ring[]> = {}
 let loaded = false
 let box = { w: 0, h: 0 }
 
@@ -90,6 +92,7 @@ async function load() {
     uni.request({ url: `${BASE_URL}/api/v1/geo/world`, success: (r) => resolve(r.data), fail: reject })
   })
   features = data.features
+  outlines = data.circles ?? {}
   loaded = true
 }
 
@@ -162,19 +165,21 @@ function paint(ctx: any) {
     ctx.font = `${Math.max(9, Math.round(box.w / 38))}px sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    for (const [name, loops] of Object.entries(CIRCLE_OUTLINES)) {
+    for (const [name, loops] of Object.entries(outlines)) {
       const color = CIRCLE_COLORS[name] ?? THEME.inkFaint
       ctx.strokeStyle = mix(color, THEME.bgSunken, 0.55)
       ctx.lineWidth = 1
       for (const loop of loops) {
-        for (const piece of splitAtSeam(loop as Ring)) {
+        // 被接缝切开的那半圈不能闭合,否则大西洋上会多一道横线
+        const pieces = splitAtSeam(loop as Ring)
+        for (const piece of pieces) {
           ctx.beginPath()
           piece.forEach(([lng, lat], i) => {
             const [x, y] = project(lng, lat)
             if (i === 0) ctx.moveTo(x, y)
             else ctx.lineTo(x, y)
           })
-          ctx.closePath()
+          if (pieces.length === 1) ctx.closePath()
           ctx.stroke()
         }
       }

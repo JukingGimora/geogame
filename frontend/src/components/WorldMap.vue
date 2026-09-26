@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, ref, watch } from 'vue'
 import { BASE_URL } from '../api'
-import { CIRCLE_COLORS, CIRCLE_OUTLINES, THEME } from '../lib/theme'
+import { CIRCLE_COLORS, THEME } from '../lib/theme'
 
 /**
  * 世界地图,按文化圈上色。
@@ -45,6 +45,8 @@ const canvasId = 'world-map'
 type Ring = [number, number][]
 let loaded = false
 let features: { c: string; r: Ring[] }[] = []
+// 文化圈的边界线跟国家轮廓来自同一个文件,由 tools/build_circle_outlines.py 算好
+let outlines: Record<string, Ring[]> = {}
 let box = { w: 0, h: 0 }
 let retries = 0
 
@@ -132,6 +134,7 @@ async function load() {
     uni.request({ url, success: (r) => resolve(r.data), fail: reject })
   })
   features = data.features
+  outlines = data.circles ?? {}
   loaded = true
 }
 
@@ -159,14 +162,14 @@ function splitAtSeam(ring: Ring): Ring[] {
   return out.filter((r) => r.length >= 3)
 }
 
-function tracePath(ctx: any, ring: Ring) {
+function tracePath(ctx: any, ring: Ring, close = true) {
   ctx.beginPath()
   ring.forEach(([lng, lat]: [number, number], i: number) => {
     const [x, y] = project(lng, lat)
     if (i === 0) ctx.moveTo(x, y)
     else ctx.lineTo(x, y)
   })
-  ctx.closePath()
+  if (close) ctx.closePath()
 }
 
 function paint(ctx: any) {
@@ -194,14 +197,16 @@ function paint(ctx: any) {
 
 /** 圈的边界线。国界是拼图,这条线才是"文化圈"本身 */
 function paintOutlines(ctx: any) {
-  for (const [name, loops] of Object.entries(CIRCLE_OUTLINES)) {
+  for (const [name, loops] of Object.entries(outlines)) {
     const picked = props.selected === name
     const color = CIRCLE_COLORS[name] ?? THEME.inkFaint
     ctx.strokeStyle = picked ? '#fff' : mix(color, THEME.bgSunken, 0.85)
     ctx.lineWidth = picked ? 2.4 : 1.6
     for (const loop of loops) {
-      for (const piece of splitAtSeam(loop as Ring)) {
-        tracePath(ctx, piece)
+      // 被接缝切开的那半圈不能闭合:闭合会在大西洋上拉一道横贯全图的直线
+      const pieces = splitAtSeam(loop as Ring)
+      for (const piece of pieces) {
+        tracePath(ctx, piece, pieces.length === 1)
         ctx.stroke()
       }
     }
