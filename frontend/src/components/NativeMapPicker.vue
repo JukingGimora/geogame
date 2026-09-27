@@ -8,6 +8,8 @@
       :longitude="center.lng"
       :scale="scale"
       :markers="markerList"
+      :polyline="lines"
+      :include-points="framePoints"
       @tap="onTap"
       @poitap="onTap"
       @regionchange="onRegionChange"
@@ -79,6 +81,32 @@ const markerList = computed(() =>
       },
     }
   }),
+)
+
+// 揭晓时把"你猜的"和"真实的"连起来,并且把所有点一起框进视野——
+// 否则两个针可能隔着半个地球,玩家得自己拖着地图去找
+const lines = computed(() => {
+  const from = props.markers.find((m) => m.kind === 'guess' || m.kind === 'pick')
+  const to = props.markers.find((m) => m.kind === 'truth')
+  if (!from || !to) return []
+  return [
+    {
+      points: [
+        { latitude: from.lat, longitude: from.lng },
+        { latitude: to.lat, longitude: to.lng },
+      ],
+      color: MAP_THEME.line,
+      width: 2,
+      dottedLine: true,
+    },
+  ]
+})
+
+// 只在有真实位置(也就是揭晓之后)才自动取景:插针阶段自动跑视野会把人转晕
+const framePoints = computed(() =>
+  props.markers.some((m) => m.kind === 'truth')
+    ? props.markers.map((m) => ({ latitude: m.lat, longitude: m.lng }))
+    : [],
 )
 
 function round(v: number): number {
