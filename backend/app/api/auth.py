@@ -15,6 +15,7 @@ from app.models import (
     Event,
     Feedback,
     Hint,
+    HintTranslation,
     Photo,
     PointsLedger,
     Report,
@@ -27,6 +28,7 @@ from app.models import Run as RunModel
 from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
+from app.services.i18n import lang_header
 from app.services.names import is_default
 from app.services.progress import roam_done
 from app.services.textcheck import local_reason, nickname_reason
@@ -54,12 +56,16 @@ class ProfileIn(BaseModel):
 
 
 @router.post("/guest")
-async def login_guest(body: GuestIn, session: AsyncSession = Depends(get_session)):
+async def login_guest(
+    body: GuestIn,
+    session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
+):
     # 静默丢弃而不是报错:本地存着个临时路径不该导致登不上
     avatar = clean_avatar_url(body.avatar_url)
     # 注册时还没有 openid,只能走本地那一层;不合规就当没填,发个有故事的默认名
     nickname = body.nickname if body.nickname and not local_reason(body.nickname) else None
-    user, token = await guest_login(session, body.device_key, nickname, avatar)
+    user, token = await guest_login(session, body.device_key, nickname, avatar, lang=lang)
     # 时区每次登录都刷一遍:人会出国,手机会改设置
     if body.tz_offset is not None and -840 <= body.tz_offset <= 840:
         user.tz_offset = body.tz_offset
@@ -156,7 +162,7 @@ async def delete_account(user: User = Depends(get_current_user), session: AsyncS
     photo_ids = (await session.scalars(select(Photo.id).where(Photo.uploader_id == user.id))).all()
     file_keys = (await session.scalars(select(Photo.file_key).where(Photo.uploader_id == user.id))).all()
     if photo_ids:
-        for model in (Hint, AIGuess):
+        for model in (Hint, HintTranslation, AIGuess):
             await session.execute(sa_delete(model).where(model.photo_id.in_(photo_ids)))
         await session.execute(sa_delete(Round).where(Round.photo_id.in_(photo_ids)))
         await session.execute(sa_delete(Comment).where(Comment.photo_id.in_(photo_ids)))

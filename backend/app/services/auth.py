@@ -33,6 +33,7 @@ async def guest_login(
     device_key: str,
     nickname: str | None = None,
     avatar_url: str | None = None,
+    lang: str = "zh",
 ) -> tuple[User, str]:
     identity = await _find_guest(session, device_key)
     if identity:
@@ -51,7 +52,8 @@ async def guest_login(
         # 于是这一行永远不执行,1920 个有故事的昵称一个都没发出去过。
         if not nickname:
             taken = set(await session.scalars(select(User.nickname)))
-            user.nickname = pick_nickname(taken)
+            # 从英文 H5 进来的人发英文名字:榜上一排汉字,外语用户一个也认不出来
+            user.nickname = pick_nickname(taken, lang=lang)
         session.add(AuthIdentity(user_id=user.id, provider="guest", provider_uid=device_key))
         try:
             await session.commit()

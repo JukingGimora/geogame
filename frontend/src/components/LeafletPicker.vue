@@ -9,6 +9,7 @@ import { getCurrentInstance, onMounted, onUnmounted, watch } from 'vue'
 import type { LngLat } from '../lib/geo'
 import type { MapMarker } from '../lib/mapRender'
 import { MAP_THEME } from '../lib/theme'
+import { t } from '../locale'
 
 /**
  * H5 的插针地图:真地图,有城市名和道路,拖得动放得大。
@@ -42,10 +43,10 @@ const MAX_ZOOM = 17
 
 // 光靠颜色分不出谁是谁:三个点长得一样,玩家得先记住"绿色是真实"才看得懂
 const TAGS: Record<MapMarker['kind'], { text: string; colour: string }> = {
-  pick: { text: '你', colour: MAP_THEME.pick },
-  guess: { text: '你', colour: MAP_THEME.pick },
-  truth: { text: '真实', colour: MAP_THEME.truth },
-  ai: { text: 'AI', colour: MAP_THEME.ai },
+  pick: { text: t('common.you'), colour: MAP_THEME.pick },
+  guess: { text: t('common.you'), colour: MAP_THEME.pick },
+  truth: { text: t('common.truth'), colour: MAP_THEME.truth },
+  ai: { text: t('common.ai'), colour: MAP_THEME.ai },
 }
 
 function pin(kind: MapMarker['kind']): string {

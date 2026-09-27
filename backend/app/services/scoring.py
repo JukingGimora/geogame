@@ -41,10 +41,10 @@ def pool_decay_km(points: list[tuple[float, float]]) -> float:
         return MIN_DECAY_KM
     x = y = z = 0.0
     for lat, lng in points:
-        p, l = math.radians(lat), math.radians(lng)
-        x += math.cos(p) * math.cos(l)
-        y += math.cos(p) * math.sin(l)
-        z += math.sin(p)
+        rlat, rlng = math.radians(lat), math.radians(lng)
+        x += math.cos(rlat) * math.cos(rlng)
+        y += math.cos(rlat) * math.sin(rlng)
+        z += math.sin(rlat)
     n = len(points)
     clat = math.degrees(math.atan2(z / n, math.hypot(x / n, y / n)))
     clng = math.degrees(math.atan2(y / n, x / n))

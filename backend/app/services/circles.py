@@ -399,12 +399,16 @@ def _country_box() -> dict[str, tuple[float, float, float, float]]:
     return out
 
 
-def coarse_area(country: str, lat: float, lng: float) -> str:
-    """提示④:国名 + 在这个国家的哪一角。查不到这个国家就退回国名。"""
+def area_parts(country: str, lat: float, lng: float) -> str | None:
+    """这个点落在这个国家的哪一角,返回"西北"这样的方位词。
+
+    国家查不到就返回 None——调用方据此只报国名。方位本身跟语言无关,
+    所以中英两版共用这一段,只有拼字符串的方式不同。
+    """
     cc = _country_code().get(country)
     box = _country_box().get(cc) if cc else None
     if not box:
-        return country
+        return None
     south, north, west, east = box
     # 经度也绕到同一个坐标系里比,理由同上
     x = ((lng - west + 540) % 360) - 180 + west
@@ -416,5 +420,23 @@ def coarse_area(country: str, lat: float, lng: float) -> str:
         return low_name if t < _ZONE_CUT else (high_name if t > 1 - _ZONE_CUT else "")
 
     # 东西在前、南北在后:中文说"西北部",不说"北西部"
-    parts = side(x, west, east, "西", "东") + side(lat, south, north, "南", "北")
+    return side(x, west, east, "西", "东") + side(lat, south, north, "南", "北")
+
+
+def coarse_area(country: str, lat: float, lng: float) -> str:
+    """提示④:国名 + 在这个国家的哪一角。查不到这个国家就退回国名。"""
+    parts = area_parts(country, lat, lng)
+    if parts is None:
+        return country
     return f"{country}·{parts}部" if parts else f"{country}·中部"
+
+
+def coarse_area_en(country: str, lat: float, lng: float) -> str:
+    """提示④的英文版。方位用缩写(NW / SE / central),拼在英文国名后面。"""
+    from app.services.i18n import AREA_EN, COUNTRY_EN
+
+    name = COUNTRY_EN.get(country, country)
+    parts = area_parts(country, lat, lng)
+    if parts is None:
+        return name
+    return f"{name} · {AREA_EN.get(parts, parts)}"

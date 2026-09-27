@@ -47,55 +47,69 @@
 
     <view class="fb g-card">
       <view class="fb-header" @tap="fbExpanded = !fbExpanded">
-        <text class="fb-title">核心体验反馈</text>
-        <text class="fb-toggle">{{ fbExpanded ? '收起 ▾' : '展开 ▸' }}</text>
+        <text class="fb-title">{{ t('feedback.title') }}</text>
+        <text class="fb-toggle">{{ fbExpanded ? t('feedback.collapse') : t('feedback.expand') }}</text>
       </view>
 
       <view v-if="fbExpanded">
         <view class="fb-item">
-          <text class="fb-label">1. 你觉得好玩吗？</text>
+          <text class="fb-label">{{ t('feedback.q1') }}</text>
           <view class="fb-options">
-            <view class="fb-option" :class="{ active: fbData.fun === 'yes' }" @tap="fbData.fun = 'yes'">好玩</view>
-            <view class="fb-option" :class="{ active: fbData.fun === 'no' }" @tap="fbData.fun = 'no'">不好玩</view>
-            <view class="fb-option" :class="{ active: fbData.fun === 'so' }" @tap="fbData.fun = 'so'">一般</view>
+            <view
+              v-for="(label, i) in funLabels"
+              :key="label"
+              class="fb-option"
+              :class="{ active: fbData.fun === FUN_KEYS[i] }"
+              @tap="fbData.fun = FUN_KEYS[i]"
+            >{{ label }}</view>
           </view>
         </view>
 
         <view class="fb-item">
-          <text class="fb-label">2. 你最想玩哪种照片？</text>
+          <text class="fb-label">{{ t('feedback.q2') }}</text>
           <view class="fb-options">
-            <view class="fb-option" :class="{ active: fbData.photoType === '景观' }" @tap="fbData.photoType = '景观'">景观</view>
-            <view class="fb-option" :class="{ active: fbData.photoType === '城市' }" @tap="fbData.photoType = '城市'">城市</view>
-            <view class="fb-option" :class="{ active: fbData.photoType === '人文' }" @tap="fbData.photoType = '人文'">人文</view>
-            <view class="fb-option" :class="{ active: fbData.photoType === '美食' }" @tap="fbData.photoType = '美食'">美食</view>
-            <view class="fb-option" :class="{ active: fbData.photoType === '其他' }" @tap="fbData.photoType = '其他'">其他</view>
+            <view
+              v-for="(label, i) in kindLabels"
+              :key="label"
+              class="fb-option"
+              :class="{ active: fbData.photoType === KIND_KEYS[i] }"
+              @tap="fbData.photoType = KIND_KEYS[i]"
+            >{{ label }}</view>
           </view>
         </view>
 
         <view class="fb-item">
-          <text class="fb-label">3. 你会不会愿意继续玩下去？</text>
+          <text class="fb-label">{{ t('feedback.q3') }}</text>
           <view class="fb-options">
-            <view class="fb-option" :class="{ active: fbData.continuePlay === 'yes' }" @tap="fbData.continuePlay = 'yes'">会</view>
-            <view class="fb-option" :class="{ active: fbData.continuePlay === 'no' }" @tap="fbData.continuePlay = 'no'">不会</view>
-            <view class="fb-option" :class="{ active: fbData.continuePlay === 'maybe' }" @tap="fbData.continuePlay = 'maybe'">看情况</view>
+            <view
+              v-for="(label, i) in ynmLabels"
+              :key="label"
+              class="fb-option"
+              :class="{ active: fbData.continuePlay === YNM_KEYS[i] }"
+              @tap="fbData.continuePlay = YNM_KEYS[i]"
+            >{{ label }}</view>
           </view>
         </view>
 
         <view class="fb-item">
-          <text class="fb-label">4. 你会不会愿意分享给别人？</text>
+          <text class="fb-label">{{ t('feedback.q4') }}</text>
           <view class="fb-options">
-            <view class="fb-option" :class="{ active: fbData.share === 'yes' }" @tap="fbData.share = 'yes'">会</view>
-            <view class="fb-option" :class="{ active: fbData.share === 'no' }" @tap="fbData.share = 'no'">不会</view>
-            <view class="fb-option" :class="{ active: fbData.share === 'maybe' }" @tap="fbData.share = 'maybe'">看情况</view>
+            <view
+              v-for="(label, i) in ynmLabels"
+              :key="label"
+              class="fb-option"
+              :class="{ active: fbData.share === YNM_KEYS[i] }"
+              @tap="fbData.share = YNM_KEYS[i]"
+            >{{ label }}</view>
           </view>
         </view>
 
         <view class="fb-item">
-          <text class="fb-label">5. 精神股东共建精神家园，您还有什么个性建议，愿闻其详。</text>
-          <textarea class="fb-input" v-model="fbData.reason" placeholder="个人反馈、建议、想法都可以" maxlength="300" />
+          <text class="fb-label">{{ t('feedback.q5') }}</text>
+          <textarea class="fb-input" v-model="fbData.reason" :placeholder="t('feedback.placeholder')" maxlength="300" />
         </view>
 
-        <button class="g-btn" :disabled="fbSending" @tap="sendFb">提交反馈</button>
+        <button class="g-btn" :disabled="fbSending" @tap="sendFb">{{ t('feedback.submit') }}</button>
       </view>
     </view>
 
@@ -111,7 +125,7 @@ import { computed, onMounted, ref } from 'vue'
 import { onShareAppMessage } from '@dcloudio/uni-app'
 // #endif
 import { api, BASE_URL, forgetIdentity } from '../../api'
-import { t, tMap } from '../../locale'
+import { t, tList, tMap } from '../../locale'
 import { enableShareMenu } from '../../lib/share'
 import { errorMessage } from '../../lib/errors'
 import { logEvent } from '../../lib/analytics'
@@ -123,6 +137,14 @@ const me = ref<{ id: number; nickname: string; points: number } | null>(null)
 const cardUid = ref<number | null>(null)
 const topOffset = ref(0)
 const statusText = tMap('mine.status')
+
+// 存进库的是这些键,不是界面上的字:中英两个版本的答案要能汇总到一起
+const FUN_KEYS = ['yes', 'no', 'so']
+const KIND_KEYS = ['landscape', 'city', 'people', 'food', 'other']
+const YNM_KEYS = ['yes', 'no', 'maybe']
+const funLabels = tList('feedback.fun')
+const kindLabels = tList('feedback.kinds')
+const ynmLabels = tList('feedback.yesNoMaybe')
 
 const COLLAPSED_COUNT = 3
 const photosExpanded = ref(false)
@@ -235,7 +257,7 @@ const fbSending = ref(false)
 
 async function sendFb() {
   if (!fbData.value.fun) {
-    uni.showToast({ title: '请完成必填项', icon: 'none' })
+    uni.showToast({ title: t('feedback.needRequired'), icon: 'none' })
     return
   }
   fbSending.value = true
@@ -250,7 +272,7 @@ async function sendFb() {
       share: '',
       reason: ''
     }
-    uni.showToast({ title: '感谢反馈！', icon: 'none', duration: 2500 })
+    uni.showToast({ title: t('feedback.thanks'), icon: 'none', duration: 2500 })
   } finally {
     fbSending.value = false
   }

@@ -1,3 +1,4 @@
+import { currentLang } from '../locale/lang'
 export const BASE_URL = import.meta.env.VITE_API_BASE ?? 'http://localhost:8020'
 
 const TOKEN_KEY = 'geogame_token'
@@ -61,13 +62,21 @@ async function restoreByWechat(): Promise<void> {
   // #endif
 }
 
+// 库里存的是中文,每个请求都带上当前语言,后端据此把文化圈描述、国名、
+// 提示③④换成英文。语言由 locale/lang.ts 定(H5 默认英文,?lang=zh 切回中文)
+function headers(): Record<string, string> {
+  const h: Record<string, string> = { 'X-Lang': currentLang }
+  if (token) h.Authorization = `Bearer ${token}`
+  return h
+}
+
 function rawRequest(method: 'GET' | 'POST' | 'DELETE', path: string, data?: any): Promise<any> {
   return new Promise((resolve, reject) => {
     uni.request({
       url: BASE_URL + path,
       method,
       data,
-      header: token ? { Authorization: `Bearer ${token}` } : {},
+      header: headers(),
       success: (res) => {
         if (res.statusCode && res.statusCode < 400) resolve(res.data)
         else reject({ status: res.statusCode, data: res.data })
@@ -134,7 +143,7 @@ export const api = {
         filePath,
         name: 'file',
         formData: lat != null && lng != null ? { lat: String(lat), lng: String(lng), story } : { story },
-        header: { Authorization: `Bearer ${token}` },
+        header: headers(),
         success: (res) => {
           if (res.statusCode < 400) resolve(JSON.parse(res.data))
           else reject({ status: res.statusCode, data: res.data })

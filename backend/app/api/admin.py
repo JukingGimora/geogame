@@ -18,6 +18,7 @@ from app.models import (
     Event,
     Feedback,
     Hint,
+    HintTranslation,
     Photo,
     PointsLedger,
     Region,
@@ -292,6 +293,7 @@ async def delete_photo(photo_id: int, session: AsyncSession = Depends(get_sessio
     if not photo:
         raise HTTPException(404, "photo_not_found")
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id))
+    await session.execute(sa_delete(HintTranslation).where(HintTranslation.photo_id == photo_id))
     await session.execute(sa_delete(AIGuess).where(AIGuess.photo_id == photo_id))
     storage.delete(photo.file_key)
     await session.delete(photo)

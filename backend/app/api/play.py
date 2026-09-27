@@ -6,9 +6,21 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
+from app.models import (
+    AIGuess,
+    AuthIdentity,
+    Hint,
+    HintTranslation,
+    Photo,
+    PointsLedger,
+    Region,
+    Round,
+    Run,
+    User,
+)
 from app.services.auth import get_current_user
-from app.services.circles import CIRCLES, LIT_KM, locate
+from app.services.circles import CIRCLES, LIT_KM, coarse_area_en, locate
+from app.services.i18n import COUNTRY_EN, is_en, lang_header
 from app.services.progress import DAILY_LIVES, lives_left, roam_done, roam_played
 from app.services.scoring import DECAY_KM, final_score, haversine_km, pool_decay_km
 from app.services.understood import CLOSE_KM
@@ -320,7 +332,11 @@ async def _get_open_round(session: AsyncSession, round_id: int, user: User) -> t
 
 @router.post("/rounds/{round_id}/hints")
 async def unlock_hint(
-    round_id: int, body: HintIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+    round_id: int,
+    body: HintIn,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
 ):
     if body.level not in (1, 2, 3, 4):
         raise HTTPException(422, "invalid_hint_level")
@@ -332,7 +348,32 @@ async def unlock_hint(
         raise HTTPException(404, "hint_not_available")
     rnd.hints_mask |= 1 << (body.level - 1)
     await session.commit()
-    return {"level": body.level, "content": hint.content, "hints_mask": rnd.hints_mask}
+    content = hint.content
+    if is_en(lang):
+        content = await _hint_en(session, rnd.photo_id, body.level, content)
+    return {"level": body.level, "content": content, "hints_mask": rnd.hints_mask}
+
+
+async def _hint_en(session: AsyncSession, photo_id: int, level: int, zh: str) -> str:
+    """这条提示的英文版。
+
+    ③国家和④方位是程序拼出来的,现算比存一份更省事——照片的坐标和国名都在手边。
+    ①故事和②AI线索是内容,只能预先翻好存进 hint_translations;没翻的照原样给中文,
+    宁可露一句中文,也不能让这一关没有提示。
+    """
+    photo = await session.get(Photo, photo_id)
+    if level == 3 and photo and photo.country:
+        return COUNTRY_EN.get(photo.country, photo.country)
+    if level == 4 and photo and photo.country:
+        return coarse_area_en(photo.country, photo.lat, photo.lng)
+    row = await session.scalar(
+        select(HintTranslation.content).where(
+            HintTranslation.photo_id == photo_id,
+            HintTranslation.level == level,
+            HintTranslation.lang == "en",
+        )
+    )
+    return row or zh
 
 
 @router.post("/rounds/{round_id}/guess")

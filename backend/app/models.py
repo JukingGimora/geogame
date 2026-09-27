@@ -80,6 +80,28 @@ class Hint(Base):
     source: Mapped[str] = mapped_column(String(16))  # uploader | ai | system
 
 
+class HintTranslation(Base):
+    """提示的译文。故事(①)和 AI 线索(②)是中文内容,H5 是给外语用户看的。
+
+    单开一张表而不是给 hints 加一列:加列的话唯一约束要从 (photo_id, level) 变成
+    带语言的三元组,SQLite 改不了已有的约束,线上就得倒表。新表 create_all 直接建,
+    不用手工迁移(见运维手册第 2 节)。
+
+    没有译文就照原样显示中文——宁可露一句中文,也不能因为没翻到就让这一关没有提示。
+    """
+
+    __tablename__ = "hint_translations"
+    __table_args__ = (UniqueConstraint("photo_id", "level", "lang"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    photo_id: Mapped[int] = mapped_column(ForeignKey("photos.id"), index=True)
+    level: Mapped[int] = mapped_column(Integer)
+    lang: Mapped[str] = mapped_column(String(8))
+    content: Mapped[str] = mapped_column(String(600))
+    # 哪个模型翻的:换模型重翻时要知道旧的是谁产的
+    model: Mapped[str] = mapped_column(String(48), default="")
+
+
 class AIGuess(Base):
     __tablename__ = "ai_guesses"
 

@@ -11,6 +11,7 @@ from app.db import get_session
 from app.models import Photo, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM
+from app.services.i18n import CIRCLE_DESC_EN, is_en, lang_header
 from app.services.progress import lives_left, roam_done
 
 router = APIRouter(prefix="/circles", tags=["circles"])
@@ -18,7 +19,9 @@ router = APIRouter(prefix="/circles", tags=["circles"])
 
 @router.get("")
 async def list_circles(
-    user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
 ):
     live = dict(
         (
@@ -61,8 +64,10 @@ async def list_circles(
         "roam_done": await roam_done(session, user),
         "items": [
             {
+                # name 一直是中文:它是配色表的键,也是开局时回传的 chapter。
+                # 只有 desc 换语言,名字由前端按同一张表翻显示
                 "name": name,
-                "desc": desc,
+                "desc": CIRCLE_DESC_EN.get(name, desc) if is_en(lang) else desc,
                 "photos": live.get(name, 0),
                 "played": played.get(name, (0, None, 0))[0],
                 # 认出来过的张数:地图的亮度按它算,越认得多越亮

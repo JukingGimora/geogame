@@ -16,6 +16,7 @@ from app.models import Photo, Round, Run, User
 from app.services import understood
 from app.services.auth import get_current_user
 from app.services.circles import COUNTRY_CODE, LIT_KM
+from app.services.i18n import COUNTRY_EN, is_en, lang_header
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -25,6 +26,7 @@ async def profile(
     user_id: int,
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
 ):
     user = await session.get(User, user_id)
     if not user:
@@ -74,8 +76,10 @@ async def profile(
         "best_streak": best_streak or 0,
         "circles": sorted({c for c, _ in rows if c}),
         # 国家带上国旗:一排国旗比一排国名好认,也不挑语言
+        # 国名按请求的语言给;国旗跟语言无关
         "countries": [
-            {"name": name, "flag": _flag(name)} for name in sorted({c for _, c in rows if c})
+            {"name": COUNTRY_EN.get(name, name) if is_en(lang) else name, "flag": _flag(name)}
+            for name in sorted({c for _, c in rows if c})
         ],
     }
 

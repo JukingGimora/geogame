@@ -25,6 +25,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { MAP_THEME } from '../lib/theme'
+import { t } from '../locale'
 import type { LngLat } from '../lib/geo'
 import type { MapMarker } from '../lib/mapRender'
 
@@ -52,9 +53,9 @@ const scale = ref(4)
 // 三个标记原来共用一张图、一个颜色,揭晓时谁也分不出谁是谁。
 // 微信的 marker 支持 label,直接把"你/真实/AI"写在旁边,比图例好认
 const LABELS: Record<MapMarker['kind'], { text: string; bg: string }> = {
-  pick: { text: '你', bg: MAP_THEME.pick },
-  guess: { text: '你', bg: MAP_THEME.pick },
-  truth: { text: '真实', bg: MAP_THEME.truth },
+  pick: { text: t('common.you'), bg: MAP_THEME.pick },
+  guess: { text: t('common.you'), bg: MAP_THEME.pick },
+  truth: { text: t('common.truth'), bg: MAP_THEME.truth },
   ai: { text: 'AI', bg: MAP_THEME.ai },
 }
 

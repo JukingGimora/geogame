@@ -6,6 +6,7 @@
 </template>
 
 <script setup lang="ts">
+import { t } from '../locale'
 import { computed } from 'vue'
 
 /**
@@ -43,14 +44,16 @@ function shade(hex: string, t: number): string {
 }
 
 // 昵称里可能带 #用户编号 这类后缀,只拿名字部分显示
-const name = computed(() => (props.seed || '旅行者').split('#')[0].trim() || '旅')
+// 兜底也走语言文件:写死一个「旅」字的话,英文版会在一排拉丁字母里冒出个汉字
+const fallback = t('common.traveler')
+const name = computed(() => (props.seed || fallback).split('#')[0].trim() || fallback)
 const initials = computed(() => {
   const n = name.value
   // 中文一个字就够认,拉丁字母太窄,取两个
   return /[一-龥]/.test(n[0]) ? n[0] : n.slice(0, 2).toUpperCase()
 })
 
-const base = computed(() => COLORS[hash(props.seed || '旅行者') % COLORS.length])
+const base = computed(() => COLORS[hash(props.seed || t('common.traveler')) % COLORS.length])
 
 const cells = computed(() => {
   const step = 100 / GRID

@@ -37,8 +37,41 @@ _TOTAL = len(_ADJ) * len(_NOUN)
 _STRIDE = 1103
 
 
+# 英文版的名字池。H5 是给外语用户看的,榜上一排汉字他一个也认不出、也读不出来,
+# 就没法在乎自己排第几——这正是当初把默认名从"旅行者"换掉的理由。
+# 不翻中文那套:"赶夜路的骆驼"直译过来又长又怪,重新配一套同样调子的
+_ADJ_EN = (
+    "Lost", "Night-walking", "Star-counting", "Umbrella-carrying", "Never-asking",
+    "Stop-missing", "Sunset-chasing", "Last-bus", "Stone-picking", "Cold-fearing",
+    "Rain-loving", "Backroad", "Mapless", "Roadside", "Always-late", "Sign-reading",
+    "Wind-listening", "Bloom-waiting", "Old-pack", "Cloud-shooting", "Long-way",
+    "Early-train", "Dialect-knowing", "Pass-resting", "Upstream", "One-bag",
+    "Stub-keeping", "Star-reading", "Window-seat", "Wrong-platform", "Snow-waiting",
+    "Heat-fearing", "Pole-counting", "Midnight", "Breakfast-skipping", "Umbrella-losing",
+    "Salt-smelling", "Road-ending", "Bench-sleeping", "Train-running", "Weather-asking",
+    "River-remembering", "Camera-shy", "Ferry-waiting", "Ridge-crossing", "Coat-tied",
+    "Rail-following", "Market-going",
+)
+
+_NOUN_EN = (
+    "Camel", "Traveller", "Driver", "Postman", "Boatman", "Backpacker",
+    "Nightkeeper", "Passerby", "Gleaner", "Stranger", "Pilgrim", "Carter",
+    "Surveyor", "Shepherd", "Ferrygoer", "Watchman", "Mapmaker", "Seawatcher",
+    "Pathkeeper", "Nightfarer", "Highlander", "Fisher", "Hauler", "Porter",
+    "Watchmender", "Herbalist", "Ranger", "Lightkeeper", "Netmender", "Tidegoer",
+    "Kiteflyer", "Teaseller", "Conductor", "Longhauler", "StationCat", "Migrant",
+    "Mailrider", "Trackwalker", "Fairgoer", "Ferryhand",
+)
+
+_TOTAL_EN = len(_ADJ_EN) * len(_NOUN_EN)
+
+
 def _compose(i: int) -> str:
     return f"{_ADJ[i % len(_ADJ)]}{_NOUN[i // len(_ADJ)]}"
+
+
+def _compose_en(i: int) -> str:
+    return f"{_ADJ_EN[i % len(_ADJ_EN)]} {_NOUN_EN[i // len(_ADJ_EN)]}"
 
 
 def default_nickname(user_id: int) -> str:
@@ -50,17 +83,22 @@ def default_nickname(user_id: int) -> str:
     return name if cycle == 0 else f"{name}{cycle + 1}"
 
 
-def pick_nickname(taken: set[str], tries: int = 12) -> str:
+def pick_nickname(taken: set[str], tries: int = 12, lang: str = "zh") -> str:
     """随机挑一个还没人用的名字。
 
     1920 个组合,几百个用户的时候随机撞车的概率不低,所以挑完要看一眼有没有被占。
     实在挑不到(名字池快满了)就在后面缀个编号,总之不让两个人同名。
+
+    lang 决定从哪个池子挑:从英文 H5 进来的人拿英文名字,否则中文。
+    挑完就定下来了,以后换语言看也不会变——名字是这个人的,不是界面的一部分。
     """
+    english = lang.lower().startswith("en")
+    compose, total = (_compose_en, _TOTAL_EN) if english else (_compose, _TOTAL)
     for _ in range(tries):
-        name = _compose(random.randrange(_TOTAL))
+        name = compose(random.randrange(total))
         if name not in taken:
             return name
-    base = _compose(random.randrange(_TOTAL))
+    base = compose(random.randrange(total))
     n = 2
     while f"{base}{n}" in taken:
         n += 1
