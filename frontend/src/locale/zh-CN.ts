@@ -172,7 +172,9 @@ export default {
     title: '我的行囊',
     editProfile: '编辑昵称',
     empty: '还没有上传过照片',
-    delete: '删除',
+    // 不要叫 delete:它是 JS 保留字,取值时会被当成对象自己的 delete 方法,
+    // 页面上渲染出来是 [object Object]
+    removeLabel: '删除',
     deleteConfirm: '删掉这张照片？',
     deleteHint: '删除后无法恢复',
     deleted: '已删除',

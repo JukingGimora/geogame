@@ -20,7 +20,7 @@
       <view class="meta">
         <view class="meta-top">
           <text class="status" :class="p.status">{{ statusText[p.status] }}</text>
-          <text class="del" @tap="removePhoto(p)">{{ t('mine.delete') }}</text>
+          <text class="del" @tap="removePhoto(p)">{{ t('mine.removeLabel') }}</text>
         </view>
         <text v-if="p.status === 'live'" class="seen">
           {{ t('mine.photoStat', { seen: p.seen, understood: p.understood }) }}
