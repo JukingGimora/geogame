@@ -28,6 +28,7 @@ from sqlalchemy import select  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db import async_session_maker  # noqa: E402
 from app.models import Hint, HintTranslation, Photo  # noqa: E402
+from app.services.i18n import COUNTRY_EN  # noqa: E402
 
 LEVELS = (1, 2)
 LANG = "en"
@@ -38,6 +39,11 @@ SYSTEM = (
     "Rules, in order of importance:\n"
     "1. Never add a place name, region, country or landmark that is not already in the source. "
     "If the source is vague about where it is, the translation must be exactly as vague.\n"
+    "   In particular: when the source gives only a direction or a relative region and does NOT "
+    "name the country, your translation must not name it either. "
+    "Translate 北方某超大城市 as 'a megacity in the north', never 'a megacity in northern China'. "
+    "Naming the country is a separate, more expensive hint in this game — "
+    "leaking it here hands the player the answer at a discount.\n"
     "2. Keep hedged wording hedged. 'looks like', 'probably', 'could be' stay uncertain; "
     "never turn a guess into a statement.\n"
     "3. Keep the register: a traveller's own note stays personal and plain; "
@@ -87,6 +93,30 @@ async def translate(client: httpx.AsyncClient, model: str, text: str) -> str:
     return r.json()["choices"][0]["message"]["content"].strip()
 
 
+def _leaked(zh: str, en: str) -> str | None:
+    """译文点了原文没点的国家吗。
+
+    实测过:中文只说"北方某超大城市",模型译成 "a megacity in northern China" ——
+    国家是提示③,单独收四成分。线索②里泄出来,等于把答案打折卖了。
+    自动查一遍比人眼翻四百条可靠。
+    """
+    low = en.lower()
+    for zh_name, en_name in COUNTRY_EN.items():
+        # 原文提了就不算泄露
+        if zh_name in zh:
+            continue
+        # 整词匹配:China 不该被 Chinatown 之类误伤,也别被 Chinese 带出来
+        for word in (en_name.lower(), en_name.lower() + "ese", en_name.lower() + "n"):
+            i = low.find(word)
+            if i < 0:
+                continue
+            before = low[i - 1] if i else " "
+            after = low[i + len(word)] if i + len(word) < len(low) else " "
+            if not before.isalpha() and not after.isalpha():
+                return en_name
+    return None
+
+
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default=os.environ.get("GEOGAME_TRANSLATE_MODEL", "qwen-mt-plus"))
@@ -130,6 +160,7 @@ async def main() -> int:
 
         sem = asyncio.Semaphore(args.concurrency)
         ok = fail = 0
+        leaks: list[tuple[int, int, str, str, str]] = []
 
         async with httpx.AsyncClient() as client:
             async def one(pid: int, lv: int, zh: str) -> None:
@@ -157,12 +188,20 @@ async def main() -> int:
                         )
                     )
                 ok += 1
+                leak = _leaked(zh, en)
+                if leak:
+                    leaks.append((pid, lv, leak, zh, en))
                 if ok <= 6:   # 头几条打出来,方便一眼看住质量
                     print(f"  photo {pid} 等级{lv}\n    中 {zh}\n    英 {en}")
 
             await asyncio.gather(*(one(p, lv, c) for p, lv, c in todo))
         await session.commit()
         print(f"\n成功 {ok} 条,失败 {fail} 条")
+        if leaks:
+            print(f"\n★ {len(leaks)} 条译文点了原文没点的国家,人眼看一遍:")
+            for pid, lv, name, zh, en in leaks:
+                print(f"  photo {pid} 等级{lv} 多出了「{name}」\n    中 {zh}\n    英 {en}")
+            print("  改掉 prompt 再 --redo,或者单张手改")
         return 1 if fail and not ok else 0
 
 
