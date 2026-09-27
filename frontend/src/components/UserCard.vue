@@ -18,7 +18,7 @@
 
       <view v-if="data && data.circles.length" class="lit">
         <text class="lit-title">{{ t('card.litTitle') }}</text>
-        <text v-for="c in data.circles" :key="c" class="lit-chip">{{ c }}</text>
+        <text v-for="c in data.circles" :key="c" class="lit-chip">{{ circleName(c) }}</text>
       </view>
       <text v-if="data && trail" class="trail">{{ trail }}</text>
       <text v-if="failed" class="failed">{{ t('card.failed') }}</text>
@@ -33,6 +33,7 @@ import { computed, ref, watch } from 'vue'
 import { api } from '../api'
 import { t } from '../locale'
 import { logEvent } from '../lib/analytics'
+import { circleName } from '../lib/circleName'
 import PixelAvatar from './PixelAvatar.vue'
 
 interface Profile {

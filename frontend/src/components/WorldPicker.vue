@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, watch } from 'vue'
-import { tMap } from '../locale'
+import { circleName } from '../lib/circleName'
 import { BASE_URL } from '../api'
 import { CIRCLE_COLORS, THEME } from '../lib/theme'
 import type { LngLat } from '../lib/geo'
@@ -112,12 +112,6 @@ function splitAtSeam(ring: Ring): Ring[] {
 }
 
 // 和首页那张图用同一批落点,免得两处对不上
-/** 圈名只翻显示的那一面:LABELS 里的中文同时是配色表的键,不能动 */
-const CIRCLE_NAMES = tMap('circles')
-
-function circleName(zh: string): string {
-  return CIRCLE_NAMES[zh] || zh
-}
 
 const LABELS: [string, number, number][] = [
   ['东亚', 36, 108],

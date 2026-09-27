@@ -1,7 +1,14 @@
 <template>
   <view class="home" :style="{ paddingTop: `${topOffset + 48}px` }">
     <view class="header">
-      <text class="g-title">{{ t('map.title') }}</text>
+      <view class="title-row">
+        <text class="g-title">{{ t('map.title') }}</text>
+        <!-- #ifdef H5 -->
+        <!-- 默认英文,所以中文用户一进来就得有地方切回去。摆在标题旁边,
+             不埋在设置里:他看不懂这一页,翻设置也找不着 -->
+        <text class="lang" @tap="switchLang">{{ otherLangLabel }}</text>
+        <!-- #endif -->
+      </view>
       <text class="sub">{{ subtitle }}</text>
     </view>
 
@@ -18,14 +25,14 @@
         @tap="onPick(c.name)"
       >
         <view class="dot" :style="{ background: colorOf(c.name), opacity: c.lit ? 1 : 0.45 }" />
-        <text class="chip-name">{{ c.name }}</text>
+        <text class="chip-name">{{ circleName(c.name) }}</text>
         <text class="chip-count">{{ c.photos }}</text>
       </view>
     </view>
 
     <view class="picked" v-if="active">
       <view class="picked-head">
-        <text class="picked-name px-font">{{ active.name }}</text>
+        <text class="picked-name px-font">{{ circleName(active.name) }}</text>
         <text class="picked-count">
           {{ active.photos > 0 ? t('map.circlePhotos', { n: active.photos }) : t('map.circleEmpty') }}
         </text>
@@ -75,6 +82,10 @@ import { enableShareMenu } from '../../lib/share'
 import { startRun } from '../../lib/play'
 import { logEvent } from '../../lib/analytics'
 import { CIRCLE_COLORS } from '../../lib/theme'
+import { circleName } from '../../lib/circleName'
+// #ifdef H5
+import { otherLangLabel, otherLangUrl } from '../../locale/lang'
+// #endif
 
 interface Circle {
   name: string
@@ -155,7 +166,7 @@ const canStart = computed(
 const startLabel = computed(() => {
   if (livesLeft.value <= 0) return t('map.noLives')
   const c = active.value
-  if (c && c.photos > 0) return t('map.startCircle', { name: c.name })
+  if (c && c.photos > 0) return t('map.startCircle', { name: circleName(c.name) })
   return roamDone.value ? t('map.pickFirst') : t('map.roam')
 })
 
@@ -175,6 +186,13 @@ function onRevive() {
   logEvent('revive_click', 'page')
   uni.navigateTo({ url: '/pages/upload/upload' })
 }
+
+// #ifdef H5
+function switchLang() {
+  logEvent('lang_switch', 'page', undefined, { to: otherLangLabel })
+  window.location.href = otherLangUrl()
+}
+// #endif
 
 function go(url: string) {
   logEvent('home_nav', 'page', undefined, { to: url.split('/').pop() })
@@ -203,6 +221,20 @@ onShareTimeline(() => ({
 
 .header {
   margin-bottom: 20rpx;
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.lang {
+  color: var(--ink-faint);
+  font-size: 24rpx;
+  border: 1px solid var(--line);
+  border-radius: 999rpx;
+  padding: 4rpx 18rpx;
 }
 
 .map-bleed {

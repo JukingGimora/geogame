@@ -1,0 +1,1 @@
+const a={bgSunken:"#0f0c08",inkFaint:"#6b5f4a",accent:"#f5a33c",good:"#8fd3a8",warn:"#e0785e"},f={"西欧":"#1f5fa8","东欧":"#2196f3","伊斯兰":"#ef3e33","东亚":"#f5d020","南亚":"#e2632a","非洲":"#f0942f","拉美":"#5b2c91","东南亚":"#3fa34d","太平洋":"#17a2a2"};export{f as C,a as T};

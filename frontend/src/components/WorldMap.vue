@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { getCurrentInstance, onMounted, ref, watch } from 'vue'
-import { tMap } from '../locale'
+import { circleName } from '../lib/circleName'
 import { BASE_URL } from '../api'
 import { CIRCLE_COLORS, THEME } from '../lib/theme'
 
@@ -250,12 +250,6 @@ function paintOutlines(ctx: any) {
   }
 }
 
-/** 圈名只翻显示的那一面:LABELS 里的中文同时是配色表的键,不能动 */
-const CIRCLE_NAMES = tMap('circles')
-
-function circleName(zh: string): string {
-  return CIRCLE_NAMES[zh] || zh
-}
 
 /** 圈名标在自己那块地上,否则这张图只是"一堆颜色" */
 function paintLabels(ctx: any) {

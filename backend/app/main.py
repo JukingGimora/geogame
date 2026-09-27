@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import admin, auth, circles, events, feedback, geo, leaderboard, photos, play, regions, users
@@ -49,21 +49,42 @@ app.include_router(play.router, prefix=API, dependencies=LIMITED)
 app.include_router(admin.router, prefix=API, dependencies=LIMITED)
 
 app.mount("/uploads", StaticFiles(directory=str(settings.upload_path)), name="uploads")
-@app.get("/h5test/")
-async def h5_index():
+# 网页版:同一份产物挂在两个路径下,`/en` 是英文、`/zh` 是中文。
+# 语言写进路径而不是只用查询参数,是为了能直接把链接发给人——
+# 发一个 ?lang=zh 出去,对方一看就知道这是"改过设置的英文站",不像个中文站。
+# 能这么挂是因为构建用的相对资源路径(vite base: "./")加 hash 路由,
+# 换成绝对 base 或 history 路由,第二个挂载点就会 404。
+WEB_DIR = Path(__file__).parent / "static" / "web"
+# 目录不在也要能起:网页版产物是 rsync 上去的,不进 git。少了它只该是网页打不开,
+# 不该让整个后端起不来——所有接口跟着一起挂,代价完全不对等
+WEB_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _web_index() -> FileResponse:
     # 不缓存入口页:脚本名带哈希会变,但 index.html 被浏览器缓存住的话,
     # 新版发出去了用户还在跑旧的——排查这事白白花过一轮
-    return FileResponse(
-        Path(__file__).parent / "static" / "h5test" / "index.html",
-        headers={"Cache-Control": "no-cache"},
-    )
+    return FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
-app.mount(
-    "/h5test",
-    StaticFiles(directory=str(Path(__file__).parent / "static" / "h5test"), html=True),
-    name="h5test",
-)
+@app.get("/en/")
+async def web_index_en():
+    return _web_index()
+
+
+@app.get("/zh/")
+async def web_index_zh():
+    return _web_index()
+
+
+@app.get("/h5test")
+@app.get("/h5test/")
+async def h5_legacy():
+    """旧地址。发出去的链接、二维码不该因为改路径就废掉。"""
+    return RedirectResponse("/en/", status_code=301)
+
+
+for _lang in ("en", "zh"):
+    app.mount(f"/{_lang}", StaticFiles(directory=str(WEB_DIR), html=True), name=f"web-{_lang}")
 
 
 @app.get("/admin")

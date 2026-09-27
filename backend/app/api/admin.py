@@ -33,6 +33,7 @@ from app.services.progress import LIFE_BACK
 from app.services.cities import nearest_city
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
+from app.services.translate import translate_photo_hints
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -136,8 +137,14 @@ async def approve_photo(photo_id: int, session: AsyncSession = Depends(get_sessi
     # 万一当时后台任务失败,兜底再跑一次,不让图带着空 AI 上线。
     await enrich_photo(photo.id)
     await _generate_system_hints(session, photo)
+    await session.flush()
+    # 顺手翻成英文。不翻的话每通过一张图,英文版上那一关的故事和线索就多一条中文,
+    # 而且要等外语用户来告诉你才发现。两次调用、约 0.1 分钱,并发跑大约多等一两秒。
+    # 翻不出来不算审核失败(阿里的内容审核会拦下一些完全正常的句子),
+    # 没译文时英文版照原样显示中文
+    translated = await translate_photo_hints(session, photo.id)
     await session.commit()
-    return {"id": photo.id, "status": photo.status}
+    return {"id": photo.id, "status": photo.status, "translated": translated}
 
 
 @router.post("/photos/enrich-missing")

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     ai_api_key: str | None = None
     ai_base_url: str | None = None  # OpenAI 兼容地址,不带尾部斜杠
     ai_model: str = "qwen3.7-flash"
+    # 翻提示用的模型,跟看图那个分开配:翻译不需要视觉,也不需要思考。
+    # qwen-mt-* 那一系是专用翻译模型,但不收 system 角色,约束送不进去(见 services/translate.py)
+    translate_model: str = "qwen3.7-flash"
 
     # 待审提醒邮件:没配就不发,不影响其他功能
     smtp_host: str | None = None

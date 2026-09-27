@@ -1,0 +1,1 @@
+import{r as o,l as i,K as n,z as a}from"./index-CMu1Wvtp.js";function t(t){const c=o(!1);return{show:c,check:async function(){try{const o=await a.me();c.value=!0===o.default_name,c.value&&i("profile_hint_view","",void 0,{location:t})}catch{c.value=!1}},go:function(){i("profile_hint_click","",void 0,{location:t}),n({url:"/pages/login/login"})}}}export{t as u};

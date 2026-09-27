@@ -72,7 +72,7 @@
         <!-- #endif -->
         <text v-if="result.place" class="place">{{ t('play.placeLabel', { place: result.place }) }}</text>
         <view class="earned">
-          <text v-if="result.circle_lit" class="tag lit">{{ t('play.circleLit', { name: result.circle }) }}</text>
+          <text v-if="result.circle_lit" class="tag lit">{{ t('play.circleLit', { name: circleName(result.circle) }) }}</text>
           <text v-else-if="result.country_match" class="tag ok">{{ t('play.countryMatch', { name: result.country }) }}</text>
         </view>
         <view class="stats">
@@ -162,6 +162,7 @@ import { api, BASE_URL } from '../../api'
 import { t, tList } from '../../locale'
 import { addFogPoint } from '../../lib/fogStore'
 import { logEvent } from '../../lib/analytics'
+import { circleName } from '../../lib/circleName'
 import { errorMessage } from '../../lib/errors'
 import { enableShareMenu } from '../../lib/share'
 import { useProfileHint } from '../../lib/profileHint'

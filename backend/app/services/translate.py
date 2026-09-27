@@ -1,0 +1,168 @@
+"""把故事(提示①)和 AI 线索(提示②)翻成英文。
+
+H5 是给外语用户看的,但这两条是内容不是模板:故事是上传者自己写的,线索是模型写的,
+只能预先翻好存进 hint_translations。提示③④(国家、方位)不在这里——那两条是程序拼的,
+读的时候现算(见 api/play.py 的 _hint_en)。
+
+审核通过时顺手翻,不然每通过一张照片,英文版上那一关就多一条中文——
+这个洞会自己长大,而且要等外语用户来告诉你才发现。
+批量补历史存量用 tools/translate_hints.py,它跟这里共用同一段 prompt 和同一套检查:
+两边各写一份的话,总有一天会只改其中一份。
+"""
+import asyncio
+import logging
+
+import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.models import Hint, HintTranslation
+from app.services.i18n import COUNTRY_EN, DEMONYM_EN, SOURCE_ALIAS
+
+logger = logging.getLogger(__name__)
+
+LEVELS = (1, 2)   # ①故事 ②AI线索。③④ 是程序拼的,读的时候现算
+LANG = "en"
+
+# 忠实翻译,不是改写。多说一个字、少说一个字都会改变这一关的难度
+SYSTEM = (
+    "You translate Chinese text from a photo-location guessing game into natural English.\n"
+    "Rules, in order of importance:\n"
+    "1. Never add a place name, region, country or landmark that is not already in the source. "
+    "If the source is vague about where it is, the translation must be exactly as vague.\n"
+    "   In particular: when the source gives only a direction or a relative region and does NOT "
+    "name the country, your translation must not name it either. "
+    "Translate 北方某超大城市 as 'a megacity in the north', never 'a megacity in northern China'. "
+    "Naming the country is a separate, more expensive hint in this game — "
+    "leaking it here hands the player the answer at a discount.\n"
+    "2. Keep hedged wording hedged. 'looks like', 'probably', 'could be' stay uncertain; "
+    "never turn a guess into a statement.\n"
+    "3. Keep the register: a traveller's own note stays personal and plain; "
+    "reasoning notes stay matter-of-fact.\n"
+    "4. Output the translation only. No quotes, no notes, no romanisation of Chinese words "
+    "the reader does not need.\n"
+)
+
+
+def payload(model: str, text: str) -> dict:
+    """两种模型两种形状。
+
+    qwen-mt-* 是专用翻译模型,**不收 system 角色**(实测直接 400:
+    Role must be in [user, assistant]),约束只能塞进它自己的 translation_options.domains。
+    通用模型走正常的 system + user;qwen3 系是思考模型,一条 87 字的句子会烧掉两千多个
+    思考 token,所以关掉思考——翻译不需要它想。
+    """
+    if model.startswith("qwen-mt"):
+        return {
+            "model": model,
+            "messages": [{"role": "user", "content": text}],
+            "translation_options": {
+                "source_lang": "Chinese",
+                "target_lang": "English",
+                "domains": SYSTEM,
+            },
+        }
+    return {
+        "model": model,
+        "temperature": 0,
+        "enable_thinking": False,
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": text},
+        ],
+    }
+
+
+def leaked(zh: str, en: str) -> str | None:
+    """译文点了原文没点的国家吗。
+
+    实测过:中文只说"北方某超大城市",模型译成 "a megacity in northern China" ——
+    国家是提示③,单独收四成分。线索②里泄出来,等于把答案打折卖了。
+    自动查一遍比人眼翻四百条可靠。
+    """
+    low = en.lower()
+    for zh_name, en_name in COUNTRY_EN.items():
+        # 原文点过就不算泄露。"华人""汉字""沙俄"这些也算点过,见 SOURCE_ALIAS
+        if any(a in zh for a in SOURCE_ALIAS.get(zh_name, (zh_name,))):
+            continue
+        for word in (en_name, *DEMONYM_EN.get(zh_name, ())):
+            w = word.lower()
+            i = low.find(w)
+            if i < 0:
+                continue
+            # 整词匹配:China 不该被 Chinatown 之类误伤
+            before = low[i - 1] if i else " "
+            after = low[i + len(w)] if i + len(w) < len(low) else " "
+            if not before.isalpha() and not after.isalpha():
+                return word
+    return None
+
+
+async def translate_text(client: httpx.AsyncClient, model: str, text: str) -> str:
+    r = await client.post(
+        f"{settings.ai_base_url}/chat/completions",
+        headers={"Authorization": f"Bearer {settings.ai_api_key}"},
+        json=payload(model, text),
+        timeout=90,
+    )
+    r.raise_for_status()
+    return r.json()["choices"][0]["message"]["content"].strip()
+
+
+async def translate_photo_hints(session: AsyncSession, photo_id: int, model: str | None = None) -> int:
+    """给这张照片的提示①②补英文译文,返回成功几条。
+
+    **翻不出来不算审核失败。** 阿里的内容审核会拦下一些完全正常的句子
+    (实测「仿民国时期的电影街区」就被判 data_inspection_failed),
+    没配 AI 的环境更是一条都翻不了。两种情况都只记一行日志:
+    没有译文时英文版照原样显示中文,一关也不会缺提示。
+    """
+    if not settings.ai_api_key or not settings.ai_base_url:
+        return 0
+    model = model or settings.translate_model
+    rows = (
+        await session.execute(
+            select(Hint.level, Hint.content).where(
+                Hint.photo_id == photo_id, Hint.level.in_(LEVELS)
+            )
+        )
+    ).all()
+    todo = [(lv, zh) for lv, zh in rows if zh]
+    if not todo:
+        return 0
+
+    async with httpx.AsyncClient() as client:
+        results = await asyncio.gather(
+            *(translate_text(client, model, zh) for _, zh in todo),
+            return_exceptions=True,
+        )
+
+    ok = 0
+    for (lv, zh), en in zip(todo, results):
+        if isinstance(en, BaseException) or not en:
+            logger.warning("translate photo %s level %s failed: %r", photo_id, lv, en)
+            continue
+        if leak := leaked(zh, en):
+            # 泄露了就干脆不存:英文用户看到中文原文,比看到一条送分的线索好
+            logger.warning(
+                "translate photo %s level %s leaked %r, 丢弃这条译文", photo_id, lv, leak
+            )
+            continue
+        old = await session.scalar(
+            select(HintTranslation).where(
+                HintTranslation.photo_id == photo_id,
+                HintTranslation.level == lv,
+                HintTranslation.lang == LANG,
+            )
+        )
+        if old:
+            old.content, old.model = en[:600], model
+        else:
+            session.add(
+                HintTranslation(
+                    photo_id=photo_id, level=lv, lang=LANG, content=en[:600], model=model
+                )
+            )
+        ok += 1
+    return ok
