@@ -32,6 +32,20 @@ def day_bounds(user: User) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
+async def roam_played(session: AsyncSession, user: User) -> int:
+    """他一共走完了几关漫游。
+
+    按人算,不按局算:中途退出再进来应该接着往下走,不该从第一关重来。
+    走过两关的人只该再走一关——发他一局新的三关,他会觉得刚才那两关白打了。
+    """
+    return await session.scalar(
+        select(func.count(Round.id))
+        .select_from(Round)
+        .join(Run, Round.run_id == Run.id)
+        .where(Run.user_id == user.id, Run.mode == "roam", Round.finished_at.is_not(None))
+    ) or 0
+
+
 async def roam_done(session: AsyncSession, user: User) -> bool:
     """他走完新手那三关了没有。
 
@@ -39,15 +53,7 @@ async def roam_done(session: AsyncSession, user: User) -> bool:
     作用是让人先玩上,再把世界地图交给他。走完就该收起来,
     否则命耗光的人可以靠它无限玩下去,"一天三条命"就成了空话。
     """
-    return bool(
-        await session.scalar(
-            select(func.count(Round.id))
-            .select_from(Round)
-            .join(Run, Round.run_id == Run.id)
-            .where(Run.user_id == user.id, Run.mode == "roam", Round.finished_at.is_not(None))
-            .having(func.count(Round.id) >= ROAM_ROUNDS)
-        )
-    )
+    return await roam_played(session, user) >= ROAM_ROUNDS
 
 
 async def lives_left(session: AsyncSession, user: User) -> int:

@@ -9,7 +9,7 @@ from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM, locate
-from app.services.progress import DAILY_LIVES, lives_left, roam_done
+from app.services.progress import DAILY_LIVES, lives_left, roam_done, roam_played
 from app.services.scoring import DECAY_KM, final_score, haversine_km, pool_decay_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
@@ -81,7 +81,8 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
 
     playable = q
     played_ids = await _played_photo_ids(session, user)
-    want = ROAM_ROUNDS if body.mode == "roam" else PREFETCH
+    # 漫游只发他还欠的那几关:走过两关的人再进来是补最后一关,不是重打三关
+    want = (ROAM_ROUNDS - await roam_played(session, user)) if body.mode == "roam" else PREFETCH
     # 多抓一些再筛:随机拿到的那几张可能全挤在一个地方
     candidates = list(
         await session.scalars(
@@ -278,7 +279,9 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
         "total_score": run.total_score,
         "mode": run.mode,
         "lives_left": DAILY_LIVES if run.mode == "roam" else await lives_left(session, user),
-        "streak": finished_rounds,
+        # 漫游的进度是"三关里的第几关",按人算——这一局可能只有最后一关,
+        # 报本局的关数会让顶上的点退回一个、写成"第1关/共3关"
+        "streak": await roam_played(session, user) if run.mode == "roam" else finished_rounds,
         "total_rounds": ROAM_ROUNDS if run.mode == "roam" else None,
         "rank": rank,
         "rounds": out,
@@ -340,10 +343,8 @@ async def submit_guess(
     left = DAILY_LIVES if roam else await lives_left(session, user)
     ended = None
     if roam:
-        finished_rounds = await session.scalar(
-            select(func.count(Round.id)).where(Round.run_id == run.id, Round.finished_at.is_not(None))
-        )
-        if finished_rounds >= ROAM_ROUNDS:
+        # 也按人算:这一局可能只有一关(他之前走过两关了),走完就是引导结束
+        if await roam_played(session, user) >= ROAM_ROUNDS:
             ended = "roam_done"
     elif left <= 0:
         ended = "lives"
