@@ -22,6 +22,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { MAP_THEME } from '../lib/theme'
 import type { LngLat } from '../lib/geo'
 import type { MapMarker } from '../lib/mapRender'
 
@@ -46,16 +47,38 @@ const mapId = 'pick-map'
 const center = ref<LngLat>({ lat: 35, lng: 105 })
 const scale = ref(4)
 
+// 三个标记原来共用一张图、一个颜色,揭晓时谁也分不出谁是谁。
+// 微信的 marker 支持 label,直接把"你/真实/AI"写在旁边,比图例好认
+const LABELS: Record<MapMarker['kind'], { text: string; bg: string }> = {
+  pick: { text: '你', bg: MAP_THEME.pick },
+  guess: { text: '你', bg: MAP_THEME.pick },
+  truth: { text: '真实', bg: MAP_THEME.truth },
+  ai: { text: 'AI', bg: MAP_THEME.ai },
+}
+
 const markerList = computed(() =>
-  props.markers.map((m, i) => ({
-    id: i,
-    latitude: m.lat,
-    longitude: m.lng,
-    iconPath: '/static/marker-pick.png',
-    width: 26,
-    height: 26,
-    anchor: { x: 0.5, y: 1 },
-  })),
+  props.markers.map((m, i) => {
+    const tag = LABELS[m.kind] ?? LABELS.pick
+    return {
+      id: i,
+      latitude: m.lat,
+      longitude: m.lng,
+      iconPath: '/static/marker-pick.png',
+      width: 26,
+      height: 26,
+      anchor: { x: 0.5, y: 1 },
+      label: {
+        content: tag.text,
+        color: '#16110c',
+        bgColor: tag.bg,
+        fontSize: 11,
+        padding: 3,
+        borderRadius: 3,
+        anchorX: 6,
+        anchorY: -8,
+      },
+    }
+  }),
 )
 
 function round(v: number): number {

@@ -77,6 +77,7 @@ export default {
     roam: '随便走走',
     pickFirst: '先在地图上点一个文化圈',
     noLives: '今天没命了，明天再来',
+    revive: '传一张照片，过审后回一条命',
     upload: '上传照片',
     mine: '我的行囊',
     rank: '排行榜',

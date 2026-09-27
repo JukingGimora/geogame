@@ -40,12 +40,23 @@ const TILES =
 const ATTRIBUTION = 'Tiles &copy; Esri'
 const MAX_ZOOM = 17
 
+// 光靠颜色分不出谁是谁:三个点长得一样,玩家得先记住"绿色是真实"才看得懂
+const TAGS: Record<MapMarker['kind'], { text: string; colour: string }> = {
+  pick: { text: '你', colour: MAP_THEME.pick },
+  guess: { text: '你', colour: MAP_THEME.pick },
+  truth: { text: '真实', colour: MAP_THEME.truth },
+  ai: { text: 'AI', colour: MAP_THEME.ai },
+}
+
 function pin(kind: MapMarker['kind']): string {
-  const colour =
-    kind === 'truth' ? MAP_THEME.truth : kind === 'ai' ? MAP_THEME.ai : MAP_THEME.pick
-  // 用 DivIcon 画圆点:省一次图片请求,颜色也能跟游戏的配色走
-  return `<span style="display:block;width:14px;height:14px;border-radius:50%;
-    background:${colour};border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.6)"></span>`
+  const { text, colour } = TAGS[kind] ?? TAGS.pick
+  // 用 DivIcon 画圆点加文字:省一次图片请求,颜色也能跟游戏的配色走
+  return `<span style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+    <span style="width:14px;height:14px;border-radius:50%;background:${colour};
+      border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.6);flex:none"></span>
+    <span style="font-size:11px;line-height:1;color:#16110c;background:${colour};
+      padding:2px 4px;border-radius:3px">${text}</span>
+  </span>`
 }
 
 function draw() {
@@ -53,7 +64,7 @@ function draw() {
   layer.clearLayers()
   const pts: any[] = []
   for (const m of props.markers) {
-    const icon = L.divIcon({ html: pin(m.kind), className: '', iconSize: [14, 14], iconAnchor: [7, 7] })
+    const icon = L.divIcon({ html: pin(m.kind), className: '', iconSize: [0, 0], iconAnchor: [7, 7] })
     L.marker([m.lat, m.lng], { icon }).addTo(layer)
     pts.push([m.lat, m.lng])
   }

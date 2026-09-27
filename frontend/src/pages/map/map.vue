@@ -47,6 +47,11 @@
     <button class="g-btn primary start" :disabled="!canStart" @tap="onStart">
       {{ startLabel }}
     </button>
+    <!-- 只说"明天再来"等于把人打发走。续命的办法就在旁边,写出来,还能点 -->
+    <view v-if="livesLeft <= 0" class="revive" @tap="go('/pages/upload/upload')">
+      <text>{{ t('map.revive') }}</text>
+      <text class="revive-arrow">›</text>
+    </view>
     <view class="row">
       <button class="g-btn" @tap="go('/pages/upload/upload')">{{ t('map.upload') }}</button>
       <button class="g-btn" @tap="go('/pages/rank/rank')">{{ t('map.rank') }}</button>
@@ -284,6 +289,20 @@ onShareTimeline(() => ({
   color: var(--ink-dim);
   font-size: 22rpx;
   margin-top: 10rpx;
+}
+.revive {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--accent);
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  margin-top: 16rpx;
+  color: var(--accent);
+  font-size: 24rpx;
+}
+.revive-arrow {
+  font-size: 28rpx;
 }
 .picked-mine {
   display: block;
