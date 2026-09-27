@@ -35,7 +35,7 @@
       <text class="pos g-stamp">{{ data.me.rank }}</text>
       <view class="user-cell">
         <PixelAvatar :seed="meSeed" :size="56" />
-        <text class="nick">{{ t('rank.me') }}</text>
+        <text class="nick">{{ data.me.nickname }}{{ t('rank.meSuffix') }}</text>
       </view>
       <text class="val g-stamp">{{ data.me.value }}{{ board === 'points' ? t('rank.peopleUnit') : t('rank.roundUnit') }}</text>
     </view>
@@ -200,8 +200,10 @@ onShareTimeline(() => ({ title: shareTitle() }))
 .row.me {
   border-color: var(--accent);
 }
+/* 接在第 20 名下面当第 21 行,只用一条虚线示意"中间还有人",不另起一块 */
 .footer-me {
-  margin-top: 28rpx;
+  margin-top: 12rpx;
+  border-top: 1px dashed var(--line-strong);
 }
 .pos {
   width: 70rpx;

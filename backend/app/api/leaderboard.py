@@ -11,7 +11,8 @@ from app.services.auth import get_current_user
 
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
-TOP_N = 50
+# 只发前 20:再往下没人看,而且自己那一行会单独接在第 21 行
+TOP_N = 20
 BEIJING_OFFSET = timedelta(hours=8)
 
 
