@@ -53,6 +53,15 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         same = unfinished.mode == ("serious" if serious else "roam") and (
             unfinished.chapter or None
         ) == (body.chapter or None)
+        # 续上的前提是这局真还有关能打。早年删过的测试图留下了一批关卡,
+        # 它们所在的局至今还挂着 playing——续给他就是一局打不动的空局
+        if same and not await session.scalar(
+            select(func.count(Round.id))
+            .select_from(Round)
+            .join(Photo, Round.photo_id == Photo.id)
+            .where(Round.run_id == unfinished.id, Round.finished_at.is_(None))
+        ):
+            same = False
         if same:
             # 从"叫朋友猜这张"进来的,得把那张换进下一个还没猜的关,
             # 否则分享指定的照片永远轮不到,点链接的人只会觉得"点了没反应"
@@ -244,6 +253,11 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
     out = []
     for r in rounds:
         photo = await session.get(Photo, r.photo_id)
+        # 照片被删过(早期的测试图),这一关就没得看了。跳过而不是崩:
+        # 早年那些还挂在 playing 的局里就有这种关,取一次 photo.file_key 就 500,
+        # 那些人一点「开始」就进不去
+        if not photo:
+            continue
         # 只列这张图真有的提示:没故事就没①,AI 给不出通名就没④,
         # 列出来点不开比不列更糟
         have = sorted(await session.scalars(select(Hint.level).where(Hint.photo_id == photo.id)))

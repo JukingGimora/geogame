@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -151,6 +152,7 @@ async def delete_account(user: User = Depends(get_current_user), session: AsyncS
     连带删掉别人猜这些照片留下的关卡记录(否则那些记录会指向一张不存在的图)。
     别人的总分记在 runs 上,不受影响,排行榜不会乱。
     """
+    days_in = (datetime.now(timezone.utc) - user.created_at.replace(tzinfo=timezone.utc)).days + 1
     photo_ids = (await session.scalars(select(Photo.id).where(Photo.uploader_id == user.id))).all()
     file_keys = (await session.scalars(select(Photo.file_key).where(Photo.uploader_id == user.id))).all()
     if photo_ids:
@@ -166,6 +168,10 @@ async def delete_account(user: User = Depends(get_current_user), session: AsyncS
         await session.execute(sa_delete(model).where(model.user_id == user.id))
     await session.execute(sa_delete(User).where(User.id == user.id))
     await session.commit()
+
+    # 注销这件事只能在这里记:他的 events 行也一起删了,前端埋点留不下来。
+    # 不写 id 也不写昵称——人都注销了,不该再留下能指回他的东西
+    logger.warning("account_deleted: 带走了 %d 张照片, 出发过 %d 天", len(photo_ids), days_in)
 
     # 图片文件放在最后删:数据库提交成功了才动存储,否则删一半会留下引用不到的图
     for key in file_keys:

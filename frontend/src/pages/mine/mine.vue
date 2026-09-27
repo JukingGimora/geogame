@@ -143,6 +143,7 @@ async function removePhoto(p: any) {
   if (!ok) return
   try {
     await api.deletePhoto(p.id)
+    logEvent('photo_delete', 'photo', p.id)
     photos.value = photos.value.filter((x) => x.id !== p.id)
     uni.showToast({ title: t('mine.deleted'), icon: 'none' })
   } catch (e: unknown) {
@@ -162,6 +163,8 @@ async function destroyAccount() {
     })
   })
   if (!first) return
+  // 注销不埋点:注销会把他的 events 一起删掉,埋了也留不下来。
+  // 想知道有多少人注销,看服务端日志里的 account_deleted
   try {
     await api.deleteAccount()
     forgetIdentity()
@@ -173,6 +176,7 @@ async function destroyAccount() {
 }
 
 function editProfile() {
+  logEvent('nick_open', 'page')
   uni.navigateTo({ url: '/pages/login/login' })
 }
 
@@ -238,6 +242,7 @@ async function sendFb() {
   try {
     const content = JSON.stringify(fbData.value)
     await api.sendFeedback(content)
+    logEvent('feedback_sent', 'page')
     fbData.value = {
       fun: '',
       photoType: '',

@@ -36,6 +36,7 @@ import { computed, onMounted, ref } from 'vue'
 import { t } from '../../locale'
 import { api } from '../../api'
 import { errorMessage } from '../../lib/errors'
+import { logEvent } from '../../lib/analytics'
 import PixelAvatar from '../../components/PixelAvatar.vue'
 
 const topOffset = ref(0)
@@ -45,6 +46,7 @@ const canLogin = computed(() => nickname.value.trim().length > 0)
 
 onMounted(() => {
   topOffset.value = (uni.getWindowInfo().statusBarHeight || 0) + 12
+  logEvent('nick_view', 'page')
   const savedNick = uni.getStorageSync('geogame_nickname')
   if (savedNick) nickname.value = savedNick
 })
@@ -70,13 +72,16 @@ async function doLogin() {
     const profile = await api.updateProfile(nick)
     uni.setStorageSync('geogame_nickname', profile.nickname)
     uni.setStorageSync('geogame_logged_in', '1')
+    logEvent('nick_saved', 'page')
     leave()
   } catch (e: unknown) {
+    logEvent('nick_fail', 'page', undefined, { msg: errorMessage(e).slice(0, 40) })
     uni.showToast({ title: errorMessage(e), icon: 'none' })
   }
 }
 
 function skipLogin() {
+  logEvent('nick_skip', 'page')
   leave()
 }
 
