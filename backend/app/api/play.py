@@ -21,6 +21,7 @@ from app.models import (
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM, coarse_area_en, locate
 from app.services.i18n import COUNTRY_EN, is_en, lang_header
+from app.services.translate import detect_lang
 from app.services.progress import DAILY_LIVES, lives_left, roam_done, roam_played
 from app.services.scoring import DECAY_KM, final_score, haversine_km, pool_decay_km
 from app.services.understood import CLOSE_KM
@@ -288,7 +289,7 @@ async def run_state(
             "order": r.order_index,
             "photo_url": storage.url(photo.file_key),
             "story_teaser": _teaser(
-                (await _text_en(session, photo.id, "story") if is_en(lang) else None) or photo.story
+                await _text(session, photo.id, "story", photo.story, "en" if is_en(lang) else "zh")
             ),
             "finished": r.finished_at is not None,
             "hints_mask": r.hints_mask,
@@ -360,9 +361,8 @@ async def unlock_hint(
         raise HTTPException(404, "hint_not_available")
     rnd.hints_mask |= 1 << (body.level - 1)
     await session.commit()
-    content = hint.content
-    if is_en(lang):
-        content = await _hint_en(session, rnd.photo_id, body.level, content)
+    want = "en" if is_en(lang) else "zh"
+    content = await _hint_text(session, rnd.photo_id, body.level, hint.content, want)
     return {"level": body.level, "content": content, "hints_mask": rnd.hints_mask}
 
 
@@ -370,29 +370,43 @@ def _teaser(text: str) -> str:
     return text[:30] + "…" if len(text) > 30 else text
 
 
-async def _text_en(session: AsyncSession, photo_id: int, field: str) -> str | None:
-    """这张照片某一段内容的英文译文,没翻过就返回 None。"""
-    return await session.scalar(
+async def _text(session: AsyncSession, photo_id: int, field: str, original: str, lang: str) -> str:
+    """这段内容在请求语言下该显示什么。
+
+    原文本来就是这种语言(上传者用英文写的故事,在英文站)就直接给原文;
+    否则取译文,没翻过就还是给原文——宁可露一段外语,也不能让这一关没有提示。
+    """
+    if not original or detect_lang(original) == lang:
+        return original
+    row = await session.scalar(
         select(PhotoText.content).where(
-            PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == "en"
+            PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == lang
         )
     )
+    return row or original
 
 
-async def _hint_en(session: AsyncSession, photo_id: int, level: int, zh: str) -> str:
-    """这条提示的英文版。
+async def _hint_text(
+    session: AsyncSession, photo_id: int, level: int, stored: str, want: str
+) -> str:
+    """这条提示在请求语言下该显示什么。
 
     ③国家和④方位是程序拼出来的,现算比存一份更省事——照片的坐标和国名都在手边。
-    ①故事和②AI线索是内容,只能预先翻好存进 photo_texts;没翻的照原样给中文,
-    宁可露一句中文,也不能让这一关没有提示。
+    ①故事和②AI线索是内容,只能预先翻好存进 photo_texts。
+
+    **两个方向都要走这里。** 原来只在英文请求时才查译文,于是上传者用英文写的
+    故事在中文站上是英文原文裸奔——库里存的那一行永远是"原文",不是"中文"。
     """
-    photo = await session.get(Photo, photo_id)
-    if level == 3 and photo and photo.country:
-        return COUNTRY_EN.get(photo.country, photo.country)
-    if level == 4 and photo and photo.country:
-        return coarse_area_en(photo.country, photo.lat, photo.lng)
-    # 提示①就是那段故事本身(实测 220/220 两处一致),所以跟揭晓页共用一份译文
-    return await _text_en(session, photo_id, "story" if level == 1 else "clue") or zh
+    if level in (3, 4) and want == "en":
+        photo = await session.get(Photo, photo_id)
+        if photo and photo.country:
+            if level == 3:
+                return COUNTRY_EN.get(photo.country, photo.country)
+            return coarse_area_en(photo.country, photo.lat, photo.lng)
+    if level in (1, 2):
+        # 提示①就是那段故事本身(实测 220/220 两处一致),跟揭晓页共用一份译文
+        return await _text(session, photo_id, "story" if level == 1 else "clue", stored, want)
+    return stored
 
 
 @router.post("/rounds/{round_id}/guess")
@@ -468,12 +482,11 @@ async def submit_guess(
     # 揭晓页上的两段中文:上传者写的故事,和 AI 的推理。
     # 这两段跟提示不是同一份文字(推理会点名真实地点,它是答案之后才给的),
     # 所以各有各的译文。没翻到就照原样给中文
-    story = photo.story
-    reasoning = ai.reasoning if ai else None
-    if is_en(lang):
-        story = await _text_en(session, photo.id, "story") or story
-        if ai:
-            reasoning = await _text_en(session, photo.id, "reasoning") or reasoning
+    want = "en" if is_en(lang) else "zh"
+    story = await _text(session, photo.id, "story", photo.story, want)
+    reasoning = (
+        await _text(session, photo.id, "reasoning", ai.reasoning or "", want) if ai else None
+    )
     return {
         "distance_km": rnd.distance_km,
         "score": score,

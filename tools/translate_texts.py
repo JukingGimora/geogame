@@ -35,8 +35,9 @@ from app.db import async_session_maker  # noqa: E402
 from app.models import Photo, PhotoText  # noqa: E402
 from app.services.translate import (  # noqa: E402
     FIELDS,
-    LANG,
+    detect_lang,
     leaked,
+    other,
     put,
     source_texts,
     translate_text,
@@ -51,7 +52,7 @@ async def check_only(session) -> int:
     rows = (
         await session.execute(
             select(PhotoText.photo_id, PhotoText.field, PhotoText.content).where(
-                PhotoText.lang == LANG, PhotoText.field != "reasoning"
+                PhotoText.field != "reasoning"
             )
         )
     ).all()
@@ -88,19 +89,22 @@ async def main() -> int:
         done = set()
         if not args.redo:
             done = {
-                (pid, f)
-                for pid, f in await session.execute(
-                    select(PhotoText.photo_id, PhotoText.field).where(PhotoText.lang == LANG)
+                (pid, f, lg)
+                for pid, f, lg in await session.execute(
+                    select(PhotoText.photo_id, PhotoText.field, PhotoText.lang)
                 )
             }
         photo_ids = list(
             await session.scalars(select(Photo.id).where(Photo.status == "live").order_by(Photo.id))
         )
-        todo: list[tuple[int, str, str]] = []
+        # (照片, 字段, 原文, 翻成哪种语言)。方向按原文定:
+        # 上传者用英文写的故事,缺的是中文译文
+        todo: list[tuple[int, str, str, str]] = []
         for pid in photo_ids:
-            for field, zh in (await source_texts(session, pid)).items():
-                if field in want_fields and (pid, field) not in done:
-                    todo.append((pid, field, zh))
+            for field, src in (await source_texts(session, pid)).items():
+                target = other(detect_lang(src))
+                if field in want_fields and (pid, field, target) not in done:
+                    todo.append((pid, field, src, target))
         if args.limit:
             todo = todo[: args.limit]
         # 原文读完就把事务放掉。这个脚本接下来几分钟都在等模型回话,
@@ -108,7 +112,7 @@ async def main() -> int:
         # 库已经转成 WAL 了,但脚本自己也不该占着——WAL 是兜底,不是借口
         await session.rollback()
 
-        chars = sum(len(z) for _, _, z in todo)
+        chars = sum(len(z) for _, _, z, _ in todo)
         print(f"待翻 {len(todo)} 条,共 {chars} 字,模型 {args.model}")
         print(f"  已有译文 {len(done)} 条{'(--redo 会覆盖)' if args.redo else '(跳过)'}")
         if args.dry_run or not todo:
@@ -123,11 +127,11 @@ async def main() -> int:
         BATCH = 20   # 攒一批写一次:写事务短一点,线上少等一会儿
 
         async with httpx.AsyncClient() as client:
-            async def one(pid: int, field: str, zh: str) -> str | None:
+            async def one(pid: int, field: str, src: str, target: str) -> str | None:
                 nonlocal fail
                 async with sem:
                     try:
-                        return await translate_text(client, args.model, zh)
+                        return await translate_text(client, args.model, src, target)
                     except Exception as e:
                         fail += 1
                         print(f"  ✗ photo {pid} {field}: {e.__class__.__name__} {e}")
@@ -135,17 +139,17 @@ async def main() -> int:
 
             for start in range(0, len(todo), BATCH):
                 chunk = todo[start : start + BATCH]
-                results = await asyncio.gather(*(one(p, f, z) for p, f, z in chunk))
-                for (pid, field, zh), en in zip(chunk, results):
-                    if not en:
+                results = await asyncio.gather(*(one(p, f, z, t) for p, f, z, t in chunk))
+                for (pid, field, src, target), out in zip(chunk, results):
+                    if not out:
                         continue
                     # 推理是揭晓之后才给的,点名地点本来就是它的职责,不查泄露
-                    if field != "reasoning" and (name := leaked(zh, en)):
-                        leaks.append((pid, field, name, zh, en))
-                    await put(session, pid, field, en, args.model)
+                    if field != "reasoning" and (name := leaked(src, out)):
+                        leaks.append((pid, field, name, src, out))
+                    await put(session, pid, field, out, args.model, target)
                     ok += 1
                     if ok <= 6:   # 头几条打出来,方便一眼看住质量
-                        print(f"  photo {pid} {field}\n    中 {zh}\n    英 {en}")
+                        print(f"  photo {pid} {field} -> {target}\n    原 {src}\n    译 {out}")
                 await session.commit()
                 print(f"  …写入 {ok}/{len(todo)}")
         print(f"\n成功 {ok} 条,失败 {fail} 条")

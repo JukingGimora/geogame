@@ -5,6 +5,7 @@
 """
 import pytest
 from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
 
 from app.db import async_session_maker
 from app.models import Photo, Round, Run
@@ -216,3 +217,67 @@ async def test_root_sends_you_to_your_own_language(client):
         follow_redirects=False,
     )
     assert r.headers["location"] == "/zh/"
+
+
+@pytest.mark.asyncio
+async def test_english_story_shows_up_in_chinese(client):
+    """上传者用英文写的故事,中文站要看到中文。
+
+    翻译方向按原文定,不是固定中译英。原来写死"中文原文→英文译文",
+    等第一个英文上传者出现,中文玩家的提示①和揭晓页就会是英文原文裸奔。
+    """
+    from app.models import Hint
+    from app.services.translate import detect_lang, other, put
+
+    up = await login(client, "rule-en-story-up")
+    zh = await login(client, "rule-en-story-zh")
+    ids = await seed_photos(client, up, 3, 48.0, 2.0)
+
+    # 造一张英文故事的照片,并按"缺哪边补哪边"的方向存一条中文译文
+    async with async_session_maker() as s:
+        photo = await s.get(Photo, ids[0])
+        photo.story = "A quiet morning by the harbour, the ferries had not started yet."
+        assert detect_lang(photo.story) == "en"
+        assert other(detect_lang(photo.story)) == "zh", "英文原文该补的是中文"
+        # 提示①跟 photo.story 是同一段话,审核时一起写的,这里也一起改
+        h1 = await s.scalar(select(Hint).where(Hint.photo_id == photo.id, Hint.level == 1))
+        h1.content = photo.story
+        await put(s, photo.id, "story", "港口边安静的清晨,渡轮还没开班。", "manual", "zh")
+        await s.commit()
+
+    # 中文站拿到中文
+    r = await client.post("/api/v1/runs", headers=zh, json={"photo_id": ids[0]})
+    rid = next(x["round_id"] for x in r.json()["rounds"])
+    h = (await client.post(f"/api/v1/rounds/{rid}/hints", headers=zh, json={"level": 1})).json()
+    assert h["content"] == "港口边安静的清晨,渡轮还没开班。", h
+
+    # 英文站直接拿原文,不该去找一条不存在的"英译英"
+    en = await login(client, "rule-en-story-en", lang="en")
+    r = await client.post("/api/v1/runs", headers=en, json={"photo_id": ids[0]})
+    rid = next(x["round_id"] for x in r.json()["rounds"])
+    h = (await client.post(f"/api/v1/rounds/{rid}/hints", headers=en, json={"level": 1})).json()
+    assert h["content"].startswith("A quiet morning"), h
+
+
+@pytest.mark.asyncio
+async def test_chinese_story_still_shows_up_in_english(client):
+    """反方向别改坏了:中文故事在英文站还是要看到英文。"""
+    from app.models import Hint
+    from app.services.translate import put
+
+    up = await login(client, "rule-zh-story-up")
+    en = await login(client, "rule-zh-story-en", lang="en")
+    ids = await seed_photos(client, up, 3, -33.0, 151.0)
+
+    async with async_session_maker() as s:
+        photo = await s.get(Photo, ids[0])
+        photo.story = "那天的海边很安静,渡轮还没开班。"
+        h1 = await s.scalar(select(Hint).where(Hint.photo_id == photo.id, Hint.level == 1))
+        h1.content = photo.story
+        await put(s, photo.id, "story", "A quiet morning by the sea.", "manual", "en")
+        await s.commit()
+
+    r = await client.post("/api/v1/runs", headers=en, json={"photo_id": ids[0]})
+    rid = next(x["round_id"] for x in r.json()["rounds"])
+    h = (await client.post(f"/api/v1/rounds/{rid}/hints", headers=en, json={"level": 1})).json()
+    assert h["content"] == "A quiet morning by the sea.", h

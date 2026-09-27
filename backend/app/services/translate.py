@@ -22,16 +22,33 @@ from app.services.i18n import COUNTRY_EN, DEMONYM_EN, SOURCE_ALIAS
 
 logger = logging.getLogger(__name__)
 
-LANG = "en"
+LANGS = ("zh", "en")
 
-# 要翻的三段内容,以及它们各自从哪儿来。
-# story 同时供提示①和揭晓页用——实测 220/220 两处是同一段文字,没必要翻两遍
+# 要翻的三段内容。story 同时供提示①和揭晓页用
+# (实测 220/220 两处是同一段文字,没必要翻两遍)
 FIELDS = ("story", "clue", "reasoning")
 
+_CJK = range(0x4E00, 0x9FFF + 1)
+
+
+def detect_lang(text: str) -> str:
+    """这段话是哪种语言写的。
+
+    只分中英两种,有汉字就算中文。判得糙没关系:用途是决定"往哪边翻",
+    而一段话里只要出现汉字,英文读者就需要一份译文。
+
+    上传者可以用英文写故事,所以原文不一定是中文——
+    固定按"中译英"翻的话,英文故事会被拿去做一次英译英(白花钱),
+    而中文站那边一行译文都没有,中文玩家看到的是英文原文。
+    """
+    return "zh" if any(ord(ch) in _CJK for ch in text) else "en"
+
+
+def other(lang: str) -> str:
+    return "en" if lang == "zh" else "zh"
+
 # 忠实翻译,不是改写。多说一个字、少说一个字都会改变这一关的难度
-SYSTEM = (
-    "You translate Chinese text from a photo-location guessing game into natural English.\n"
-    "Rules, in order of importance:\n"
+_RULES = (
     "1. Never add a place name, region, country or landmark that is not already in the source. "
     "If the source is vague about where it is, the translation must be exactly as vague.\n"
     "   In particular: when the source gives only a direction or a relative region and does NOT "
@@ -43,12 +60,21 @@ SYSTEM = (
     "never turn a guess into a statement.\n"
     "3. Keep the register: a traveller's own note stays personal and plain; "
     "reasoning notes stay matter-of-fact.\n"
-    "4. Output the translation only. No quotes, no notes, no romanisation of Chinese words "
+    "4. Output the translation only. No quotes, no notes, no romanisation of words "
     "the reader does not need.\n"
 )
 
+_INTO = {
+    "en": "You translate text from a photo-location guessing game into natural English.\n",
+    "zh": "You translate text from a photo-location guessing game into natural Chinese.\n",
+}
 
-def payload(model: str, text: str) -> dict:
+
+def system_prompt(target: str) -> str:
+    return _INTO[target] + "Rules, in order of importance:\n" + _RULES
+
+
+def payload(model: str, text: str, target: str = "en") -> dict:
     """两种模型两种形状。
 
     qwen-mt-* 是专用翻译模型,**不收 system 角色**(实测直接 400:
@@ -61,9 +87,9 @@ def payload(model: str, text: str) -> dict:
             "model": model,
             "messages": [{"role": "user", "content": text}],
             "translation_options": {
-                "source_lang": "Chinese",
-                "target_lang": "English",
-                "domains": SYSTEM,
+                "source_lang": "Chinese" if target == "en" else "English",
+                "target_lang": "English" if target == "en" else "Chinese",
+                "domains": system_prompt(target),
             },
         }
     return {
@@ -71,7 +97,7 @@ def payload(model: str, text: str) -> dict:
         "temperature": 0,
         "enable_thinking": False,
         "messages": [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": system_prompt(target)},
             {"role": "user", "content": text},
         ],
     }
@@ -102,11 +128,13 @@ def leaked(zh: str, en: str) -> str | None:
     return None
 
 
-async def translate_text(client: httpx.AsyncClient, model: str, text: str) -> str:
+async def translate_text(
+    client: httpx.AsyncClient, model: str, text: str, target: str = "en"
+) -> str:
     r = await client.post(
         f"{settings.ai_base_url}/chat/completions",
         headers={"Authorization": f"Bearer {settings.ai_api_key}"},
-        json=payload(model, text),
+        json=payload(model, text, target),
         timeout=90,
     )
     r.raise_for_status()
@@ -127,7 +155,11 @@ async def source_texts(session: AsyncSession, photo_id: int) -> dict[str, str]:
 
 
 async def translate_photo(session: AsyncSession, photo_id: int, model: str | None = None) -> int:
-    """给这张照片的故事、AI线索、AI推理补英文译文,返回成功几条。
+    """把这张照片的故事、AI线索、AI推理翻到**缺的那一种语言**,返回成功几条。
+
+    方向按原文定,不是固定中译英:故事是上传者自己写的,可能本来就是英文,
+    那要补的是中文译文。AI 线索和推理永远是我们的 prompt 产出的中文,
+    所以它们实际上总是中译英——但走的是同一段逻辑,将来换 prompt 语言也不用改这里。
 
     **翻不出来不算审核失败。** 阿里的内容审核会拦下一些完全正常的句子
     (实测「仿民国时期的电影街区」就被判 data_inspection_failed),
@@ -137,41 +169,44 @@ async def translate_photo(session: AsyncSession, photo_id: int, model: str | Non
     if not settings.ai_api_key or not settings.ai_base_url:
         return 0
     model = model or settings.translate_model
-    todo = list((await source_texts(session, photo_id)).items())
+    # (字段, 原文, 要翻成哪种语言)
+    todo = [(f, zh, other(detect_lang(zh))) for f, zh in (await source_texts(session, photo_id)).items()]
     if not todo:
         return 0
 
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(
-            *(translate_text(client, model, zh) for _, zh in todo),
+            *(translate_text(client, model, src, target) for _, src, target in todo),
             return_exceptions=True,
         )
 
     ok = 0
-    for (field, zh), en in zip(todo, results):
-        if isinstance(en, BaseException) or not en:
-            logger.warning("translate photo %s %s failed: %r", photo_id, field, en)
+    for (field, src, target), out in zip(todo, results):
+        if isinstance(out, BaseException) or not out:
+            logger.warning("translate photo %s %s->%s failed: %r", photo_id, field, target, out)
             continue
         # 推理是揭晓之后才给的,点名地点本来就是它的职责,不查泄露
-        if field != "reasoning" and (leak := leaked(zh, en)):
-            # 泄露了就干脆不存:英文用户看到中文原文,比看到一条送分的线索好
+        if field != "reasoning" and (leak := leaked(src, out)):
+            # 泄露了就干脆不存:玩家看到原文,比看到一条送分的线索好
             logger.warning("translate photo %s %s leaked %r, 丢弃这条译文", photo_id, field, leak)
             continue
-        await put(session, photo_id, field, en, model)
+        await put(session, photo_id, field, out, model, target)
         ok += 1
     return ok
 
 
-async def put(session: AsyncSession, photo_id: int, field: str, en: str, model: str) -> None:
+async def put(
+    session: AsyncSession, photo_id: int, field: str, text: str, model: str, lang: str = "en"
+) -> None:
     """写一条译文,有就覆盖。"""
     old = await session.scalar(
         select(PhotoText).where(
-            PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == LANG
+            PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == lang
         )
     )
     # 截断就是把一句话砍在中间。宁可存长一点也不要半句话
-    en = en[:4000]
+    text = text[:4000]
     if old:
-        old.content, old.model = en, model
+        old.content, old.model = text, model
     else:
-        session.add(PhotoText(photo_id=photo_id, field=field, lang=LANG, content=en, model=model))
+        session.add(PhotoText(photo_id=photo_id, field=field, lang=lang, content=text, model=model))
