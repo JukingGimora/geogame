@@ -298,6 +298,8 @@ async function unlockHint(level: number) {
   try {
     const h = await api.unlockHint(current.value.round_id, level)
     unlockedContents.value.push({ level, content: h.content })
+    // 哪一级提示真有人买,是提示梯子唯一的反馈。不记的话改梯子只能靠猜
+    logEvent('hint_buy', 'round', current.value.round_id, { level })
   } catch (e: unknown) {
     uni.showToast({ title: errorMessage(e), icon: 'none' })
   }

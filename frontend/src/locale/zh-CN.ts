@@ -163,7 +163,7 @@ export default {
     since: '出发第 {n} 天',
     photos: '传过',
     seen: '被看过',
-    countries: '认出',
+    countries: '认出国家',
     streak: '最长连关',
     litTitle: '点亮的文化圈',
     trail: '认出过：{list}',

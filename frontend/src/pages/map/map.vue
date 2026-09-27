@@ -48,7 +48,9 @@
       {{ startLabel }}
     </button>
     <!-- 只说"明天再来"等于把人打发走。续命的办法就在旁边,写出来,还能点 -->
-    <view v-if="livesLeft <= 0" class="revive" @tap="go('/pages/upload/upload')">
+    <!-- 上传率是瓶颈,而这是唯一一条"想继续玩就去传一张"的入口。
+         不单独记一笔,就分不清没人传是因为没看见,还是看见了不愿意 -->
+    <view v-if="livesLeft <= 0" class="revive" @tap="onRevive">
       <text>{{ t('map.revive') }}</text>
       <text class="revive-arrow">›</text>
     </view>
@@ -166,6 +168,12 @@ function onStart() {
   logEvent('start_click', 'page', undefined, { from: 'home', circle: c?.name ?? '' })
   // 选了圈就是认真打(三条命);没选就是随便走走(三关,不会死)
   startRun(undefined, c?.name, { mode: c ? 'serious' : 'roam' })
+}
+
+function onRevive() {
+  // 不走 go():那会同时记一条 home_nav,把"底部按钮去上传"和"续命去上传"混在一起
+  logEvent('revive_click', 'page')
+  uni.navigateTo({ url: '/pages/upload/upload' })
 }
 
 function go(url: string) {
