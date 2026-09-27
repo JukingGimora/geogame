@@ -21,6 +21,7 @@ const MESSAGES: Record<string, string> = {
   all_photos_played: 'errors.allPlayed',
   only_own_photos: 'errors.onlyOwnPhotos',
   no_lives: 'errors.noLives',
+  roam_over: 'errors.roamOver',
   region_not_found: 'errors.regionNotFound',
   // 关卡
   run_not_found: 'errors.runNotFound',

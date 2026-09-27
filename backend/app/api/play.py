@@ -9,7 +9,7 @@ from app.db import get_session
 from app.models import AIGuess, AuthIdentity, Hint, Photo, PointsLedger, Region, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM, locate
-from app.services.progress import DAILY_LIVES, lives_left
+from app.services.progress import DAILY_LIVES, lives_left, roam_done
 from app.services.scoring import DECAY_KM, final_score, haversine_km, pool_decay_km
 from app.services.understood import CLOSE_KM
 from app.storage import storage
@@ -67,6 +67,9 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
         # 接着打旧局也要查:隔夜的局今天可能已经没命了
         if await lives_left(session, user) <= 0:
             raise HTTPException(409, "no_lives")
+    elif await roam_done(session, user):
+        # 漫游是新手引导,走完就收起来。留着的话,命耗光的人靠它能无限玩下去
+        raise HTTPException(409, "roam_over")
 
     q = _playable(user, body.chapter)
     if body.region_id:

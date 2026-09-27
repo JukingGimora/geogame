@@ -19,6 +19,7 @@ from app.models import PointsLedger, Round, Run, User
 from app.services.scoring import DECAY_KM, miss_km
 
 DAILY_LIVES = 3
+ROAM_ROUNDS = 3   # 新手引导固定三关
 LIFE_BACK = "life_back"  # 照片过审回的那一条命,记在积分流水里
 
 
@@ -29,6 +30,24 @@ def day_bounds(user: User) -> tuple[datetime, datetime]:
     local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     start = (local_start - offset).replace(tzinfo=None)
     return start, start + timedelta(days=1)
+
+
+async def roam_done(session: AsyncSession, user: User) -> bool:
+    """他走完新手那三关了没有。
+
+    漫游是引导,不是一种玩法:固定三关、不掉命、随机发全球的题,
+    作用是让人先玩上,再把世界地图交给他。走完就该收起来,
+    否则命耗光的人可以靠它无限玩下去,"一天三条命"就成了空话。
+    """
+    return bool(
+        await session.scalar(
+            select(func.count(Round.id))
+            .select_from(Round)
+            .join(Run, Round.run_id == Run.id)
+            .where(Run.user_id == user.id, Run.mode == "roam", Round.finished_at.is_not(None))
+            .having(func.count(Round.id) >= ROAM_ROUNDS)
+        )
+    )
 
 
 async def lives_left(session: AsyncSession, user: User) -> int:

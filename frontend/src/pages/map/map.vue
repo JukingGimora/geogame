@@ -41,8 +41,8 @@
     </view>
     <text v-else class="picked-hint">{{ t('map.mapHint') }}</text>
 
-    <button class="g-btn primary start" @tap="onStart">
-      {{ active && active.photos > 0 ? t('map.startCircle', { name: active.name }) : t('map.roam') }}
+    <button class="g-btn primary start" :disabled="!canStart" @tap="onStart">
+      {{ startLabel }}
     </button>
     <view class="row">
       <button class="g-btn" @tap="go('/pages/upload/upload')">{{ t('map.upload') }}</button>
@@ -113,12 +113,15 @@ onMounted(() => {
   enableShareMenu()
 })
 
+const roamDone = ref(false)
+
 onShow(load)
 
 async function load() {
   try {
     const res = await api.circles()
     circles.value = res.items
+    roamDone.value = !!res.roam_done
   } catch {
     // 拉不到就让地图空着,至少"开始一轮"还能点
   }
@@ -129,6 +132,14 @@ function onPick(name: string) {
   const c = circles.value.find((x) => x.name === name)
   logEvent('circle_click', 'circle', undefined, { name, photos: c?.photos ?? 0, lit: c?.lit ?? false })
 }
+
+// 漫游是新手引导,走完三关就收起来。老用户必须先在地图上选一个圈
+const canStart = computed(() => !!(active.value && active.value.photos > 0) || !roamDone.value)
+const startLabel = computed(() => {
+  const c = active.value
+  if (c && c.photos > 0) return t('map.startCircle', { name: c.name })
+  return roamDone.value ? t('map.pickFirst') : t('map.roam')
+})
 
 function onStart() {
   const c = active.value

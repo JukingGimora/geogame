@@ -11,7 +11,7 @@ from app.db import get_session
 from app.models import Photo, Round, Run, User
 from app.services.auth import get_current_user
 from app.services.circles import CIRCLES, LIT_KM
-from app.services.progress import lives_left
+from app.services.progress import lives_left, roam_done
 
 router = APIRouter(prefix="/circles", tags=["circles"])
 
@@ -48,6 +48,8 @@ async def list_circles(
     played = {c: (n, best, lit) for c, n, best, lit in mine}
     return {
         "lives_left": await lives_left(session, user),
+        # 走完新手三关就不再给漫游入口
+        "roam_done": await roam_done(session, user),
         "items": [
             {
                 "name": name,

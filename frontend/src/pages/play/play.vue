@@ -271,6 +271,8 @@ onLoad(async (query) => {
 
 /** 每一关展示时打一次。没有它就只有"开始"和"完成"两头,中间全黑,答不了"卡在第几关"。 */
 function logRoundStart() {
+  // 漫游的每一关都重新闪一次:它是引导,教会为止
+  showGuide.value = isRoam.value
   if (current.value) {
     logEvent('round_start', 'round', current.value.round_id, { order: current.value.order + 1 })
   }
@@ -296,12 +298,13 @@ async function unlockHint(level: number) {
 
 // 第一次玩的人不知道要点地图。引导只出现一次,一落点就消失——
 // 常驻的教学提示会变成噪音,而且会挡住照片
-const showGuide = ref(!uni.getStorageSync('geogame_guided'))
+// 引导那三关每一关都要闪,不是只闪第一次:漫游存在的意义就是把操作教会,
+// 教一遍就收走,第二关很多人还是不知道要拖着插针
+const showGuide = ref(false)
 
 function onPick(p: LngLat) {
   if (showGuide.value && !picked.value) {
     showGuide.value = false
-    uni.setStorageSync('geogame_guided', '1')
   }
   // 第一次落点单独记一次:开局到插旗之间流失最狠,不打这个点就看不见人死在哪
   if (!picked.value && current.value) logEvent('pick_first', 'round', current.value.round_id)
