@@ -103,6 +103,10 @@ async def main() -> int:
                     todo.append((pid, field, zh))
         if args.limit:
             todo = todo[: args.limit]
+        # 原文读完就把事务放掉。这个脚本接下来几分钟都在等模型回话,
+        # 攥着一个读事务不放的话线上就写不进东西(SQLite 的读会挡写)。
+        # 库已经转成 WAL 了,但脚本自己也不该占着——WAL 是兜底,不是借口
+        await session.rollback()
 
         chars = sum(len(z) for _, _, z in todo)
         print(f"待翻 {len(todo)} 条,共 {chars} 字,模型 {args.model}")
@@ -116,27 +120,34 @@ async def main() -> int:
         sem = asyncio.Semaphore(args.concurrency)
         ok = fail = 0
         leaks: list[tuple[int, str, str, str, str]] = []
+        BATCH = 20   # 攒一批写一次:写事务短一点,线上少等一会儿
 
         async with httpx.AsyncClient() as client:
-            async def one(pid: int, field: str, zh: str) -> None:
-                nonlocal ok, fail
+            async def one(pid: int, field: str, zh: str) -> str | None:
+                nonlocal fail
                 async with sem:
                     try:
-                        en = await translate_text(client, args.model, zh)
+                        return await translate_text(client, args.model, zh)
                     except Exception as e:
                         fail += 1
                         print(f"  ✗ photo {pid} {field}: {e.__class__.__name__} {e}")
-                        return
-                # 推理是揭晓之后才给的,点名地点本来就是它的职责,不查泄露
-                if field != "reasoning" and (name := leaked(zh, en)):
-                    leaks.append((pid, field, name, zh, en))
-                await put(session, pid, field, en, args.model)
-                ok += 1
-                if ok <= 6:   # 头几条打出来,方便一眼看住质量
-                    print(f"  photo {pid} {field}\n    中 {zh}\n    英 {en}")
+                        return None
 
-            await asyncio.gather(*(one(p, f, z) for p, f, z in todo))
-        await session.commit()
+            for start in range(0, len(todo), BATCH):
+                chunk = todo[start : start + BATCH]
+                results = await asyncio.gather(*(one(p, f, z) for p, f, z in chunk))
+                for (pid, field, zh), en in zip(chunk, results):
+                    if not en:
+                        continue
+                    # 推理是揭晓之后才给的,点名地点本来就是它的职责,不查泄露
+                    if field != "reasoning" and (name := leaked(zh, en)):
+                        leaks.append((pid, field, name, zh, en))
+                    await put(session, pid, field, en, args.model)
+                    ok += 1
+                    if ok <= 6:   # 头几条打出来,方便一眼看住质量
+                        print(f"  photo {pid} {field}\n    中 {zh}\n    英 {en}")
+                await session.commit()
+                print(f"  …写入 {ok}/{len(todo)}")
         print(f"\n成功 {ok} 条,失败 {fail} 条")
         if leaks:
             print(f"\n★ {len(leaks)} 条译文点了原文没点的国家,人眼看一遍:")
