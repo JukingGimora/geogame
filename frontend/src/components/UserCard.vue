@@ -16,12 +16,6 @@
         </view>
       </view>
 
-      <!-- 被看过 vs 被认出来:前者是有人翻到了你的照片,后者是他真的猜到了地方。
-           这句话是这张卡片上唯一说得出"你分享的东西起了什么作用"的地方 -->
-      <text v-if="data && data.seen > 0" class="reach">
-        {{ t('card.reach', { seen: data.seen, understood: data.understood }) }}
-      </text>
-
       <view v-if="data && data.circles.length" class="lit">
         <text class="lit-title">{{ t('card.litTitle') }}</text>
         <text v-for="c in data.circles" :key="c" class="lit-chip">{{ c }}</text>
@@ -71,7 +65,7 @@ const nums = computed(() => {
   return [
     { value: d.photos, label: t('card.photos') },
     { value: d.seen, label: t('card.seen') },
-    { value: d.countries.length, label: t('card.countries') },
+    { value: d.understood, label: t('card.understood') },
     { value: d.best_streak, label: t('card.streak') },
   ]
 })
@@ -169,13 +163,7 @@ function close() {
   font-size: 21rpx;
   margin-top: 6rpx;
 }
-.reach {
-  display: block;
-  color: var(--ink-dim);
-  font-size: 23rpx;
-  line-height: 1.7;
-  margin-top: 24rpx;
-}
+
 .lit {
   display: flex;
   align-items: center;

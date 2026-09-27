@@ -121,7 +121,9 @@ class Round(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), index=True)
-    photo_id: Mapped[int] = mapped_column(ForeignKey("photos.id"))
+    # 按 photo_id 建索引:"我的照片被多少人猜过"是从照片连回关卡查的,
+    # 没有索引就是全表扫。现在几百行无所谓,涨起来就是上百毫秒
+    photo_id: Mapped[int] = mapped_column(ForeignKey("photos.id"), index=True)
     order_index: Mapped[int] = mapped_column(Integer)
     hints_mask: Mapped[int] = mapped_column(Integer, default=0)  # bit N-1 = hint level N used
     guess_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
