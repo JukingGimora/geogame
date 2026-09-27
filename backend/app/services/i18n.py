@@ -51,6 +51,31 @@ AREA_EN: dict[str, str] = {
     "西": "W", "东": "E", "南": "S", "北": "N", "": "central",
 }
 
+# 国名的形容词/族称形式。检查译文有没有泄露国家时,光比国名会漏——
+# 中文只说"高原",译文写 "Chinese plateau" 一样是把国家说出来了。
+# 只列题库里真出现过的那些国家,不做 161 个的全表
+DEMONYM_EN: dict[str, tuple[str, ...]] = {
+    "中国": ("Chinese",),
+    "斐济": ("Fijian",),
+    "俄罗斯": ("Russian",),
+    "毛里求斯": ("Mauritian",),
+    "斯里兰卡": ("Sri Lankan", "Lankan"),
+    "乌兹别克斯坦": ("Uzbek",),
+    "马来西亚": ("Malaysian", "Malay"),
+    "南非": ("South African",),
+    "亚美尼亚": ("Armenian",),
+    "格鲁吉亚": ("Georgian",),
+    "尼泊尔": ("Nepalese", "Nepali"),
+    "哈萨克斯坦": ("Kazakh",),
+    "土耳其": ("Turkish",),
+    "老挝": ("Laotian", "Lao"),
+    "泰国": ("Thai",),
+    "印度尼西亚": ("Indonesian",),
+    "阿联酋": ("Emirati",),
+    "新加坡": ("Singaporean",),
+    "越南": ("Vietnamese",),
+}
+
 # 中文国名 → 英文国名。由 babel 的 CLDR 数据按 COUNTRY_CODE 生成,港澳台三条手写,
 # 跟中文那边的说法保持一致
 COUNTRY_EN: dict[str, str] = {

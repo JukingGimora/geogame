@@ -28,7 +28,7 @@ from sqlalchemy import select  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db import async_session_maker  # noqa: E402
 from app.models import Hint, HintTranslation, Photo  # noqa: E402
-from app.services.i18n import COUNTRY_EN  # noqa: E402
+from app.services.i18n import COUNTRY_EN, DEMONYM_EN  # noqa: E402
 
 LEVELS = (1, 2)
 LANG = "en"
@@ -102,18 +102,19 @@ def _leaked(zh: str, en: str) -> str | None:
     """
     low = en.lower()
     for zh_name, en_name in COUNTRY_EN.items():
-        # 原文提了就不算泄露
-        if zh_name in zh:
+        # 原文提了就不算泄露。"中式"也算提了中国,所以连头一个字一起看
+        if zh_name in zh or (len(zh_name) > 1 and zh_name[0] in zh and zh_name in ("中国",)):
             continue
-        # 整词匹配:China 不该被 Chinatown 之类误伤,也别被 Chinese 带出来
-        for word in (en_name.lower(), en_name.lower() + "ese", en_name.lower() + "n"):
-            i = low.find(word)
+        for word in (en_name, *DEMONYM_EN.get(zh_name, ())):
+            w = word.lower()
+            i = low.find(w)
             if i < 0:
                 continue
+            # 整词匹配:China 不该被 Chinatown 之类误伤
             before = low[i - 1] if i else " "
-            after = low[i + len(word)] if i + len(word) < len(low) else " "
+            after = low[i + len(w)] if i + len(w) < len(low) else " "
             if not before.isalpha() and not after.isalpha():
-                return en_name
+                return word
     return None
 
 
