@@ -1,4 +1,5 @@
 import io
+import random
 
 import pytest
 from PIL import Image
@@ -7,8 +8,20 @@ from tests.test_game_flow import login
 
 
 def make_image(fmt: str, size=(300, 200), mode="RGB") -> bytes:
+    """每种格式画一张**不一样**的图。
+
+    上传接口按转码后的 sha256 查重,所有格式都会被转成 JPEG——
+    画同一张纯色图的话,第二种格式起全都撞成 409。改一个像素就够。
+    """
     buf = io.BytesIO()
     img = Image.new(mode, size, (90, 120, 160) if mode == "RGB" else None)
+    # 画一块随机噪点,不是一个像素:JPEG 是有损的,单像素的差别会被压回去,
+    # 转码后还是同一个 sha256,第二种格式起就全被查重挡掉
+    rnd = random.Random(fmt)
+    for x in range(40):
+        for y in range(40):
+            v = rnd.randrange(256)
+            img.putpixel((x, y), (v, rnd.randrange(256), rnd.randrange(256)) if mode == "RGB" else v)
     if fmt == "HEIF":
         import pillow_heif
 
@@ -41,7 +54,7 @@ async def test_upload_format_stored_as_jpeg(client, fmt, filename):
     )
     assert r.status_code == 200, f"{fmt}: {r.text}"
     r = await client.get("/api/v1/photos/mine", headers=headers)
-    assert r.json()[0]["url"].endswith(".jpg")
+    assert r.json()["items"][0]["url"].endswith(".jpg")
 
 
 @pytest.mark.asyncio
@@ -75,7 +88,7 @@ async def test_exif_orientation_applied(client, tmp_path):
     )
     assert r.status_code == 200, r.text
     r = await client.get("/api/v1/photos/mine", headers=headers)
-    key = r.json()[0]["url"].split("/")[-1]
+    key = r.json()["items"][0]["url"].split("/")[-1]
     stored = Image.open(f"./test_uploads/{key}")
     assert stored.size == (200, 400)
     assert stored.getexif().get(274) is None

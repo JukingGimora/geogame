@@ -169,9 +169,9 @@ async def put(session: AsyncSession, photo_id: int, field: str, en: str, model: 
             PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == LANG
         )
     )
+    # 截断就是把一句话砍在中间。宁可存长一点也不要半句话
+    en = en[:4000]
     if old:
-        old.content, old.model = en[:1200], model
+        old.content, old.model = en, model
     else:
-        session.add(
-            PhotoText(photo_id=photo_id, field=field, lang=LANG, content=en[:1200], model=model)
-        )
+        session.add(PhotoText(photo_id=photo_id, field=field, lang=LANG, content=en, model=model))

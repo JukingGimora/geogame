@@ -45,10 +45,13 @@ CIRCLE_DESC_EN: dict[str, str] = {
     "太平洋": "Atolls and coconut palms, timber houses on stilts, endless sea",
 }
 
-# 提示④的方位:中文写「西北部」,英文用缩写。拼在国名后面
+# 提示④的方位。英文写成形容词放在国名前面("southern China"),
+# 不写 "China · S" 那种缩写:后者要读者自己解码,而这一条是要花四成分买的
 AREA_EN: dict[str, str] = {
-    "西北": "NW", "东北": "NE", "西南": "SW", "东南": "SE",
-    "西": "W", "东": "E", "南": "S", "北": "N", "": "central",
+    "西北": "north-western", "东北": "north-eastern",
+    "西南": "south-western", "东南": "south-eastern",
+    "西": "western", "东": "eastern", "南": "southern", "北": "northern",
+    "": "central",
 }
 
 # 国名的形容词/族称形式。检查译文有没有泄露国家时,光比国名会漏——

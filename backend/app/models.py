@@ -106,7 +106,9 @@ class PhotoText(Base):
     photo_id: Mapped[int] = mapped_column(ForeignKey("photos.id"), index=True)
     field: Mapped[str] = mapped_column(String(16))   # story | clue | reasoning
     lang: Mapped[str] = mapped_column(String(8))
-    content: Mapped[str] = mapped_column(String(1200))
+    # 4000 不是拍脑袋:英文的字符数是中文的四五倍(最长的中文推理 491 字,
+    # 译过来两千多),原来定 1200 有三条译文在句子中间被切掉了
+    content: Mapped[str] = mapped_column(String(4000))
     # 哪个模型翻的:换模型重翻时要知道旧的是谁产的
     model: Mapped[str] = mapped_column(String(48), default="")
 

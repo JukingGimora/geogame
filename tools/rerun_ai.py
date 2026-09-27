@@ -23,7 +23,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
-from sqlalchemy import delete as sa_delete  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from app.db import async_session_maker  # noqa: E402

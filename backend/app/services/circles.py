@@ -432,11 +432,15 @@ def coarse_area(country: str, lat: float, lng: float) -> str:
 
 
 def coarse_area_en(country: str, lat: float, lng: float) -> str:
-    """提示④的英文版。方位用缩写(NW / SE / central),拼在英文国名后面。"""
+    """提示④的英文版:"southern China"、"central Nepal" 这样的说法。
+
+    不写 "China · S":缩写要读者自己解码,而这一条是花四成分买来的,
+    读不顺就等于没买到。
+    """
     from app.services.i18n import AREA_EN, COUNTRY_EN
 
     name = COUNTRY_EN.get(country, country)
     parts = area_parts(country, lat, lng)
     if parts is None:
         return name
-    return f"{name} · {AREA_EN.get(parts, parts)}"
+    return f"{AREA_EN.get(parts, parts)} {name}"
