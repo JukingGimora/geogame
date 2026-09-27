@@ -60,8 +60,15 @@
         <!-- 揭晓时真地图更有用:能看清"丽江"到底在哪,轮廓图看不出来 -->
         <LeafletPicker :height="260" :markers="resultMarkers" />
         <!-- #endif -->
+        <!-- #ifdef MP-WEIXIN -->
+        <!-- 揭晓页也用微信自带地图:插针那一步用的就是它,
+             揭晓却换成一张手画的国界轮廓图,玩家会以为自己的针跑到别的地图上去了 -->
+        <NativeMapPicker :height="260" :markers="resultMarkers" />
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
         <!-- #ifndef H5 -->
         <WorldPicker :height="260" :markers="resultMarkers" />
+        <!-- #endif -->
         <!-- #endif -->
         <text v-if="result.place" class="place">{{ t('play.placeLabel', { place: result.place }) }}</text>
         <view class="earned">

@@ -27,6 +27,7 @@ from app.services import understood
 from app.services.auth import get_current_user, guest_login, wechat_login
 from app.services.avatar import clean_avatar_url
 from app.services.names import is_default
+from app.services.progress import roam_done
 from app.services.textcheck import local_reason, nickname_reason
 from app.storage import process_image, storage
 
@@ -135,6 +136,9 @@ async def me(user: User = Depends(get_current_user), session: AsyncSession = Dep
         # 还没自己起过名字的人,才提示他去设置
         "default_name": is_default(user.id, user.nickname),
         "rounds_played": played or 0,
+        # 开场页据此决定去哪。判断"是不是新手"要看引导走完没有,不能看玩过几关——
+        # 从朋友分享的链接进来先猜了两关的人,也还没被教过怎么玩
+        "roam_done": await roam_done(session, user),
     }
 
 

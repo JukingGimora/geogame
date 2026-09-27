@@ -93,7 +93,9 @@ onShareTimeline(() => ({ title: t('map.shareTitle') }))
 async function enterByHistory() {
   try {
     const me = await api.me()
-    if ((me.rounds_played ?? 0) > 0) {
+    // 走完新手三关的才算老用户。原来看"玩过几关",于是从分享链接进来猜过两关的人
+    // 会被直接丢到世界地图上,而他根本没被教过怎么玩
+    if (me.roam_done) {
       uni.reLaunch({ url: '/pages/map/map' })
       return
     }
