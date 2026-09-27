@@ -118,6 +118,7 @@ onMounted(() => {
 })
 
 const roamDone = ref(false)
+const livesLeft = ref(3)
 
 onShow(load)
 
@@ -126,6 +127,7 @@ async function load() {
     const res = await api.circles()
     circles.value = res.items
     roamDone.value = !!res.roam_done
+    livesLeft.value = res.lives_left ?? 3
   } catch {
     // 拉不到就让地图空着,至少"开始一轮"还能点
   }
@@ -138,8 +140,13 @@ function onPick(name: string) {
 }
 
 // 漫游是新手引导,走完三关就收起来。老用户必须先在地图上选一个圈
-const canStart = computed(() => !!(active.value && active.value.photos > 0) || !roamDone.value)
+// 没命了就把话写在按钮上。弹一下就没的 toast 留不住信息,
+// 玩家只会以为按钮坏了,反复点
+const canStart = computed(
+  () => livesLeft.value > 0 && (!!(active.value && active.value.photos > 0) || !roamDone.value),
+)
 const startLabel = computed(() => {
+  if (livesLeft.value <= 0) return t('map.noLives')
   const c = active.value
   if (c && c.photos > 0) return t('map.startCircle', { name: c.name })
   return roamDone.value ? t('map.pickFirst') : t('map.roam')
