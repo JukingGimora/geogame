@@ -31,7 +31,11 @@ class Settings(BaseSettings):
     wechat_appid: str | None = None
     wechat_secret: str | None = None
 
-    model_config = {"env_prefix": "GEOGAME_"}
+    # 也读 .env:线上服务的环境变量由 systemd 的 EnvironmentFile 给,
+    # 但 tools/ 下的脚本是手工在 backend/ 里跑的,没有那一层——
+    # 不读 .env 的话它们拿不到 AI 的 key,只会说"没配"。
+    # 真的环境变量优先级更高,线上行为不变
+    model_config = {"env_prefix": "GEOGAME_", "env_file": ".env", "extra": "ignore"}
 
     @property
     def upload_path(self) -> Path:
