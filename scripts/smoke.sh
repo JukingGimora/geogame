@@ -84,6 +84,19 @@ else
   echo "  · 没有 GEOGAME_ADMIN_TOKEN,跳过后台接口"
 fi
 
+# 注销是平台要求必须有、而且必须真的删干净的功能,所以每次发布都测一遍。
+# 用一个一次性账号:测完它自己就没了,不会影响上面那个固定探针
+DTOK=$(curl -s -m 25 -X POST "$API/auth/guest" -H 'Content-Type: application/json' \
+  -d '{"device_key":"smoke-destroy"}' | python3 -c 'import sys,json;print(json.load(sys.stdin).get("token",""))' 2>/dev/null)
+if [ -n "$DTOK" ]; then
+  DA=(-H "Authorization: Bearer $DTOK")
+  check "DELETE /auth/account" 200 "$(code -X DELETE "$API/auth/account" "${DA[@]}")"
+  # 注销后旧 token 必须立刻失效,否则"删掉了"只是账面上的
+  check "GET  /auth/me (注销后应401)" 401 "$(code "$API/auth/me" "${DA[@]}")"
+else
+  check "DELETE /auth/account" 200 000
+fi
+
 echo
 [ $FAIL -eq 0 ] && echo "全部通过" || echo "有接口异常,别发布"
 exit $FAIL
