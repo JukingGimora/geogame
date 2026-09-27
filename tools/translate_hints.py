@@ -28,7 +28,7 @@ from sqlalchemy import select  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db import async_session_maker  # noqa: E402
 from app.models import Hint, HintTranslation, Photo  # noqa: E402
-from app.services.i18n import COUNTRY_EN, DEMONYM_EN  # noqa: E402
+from app.services.i18n import COUNTRY_EN, DEMONYM_EN, SOURCE_ALIAS  # noqa: E402
 
 LEVELS = (1, 2)
 LANG = "en"
@@ -102,8 +102,8 @@ def _leaked(zh: str, en: str) -> str | None:
     """
     low = en.lower()
     for zh_name, en_name in COUNTRY_EN.items():
-        # 原文提了就不算泄露。"中式"也算提了中国,所以连头一个字一起看
-        if zh_name in zh or (len(zh_name) > 1 and zh_name[0] in zh and zh_name in ("中国",)):
+        # 原文点过就不算泄露。"华人""汉字""沙俄"这些也算点过,见 SOURCE_ALIAS
+        if any(a in zh for a in SOURCE_ALIAS.get(zh_name, (zh_name,))):
             continue
         for word in (en_name, *DEMONYM_EN.get(zh_name, ())):
             w = word.lower()
@@ -118,6 +118,29 @@ def _leaked(zh: str, en: str) -> str | None:
     return None
 
 
+async def check_only(session) -> int:
+    """把库里已有的译文重新过一遍泄露检查。不调模型,不花钱。"""
+    rows = (
+        await session.execute(
+            select(Hint.photo_id, Hint.level, Hint.content, HintTranslation.content)
+            .join(
+                HintTranslation,
+                (HintTranslation.photo_id == Hint.photo_id)
+                & (HintTranslation.level == Hint.level)
+                & (HintTranslation.lang == LANG),
+            )
+            .order_by(Hint.photo_id, Hint.level)
+        )
+    ).all()
+    hits = [(p, lv, _leaked(zh, en), zh, en) for p, lv, zh, en in rows]
+    hits = [h for h in hits if h[2]]
+    print(f"查了 {len(rows)} 条译文")
+    for pid, lv, name, zh, en in hits:
+        print(f"\n  photo {pid} 等级{lv} 多出了「{name}」\n    中 {zh}\n    英 {en}")
+    print(f"\n可疑 {len(hits)} 条" if hits else "\n没有译文点了原文没点的国家")
+    return 0
+
+
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default=os.environ.get("GEOGAME_TRANSLATE_MODEL", "qwen-mt-plus"))
@@ -125,9 +148,13 @@ async def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--redo", action="store_true", help="已经翻过的也重翻")
     ap.add_argument("--concurrency", type=int, default=4)
+    ap.add_argument("--check-only", action="store_true",
+                    help="不翻译,只把已有译文重新过一遍泄露检查(改了判据之后用)")
     args = ap.parse_args()
 
     async with async_session_maker() as session:
+        if args.check_only:
+            return await check_only(session)
         done = set()
         if not args.redo:
             done = {
