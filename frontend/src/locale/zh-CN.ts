@@ -158,7 +158,6 @@ export default {
     photos: '传过',
     seen: '被看过',
     countries: '认出',
-    understood: '被认出',
     streak: '最长连关',
     litTitle: '点亮的文化圈',
     trail: '认出过：{list}',

@@ -65,7 +65,7 @@ const nums = computed(() => {
   return [
     { value: d.photos, label: t('card.photos') },
     { value: d.seen, label: t('card.seen') },
-    { value: d.understood, label: t('card.understood') },
+    { value: d.countries.length, label: t('card.countries') },
     { value: d.best_streak, label: t('card.streak') },
   ]
 })
