@@ -13,7 +13,7 @@ from app.services import understood
 from app.services.auth import get_current_user
 from app.services.circles import locate
 from app.services.geo import nearest_province
-from app.storage import process_image, read_gps, storage
+from app.storage import gps_report, process_image, read_gps, storage
 
 router = APIRouter(prefix="/photos", tags=["photos"])
 logger = logging.getLogger(__name__)
@@ -36,6 +36,9 @@ async def upload_photo(
         # 而且他未必记得准。读不到的才退回手动标(微信中转过的图就没有)。
         found = read_gps(data)
         if not found:
+            # 让人手动标位置是最劝退的一步,所以每次退回手动都要留下"为什么读不到"。
+            # 光看结果分不出是微信剥了元数据、还是这张图本来就没定位
+            logger.info("need_location: %s", gps_report(data))
             raise HTTPException(422, "need_location")
         lat, lng = found
     if not (-90 <= lat <= 90 and -180 <= lng <= 180):

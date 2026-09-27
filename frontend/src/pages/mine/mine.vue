@@ -15,26 +15,29 @@
     <button class="g-btn" @tap="editProfile">{{ t('mine.editProfile') }}</button>
     <view v-if="photos.length === 0" class="empty">{{ t('mine.empty') }}</view>
 
-    <view v-for="p in visiblePhotos" :key="p.id" class="card">
-      <image class="thumb" :src="photoUrl(p.url)" mode="aspectFill" @tap="previewPhoto(p)" />
+    <!-- 循环变量不能起单字母名:小程序编译器给页面数据分配的键也是 a、b、c…
+         叫 p 的话循环内部的 p 会盖住那个键,不随循环变化的表达式(这里的「删除」)
+         取到的就是照片对象本身,渲染成 [object Object] -->
+    <view v-for="ph in visiblePhotos" :key="ph.id" class="card">
+      <image class="thumb" :src="photoUrl(ph.url)" mode="aspectFill" @tap="previewPhoto(ph)" />
       <view class="meta">
         <view class="meta-top">
-          <text class="status" :class="p.status">{{ statusText[p.status] }}</text>
-          <text class="del" @tap="removePhoto(p)">{{ t('mine.removeLabel') }}</text>
+          <text class="status" :class="ph.status">{{ statusText[ph.status] }}</text>
+          <text class="del" @tap="removePhoto(ph)">{{ t('mine.removeLabel') }}</text>
         </view>
-        <text v-if="p.status === 'live'" class="seen">
-          {{ t('mine.photoStat', { seen: p.seen, understood: p.understood }) }}
+        <text v-if="ph.status === 'live'" class="seen">
+          {{ t('mine.photoStat', { seen: ph.seen, understood: ph.understood }) }}
         </text>
         <!-- #ifdef MP-WEIXIN -->
         <button
-          v-if="p.status === 'live'"
+          v-if="ph.status === 'live'"
           class="g-btn challenge"
           open-type="share"
-          @tap="onSharePhoto(p)"
+          @tap="onSharePhoto(ph)"
         >{{ t('mine.challenge') }}</button>
         <!-- #endif -->
-        <text v-if="p.reject_reason" class="reason">{{ p.reject_reason }}</text>
-        <text v-if="p.story" class="story">{{ p.story }}</text>
+        <text v-if="ph.reject_reason" class="reason">{{ ph.reject_reason }}</text>
+        <text v-if="ph.story" class="story">{{ ph.story }}</text>
       </view>
     </view>
 

@@ -47,6 +47,24 @@ def read_gps(data: bytes) -> tuple[float, float] | None:
     return (lat, lng) if -90 <= lat <= 90 and -180 <= lng <= 180 else None
 
 
+def gps_report(data: bytes) -> str:
+    """读不到坐标时说清楚是哪一种读不到,写进日志。
+
+    "有 EXIF 但没有 GPS 段"是拍照时没开定位;"连 EXIF 都没有"是中途被人剥掉了
+    (微信的压缩副本、截图、转发过的图都是这样)。两种的处理完全不同,
+    只看"读不到"分不出来。
+    """
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            fmt, size = img.format, img.size
+            exif = img.getexif()
+            gps = exif.get_ifd(GPS_TAG) if exif else None
+    except Exception as e:
+        return f"{len(data)}B 打不开({e.__class__.__name__})"
+    where = "无 EXIF" if not exif else ("无 GPS 段" if not gps else f"GPS 段字段={sorted(gps)}")
+    return f"{fmt} {size[0]}x{size[1]} {len(data)}B EXIF字段={len(exif or {})} {where}"
+
+
 def process_image(data: bytes) -> bytes:
     """统一转 JPEG:先按 EXIF 方向转正,再抹除全部元数据,限长边。
 
