@@ -62,7 +62,10 @@ def gps_report(data: bytes) -> str:
     except Exception as e:
         return f"{len(data)}B 打不开({e.__class__.__name__})"
     where = "无 EXIF" if not exif else ("无 GPS 段" if not gps else f"GPS 段字段={sorted(gps)}")
-    return f"{fmt} {size[0]}x{size[1]} {len(data)}B EXIF字段={len(exif or {})} {where}"
+    # 把标签名列出来:相机原图会带 Make/Model/DateTime,被转码过的只剩下几个尺寸类的标签。
+    # 光看"有 EXIF 但没 GPS"分不出"拍的时候没开定位"和"中途被转码剥掉了"
+    tags = ",".join(ExifTags.TAGS.get(k, str(k)) for k in sorted(exif or {}))
+    return f"{fmt} {size[0]}x{size[1]} {len(data)}B {where} EXIF标签=[{tags}]"
 
 
 def process_image(data: bytes) -> bytes:
