@@ -63,13 +63,13 @@ function choose() {
   // #ifdef MP-WEIXIN
   // 旧的 chooseImage 已不推荐,而且我们之前还传了它不认的 extension 参数,
   // 调用直接失败又没有 fail 回调——学生反馈的"选视频没结果"就是这么来的。
-  // 必须要原图:微信的压缩副本会把 EXIF 整个剥掉,GPS 也就没了,
-  // 于是每一张都得让用户自己去地图上标一遍。
-  // 原图大不要紧——服务端本来就会转正、限长边、抹掉元数据,上限 15MB
+  // 用压缩版:试过原图,微信交过来的文件里 GPS 段本来就已经被摘掉了
+  // (实测两张 iPhone 原图,4284x5712、3.5MB,EXIF 还在但没有 GPS),
+  // 换不来坐标,只换来几兆的上传。服务端照样会转正、限长边、抹掉元数据
   uni.chooseMedia({
     count: 1,
     mediaType: ['image'],
-    sizeType: ['original'],
+    sizeType: ['compressed'],
     success: (res: any) => useFile(res.tempFiles?.[0]?.tempFilePath, res.tempFiles?.[0]?.name),
     fail: (err: any) => onChooseFail(err),
   })
