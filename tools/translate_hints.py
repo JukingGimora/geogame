@@ -47,19 +47,41 @@ SYSTEM = (
 )
 
 
+def _payload(model: str, text: str) -> dict:
+    """两种模型两种形状。
+
+    qwen-mt-* 是专用翻译模型,**不收 system 角色**(实测直接 400:
+    Role must be in [user, assistant]),约束只能塞进它自己的 translation_options.domains。
+    通用模型走正常的 system + user;qwen3 系是思考模型,一条 87 字的句子会烧掉两千多个
+    思考 token,所以关掉思考——翻译不需要它想。
+    """
+    if model.startswith("qwen-mt"):
+        return {
+            "model": model,
+            "messages": [{"role": "user", "content": text}],
+            "translation_options": {
+                "source_lang": "Chinese",
+                "target_lang": "English",
+                "domains": SYSTEM,
+            },
+        }
+    return {
+        "model": model,
+        "temperature": 0,
+        "enable_thinking": False,
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": text},
+        ],
+    }
+
+
 async def translate(client: httpx.AsyncClient, model: str, text: str) -> str:
     r = await client.post(
         f"{settings.ai_base_url}/chat/completions",
         headers={"Authorization": f"Bearer {settings.ai_api_key}"},
-        json={
-            "model": model,
-            "temperature": 0,
-            "messages": [
-                {"role": "system", "content": SYSTEM},
-                {"role": "user", "content": text},
-            ],
-        },
-        timeout=60,
+        json=_payload(model, text),
+        timeout=90,
     )
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"].strip()
