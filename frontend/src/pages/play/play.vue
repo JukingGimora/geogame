@@ -1,6 +1,6 @@
 <template>
   <view class="play" :style="{ paddingTop: `${topOffset + 48}px` }">
-    <view v-if="run && current" class="stage">
+    <view v-if="run && current && !finished" class="stage">
       <view class="topbar">
         <view v-if="isRoam" class="dots">
           <view v-for="i in totalRounds" :key="i" class="dot" :class="{ on: i <= streak }" />
@@ -113,20 +113,20 @@
       <!-- 大字只放数字:中文一进来就会折行,"平均差 7171 公里"撑成两行占满整屏 -->
       <template v-if="isRoam">
         <text class="finale-label">{{ t('play.endRoam') }}</text>
+        <text class="finale-caption">{{ t('play.roamAvgCaption') }}</text>
         <view class="finale-figure">
           <text class="finale-score">{{ roamAvg }}</text>
           <text class="finale-unit">{{ t('play.kmUnit') }}</text>
         </view>
-        <text class="finale-caption">{{ t('play.roamAvgCaption') }}</text>
         <text class="finale-sub">{{ t('play.roamBest', { n: roamBest }) }}</text>
       </template>
       <template v-else>
         <text class="finale-label">{{ endedReason === 'pool_empty' ? t('play.endPool') : t('play.endLives') }}</text>
+        <text class="finale-caption">{{ t('play.streakCaption') }}</text>
         <view class="finale-figure">
           <text class="finale-score">{{ streak }}</text>
           <text class="finale-unit">{{ t('play.roundUnit') }}</text>
         </view>
-        <text class="finale-caption">{{ t('play.streakCaption') }}</text>
         <text class="finale-sub">{{ run.rank ? t('play.rank', { n: run.rank }) : t('play.totalScore', { n: run.total_score }) }}</text>
       </template>
       <view v-if="showProfileHint" class="hint-bar" @tap="goProfile">
