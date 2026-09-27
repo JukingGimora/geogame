@@ -15,7 +15,7 @@ from app.models import (
     Event,
     Feedback,
     Hint,
-    HintTranslation,
+    PhotoText,
     Photo,
     PointsLedger,
     Report,
@@ -162,7 +162,7 @@ async def delete_account(user: User = Depends(get_current_user), session: AsyncS
     photo_ids = (await session.scalars(select(Photo.id).where(Photo.uploader_id == user.id))).all()
     file_keys = (await session.scalars(select(Photo.file_key).where(Photo.uploader_id == user.id))).all()
     if photo_ids:
-        for model in (Hint, HintTranslation, AIGuess):
+        for model in (Hint, PhotoText, AIGuess):
             await session.execute(sa_delete(model).where(model.photo_id.in_(photo_ids)))
         await session.execute(sa_delete(Round).where(Round.photo_id.in_(photo_ids)))
         await session.execute(sa_delete(Comment).where(Comment.photo_id.in_(photo_ids)))

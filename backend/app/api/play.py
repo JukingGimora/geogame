@@ -10,7 +10,7 @@ from app.models import (
     AIGuess,
     AuthIdentity,
     Hint,
-    HintTranslation,
+    PhotoText,
     Photo,
     PointsLedger,
     Region,
@@ -54,7 +54,12 @@ class HintIn(BaseModel):
 
 
 @router.post("/runs")
-async def create_run(body: RunIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+async def create_run(
+    body: RunIn,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
+):
     unfinished = await session.scalar(
         select(Run).where(Run.user_id == user.id, Run.status == "playing").order_by(Run.id.desc())
     )
@@ -79,7 +84,7 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
             # 否则分享指定的照片永远轮不到,点链接的人只会觉得"点了没反应"
             if body.photo_id:
                 await _swap_in_photo(session, unfinished, body.photo_id, user)
-            return await run_state(unfinished.id, user, session)
+            return await run_state(unfinished.id, user, session, lang)
         unfinished.status = "finished"
         await session.flush()
 
@@ -155,7 +160,7 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     for i, p in enumerate(photos):
         session.add(Round(run_id=run.id, photo_id=p.id, order_index=i))
     await session.commit()
-    return await run_state(run.id, user, session)
+    return await run_state(run.id, user, session, lang)
 
 
 # 同一局里不出两张挨着的照片。20 张斐济照片里有 18 张挤在楠迪:
@@ -255,7 +260,12 @@ async def _swap_in_photo(session: AsyncSession, run: Run, photo_id: int, user: U
 
 
 @router.get("/runs/{run_id}")
-async def run_state(run_id: int, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+async def run_state(
+    run_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
+):
     run = await session.get(Run, run_id)
     if not run or run.user_id != user.id:
         raise HTTPException(404, "run_not_found")
@@ -277,7 +287,9 @@ async def run_state(run_id: int, user: User = Depends(get_current_user), session
             "round_id": r.id,
             "order": r.order_index,
             "photo_url": storage.url(photo.file_key),
-            "story_teaser": photo.story[:30] + "…" if len(photo.story) > 30 else photo.story,
+            "story_teaser": _teaser(
+                (await _text_en(session, photo.id, "story") if is_en(lang) else None) or photo.story
+            ),
             "finished": r.finished_at is not None,
             "hints_mask": r.hints_mask,
             # 这一关真正能买的提示
@@ -354,11 +366,24 @@ async def unlock_hint(
     return {"level": body.level, "content": content, "hints_mask": rnd.hints_mask}
 
 
+def _teaser(text: str) -> str:
+    return text[:30] + "…" if len(text) > 30 else text
+
+
+async def _text_en(session: AsyncSession, photo_id: int, field: str) -> str | None:
+    """这张照片某一段内容的英文译文,没翻过就返回 None。"""
+    return await session.scalar(
+        select(PhotoText.content).where(
+            PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == "en"
+        )
+    )
+
+
 async def _hint_en(session: AsyncSession, photo_id: int, level: int, zh: str) -> str:
     """这条提示的英文版。
 
     ③国家和④方位是程序拼出来的,现算比存一份更省事——照片的坐标和国名都在手边。
-    ①故事和②AI线索是内容,只能预先翻好存进 hint_translations;没翻的照原样给中文,
+    ①故事和②AI线索是内容,只能预先翻好存进 photo_texts;没翻的照原样给中文,
     宁可露一句中文,也不能让这一关没有提示。
     """
     photo = await session.get(Photo, photo_id)
@@ -366,19 +391,17 @@ async def _hint_en(session: AsyncSession, photo_id: int, level: int, zh: str) ->
         return COUNTRY_EN.get(photo.country, photo.country)
     if level == 4 and photo and photo.country:
         return coarse_area_en(photo.country, photo.lat, photo.lng)
-    row = await session.scalar(
-        select(HintTranslation.content).where(
-            HintTranslation.photo_id == photo_id,
-            HintTranslation.level == level,
-            HintTranslation.lang == "en",
-        )
-    )
-    return row or zh
+    # 提示①就是那段故事本身(实测 220/220 两处一致),所以跟揭晓页共用一份译文
+    return await _text_en(session, photo_id, "story" if level == 1 else "clue") or zh
 
 
 @router.post("/rounds/{round_id}/guess")
 async def submit_guess(
-    round_id: int, body: GuessIn, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+    round_id: int,
+    body: GuessIn,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    lang: str = Depends(lang_header),
 ):
     rnd, run = await _get_open_round(session, round_id, user)
     photo = await session.get(Photo, rnd.photo_id)
@@ -442,6 +465,15 @@ async def submit_guess(
     ai = await session.scalar(select(AIGuess).where(AIGuess.photo_id == photo.id))
     uploader = await session.get(User, photo.uploader_id)
     await session.commit()
+    # 揭晓页上的两段中文:上传者写的故事,和 AI 的推理。
+    # 这两段跟提示不是同一份文字(推理会点名真实地点,它是答案之后才给的),
+    # 所以各有各的译文。没翻到就照原样给中文
+    story = photo.story
+    reasoning = ai.reasoning if ai else None
+    if is_en(lang):
+        story = await _text_en(session, photo.id, "story") or story
+        if ai:
+            reasoning = await _text_en(session, photo.id, "reasoning") or reasoning
     return {
         "distance_km": rnd.distance_km,
         "score": score,
@@ -456,7 +488,7 @@ async def submit_guess(
         "country_match": bool(photo.country) and guess_country == photo.country,
         # 猜完才给:知道"离 Tbilisi 3 公里"比只看见一个点有意思得多
         "place": _place_label(photo),
-        "story": photo.story,
+        "story": story,
         "uploader": {"id": uploader.id, "nickname": uploader.nickname},
         "ai": None
         if not ai
@@ -465,7 +497,7 @@ async def submit_guess(
             "lng": ai.lng,
             "distance_km": ai.distance_km,
             "score": ai.score,
-            "reasoning": ai.reasoning,
+            "reasoning": reasoning,
             "beaten": score > ai.score,
         },
         "run_status": run.status,

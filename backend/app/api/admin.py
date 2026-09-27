@@ -18,7 +18,7 @@ from app.models import (
     Event,
     Feedback,
     Hint,
-    HintTranslation,
+    PhotoText,
     Photo,
     PointsLedger,
     Region,
@@ -33,7 +33,7 @@ from app.services.progress import LIFE_BACK
 from app.services.cities import nearest_city
 from app.services.enrich import enrich_photo
 from app.services.geo import nearest_province, resolve_city
-from app.services.translate import translate_photo_hints
+from app.services.translate import translate_photo
 from app.storage import process_image, storage
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -142,7 +142,7 @@ async def approve_photo(photo_id: int, session: AsyncSession = Depends(get_sessi
     # 而且要等外语用户来告诉你才发现。两次调用、约 0.1 分钱,并发跑大约多等一两秒。
     # 翻不出来不算审核失败(阿里的内容审核会拦下一些完全正常的句子),
     # 没译文时英文版照原样显示中文
-    translated = await translate_photo_hints(session, photo.id)
+    translated = await translate_photo(session, photo.id)
     await session.commit()
     return {"id": photo.id, "status": photo.status, "translated": translated}
 
@@ -300,7 +300,7 @@ async def delete_photo(photo_id: int, session: AsyncSession = Depends(get_sessio
     if not photo:
         raise HTTPException(404, "photo_not_found")
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id))
-    await session.execute(sa_delete(HintTranslation).where(HintTranslation.photo_id == photo_id))
+    await session.execute(sa_delete(PhotoText).where(PhotoText.photo_id == photo_id))
     await session.execute(sa_delete(AIGuess).where(AIGuess.photo_id == photo_id))
     storage.delete(photo.file_key)
     await session.delete(photo)

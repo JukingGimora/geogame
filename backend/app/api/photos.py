@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models import AIGuess, Hint, HintTranslation, Photo, Round, User
+from app.models import AIGuess, Hint, PhotoText, Photo, Round, User
 from app.services import understood
 from app.services.auth import get_current_user
 from app.services.circles import locate
@@ -108,7 +108,7 @@ async def delete_my_photo(
         # 删了会让引用它的 rounds 变成孤儿,连带把别人的历史成绩和自己的被理解次数搞坏
         raise HTTPException(409, "photo_already_played")
     await session.execute(sa_delete(Hint).where(Hint.photo_id == photo_id))
-    await session.execute(sa_delete(HintTranslation).where(HintTranslation.photo_id == photo_id))
+    await session.execute(sa_delete(PhotoText).where(PhotoText.photo_id == photo_id))
     await session.execute(sa_delete(AIGuess).where(AIGuess.photo_id == photo_id))
     storage.delete(photo.file_key)
     await session.delete(photo)

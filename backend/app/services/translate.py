@@ -17,13 +17,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import Hint, HintTranslation
+from app.models import AIGuess, Hint, Photo, PhotoText
 from app.services.i18n import COUNTRY_EN, DEMONYM_EN, SOURCE_ALIAS
 
 logger = logging.getLogger(__name__)
 
-LEVELS = (1, 2)   # ①故事 ②AI线索。③④ 是程序拼的,读的时候现算
 LANG = "en"
+
+# 要翻的三段内容,以及它们各自从哪儿来。
+# story 同时供提示①和揭晓页用——实测 220/220 两处是同一段文字,没必要翻两遍
+FIELDS = ("story", "clue", "reasoning")
 
 # 忠实翻译,不是改写。多说一个字、少说一个字都会改变这一关的难度
 SYSTEM = (
@@ -110,8 +113,21 @@ async def translate_text(client: httpx.AsyncClient, model: str, text: str) -> st
     return r.json()["choices"][0]["message"]["content"].strip()
 
 
-async def translate_photo_hints(session: AsyncSession, photo_id: int, model: str | None = None) -> int:
-    """给这张照片的提示①②补英文译文,返回成功几条。
+async def source_texts(session: AsyncSession, photo_id: int) -> dict[str, str]:
+    """这张照片待翻的三段中文原文。取不到的那段就不在返回里。"""
+    photo = await session.get(Photo, photo_id)
+    clue = await session.scalar(
+        select(Hint.content).where(Hint.photo_id == photo_id, Hint.level == 2)
+    )
+    reasoning = await session.scalar(
+        select(AIGuess.reasoning).where(AIGuess.photo_id == photo_id)
+    )
+    out = {"story": photo.story if photo else "", "clue": clue or "", "reasoning": reasoning or ""}
+    return {k: v for k, v in out.items() if v}
+
+
+async def translate_photo(session: AsyncSession, photo_id: int, model: str | None = None) -> int:
+    """给这张照片的故事、AI线索、AI推理补英文译文,返回成功几条。
 
     **翻不出来不算审核失败。** 阿里的内容审核会拦下一些完全正常的句子
     (实测「仿民国时期的电影街区」就被判 data_inspection_failed),
@@ -121,14 +137,7 @@ async def translate_photo_hints(session: AsyncSession, photo_id: int, model: str
     if not settings.ai_api_key or not settings.ai_base_url:
         return 0
     model = model or settings.translate_model
-    rows = (
-        await session.execute(
-            select(Hint.level, Hint.content).where(
-                Hint.photo_id == photo_id, Hint.level.in_(LEVELS)
-            )
-        )
-    ).all()
-    todo = [(lv, zh) for lv, zh in rows if zh]
+    todo = list((await source_texts(session, photo_id)).items())
     if not todo:
         return 0
 
@@ -139,30 +148,30 @@ async def translate_photo_hints(session: AsyncSession, photo_id: int, model: str
         )
 
     ok = 0
-    for (lv, zh), en in zip(todo, results):
+    for (field, zh), en in zip(todo, results):
         if isinstance(en, BaseException) or not en:
-            logger.warning("translate photo %s level %s failed: %r", photo_id, lv, en)
+            logger.warning("translate photo %s %s failed: %r", photo_id, field, en)
             continue
-        if leak := leaked(zh, en):
+        # 推理是揭晓之后才给的,点名地点本来就是它的职责,不查泄露
+        if field != "reasoning" and (leak := leaked(zh, en)):
             # 泄露了就干脆不存:英文用户看到中文原文,比看到一条送分的线索好
-            logger.warning(
-                "translate photo %s level %s leaked %r, 丢弃这条译文", photo_id, lv, leak
-            )
+            logger.warning("translate photo %s %s leaked %r, 丢弃这条译文", photo_id, field, leak)
             continue
-        old = await session.scalar(
-            select(HintTranslation).where(
-                HintTranslation.photo_id == photo_id,
-                HintTranslation.level == lv,
-                HintTranslation.lang == LANG,
-            )
-        )
-        if old:
-            old.content, old.model = en[:600], model
-        else:
-            session.add(
-                HintTranslation(
-                    photo_id=photo_id, level=lv, lang=LANG, content=en[:600], model=model
-                )
-            )
+        await put(session, photo_id, field, en, model)
         ok += 1
     return ok
+
+
+async def put(session: AsyncSession, photo_id: int, field: str, en: str, model: str) -> None:
+    """写一条译文,有就覆盖。"""
+    old = await session.scalar(
+        select(PhotoText).where(
+            PhotoText.photo_id == photo_id, PhotoText.field == field, PhotoText.lang == LANG
+        )
+    )
+    if old:
+        old.content, old.model = en[:1200], model
+    else:
+        session.add(
+            PhotoText(photo_id=photo_id, field=field, lang=LANG, content=en[:1200], model=model)
+        )

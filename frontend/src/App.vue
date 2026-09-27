@@ -2,11 +2,26 @@
 import { onLaunch } from '@dcloudio/uni-app'
 import { logEvent } from './lib/analytics'
 import { ensureWechatBinding } from './api'
+// #ifdef H5
+import { t } from './locale'
+// #endif
 
 onLaunch(() => {
   logEvent('session_start')
   // 趁账号还在,把 openid 绑上;将来存储被清才找得回来
   ensureWechatBinding()
+  // #ifdef H5
+  // 标签页标题跟着语言走。pages.json 里只能写死一个,而中英两站共用一份产物;
+  // 而且 uni 每次换路由都会拿那个值重写一遍 title,所以光设一次不够,
+  // 得盯着 <title> 把它改回来。分享出去别人先看到的就是这行字
+  const keepTitle = () => {
+    const want = t('map.title')
+    if (document.title !== want) document.title = want
+  }
+  keepTitle()
+  const el = document.querySelector('title')
+  if (el) new MutationObserver(keepTitle).observe(el, { childList: true })
+  // #endif
 })
 </script>
 
