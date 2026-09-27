@@ -46,6 +46,15 @@ async def list_circles(
         )
     ).all()
     played = {c: (n, best, lit) for c, n, best, lit in mine}
+    # 我在这个圈里传过几张:点进去只看到"能玩几张"不够,
+    # 自己贡献了多少也该看得见——尤其当那个圈里大半是自己传的、因此玩不了的时候
+    uploaded = dict(
+        (await session.execute(
+            select(Photo.circle, func.count())
+            .where(Photo.status == "live", Photo.uploader_id == user.id, Photo.circle.is_not(None))
+            .group_by(Photo.circle)
+        )).all()
+    )
     return {
         "lives_left": await lives_left(session, user),
         # 走完新手三关就不再给漫游入口
@@ -59,6 +68,7 @@ async def list_circles(
                 # 认出来过的张数:地图的亮度按它算,越认得多越亮
                 "lit_count": played.get(name, (0, None, 0))[2],
                 "lit": (played.get(name, (0, None, 0))[1] or 9e9) <= LIT_KM,
+                "mine": uploaded.get(name, 0),
             }
             for name, desc in CIRCLES.items()
         ]

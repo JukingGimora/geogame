@@ -38,6 +38,9 @@
       <text v-if="active.photos > 0" class="picked-progress">
         {{ t('map.circleWalked', { played: active.played, total: active.photos, lit: active.lit_count ?? 0 }) }}
       </text>
+      <text v-if="active.mine" class="picked-mine">
+        {{ t('map.circleMine', { n: active.mine }) }}
+      </text>
     </view>
     <text v-else class="picked-hint">{{ t('map.mapHint') }}</text>
 
@@ -73,6 +76,7 @@ interface Circle {
   played: number
   lit: boolean
   lit_count?: number
+  mine?: number
 }
 
 const circles = ref<Circle[]>([])
@@ -273,6 +277,12 @@ onShareTimeline(() => ({
   color: var(--ink-dim);
   font-size: 22rpx;
   margin-top: 10rpx;
+}
+.picked-mine {
+  display: block;
+  color: var(--accent);
+  font-size: 22rpx;
+  margin-top: 6rpx;
 }
 .picked-desc {
   display: block;
