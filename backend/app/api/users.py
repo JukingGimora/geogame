@@ -5,7 +5,6 @@
 
 只给公开数据:传了多少、被多少人看过、走过哪些地方。不给设备、不给行踪明细。
 """
-import functools
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,8 +15,7 @@ from app.db import get_session
 from app.models import Photo, Round, Run, User
 from app.services import understood
 from app.services.auth import get_current_user
-from app.services.circles import COUNTRIES, LIT_KM
-from app.services.cities import nearest_cc
+from app.services.circles import COUNTRY_CODE, LIT_KM
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -82,20 +80,9 @@ async def profile(
     }
 
 
-@functools.lru_cache(maxsize=1)
-def _country_code() -> dict[str, str]:
-    """中文国名 → 两位国家代码。按国家中心点就近认,不另维护一张表。"""
-    out = {}
-    for name, lat, lng, _ in COUNTRIES:
-        cc = nearest_cc(lat, lng)
-        if cc:
-            out[name] = cc
-    return out
-
-
 def _flag(country: str) -> str:
     """两位国家代码 → 国旗 emoji(两个区域指示符拼起来)。认不出来就不给。"""
-    cc = _country_code().get(country)
+    cc = COUNTRY_CODE.get(country)
     if not cc or len(cc) != 2:
         return ""
     return "".join(chr(0x1F1E6 + ord(ch) - ord("A")) for ch in cc.upper())
