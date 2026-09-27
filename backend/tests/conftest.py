@@ -26,7 +26,9 @@ from httpx import ASGITransport, AsyncClient
 for f in pathlib.Path(".").glob("test_geogame.db*"):
     f.unlink()
 
-from app.db import async_session_maker, init_db  # noqa: E402
+from sqlalchemy import delete  # noqa: E402
+
+from app.db import Base, async_session_maker, init_db  # noqa: E402
 from app.services import ratelimit  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services.geo import seed_regions  # noqa: E402
@@ -34,11 +36,20 @@ from app.services.geo import seed_regions  # noqa: E402
 
 @pytest_asyncio.fixture
 async def client():
-    # 限速是按 IP 数的,整套测试在同一个"IP"上跑,跑到第 60 次上传就 429。
-    # 每个用例开始前清一次计数:限速逻辑本身照样被执行到,只是不跨用例累加
+    """每个用例都从一个空库开始。
+
+    原来所有用例共用一个库,于是"别的用例的玩家猜了我的照片"这种事会随机
+    把断言顶掉——pytest 每次跑的顺序还不一样,同一份代码时红时绿。
+    与其一处处把断言放宽成"大于等于",不如让每个用例真的互不相干:
+    断言能写成确切的数字,failing 的时候也指得准。
+    """
+    # 限速按 IP 数,整套测试在同一个"IP"上跑,到第 60 次上传就 429
     ratelimit._hits.clear()
     await init_db()
     async with async_session_maker() as session:
+        for table in reversed(Base.metadata.sorted_tables):
+            await session.execute(delete(table))
+        await session.commit()
         await seed_regions(session)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

@@ -95,30 +95,21 @@ async def test_full_game_flow(client):
 
 @pytest.mark.asyncio
 async def test_own_photos_are_never_served_to_you(client):
-    """自己的照片不会发给自己——知道答案等于白送满分,也会把「被看见」刷成假的。"""
+    """自己的照片不会发给自己——知道答案等于白送满分,也会把「被看见」刷成假的。
+
+    库里只剩他自己传的图时,开不出局,而且要能说清是哪一种空:
+    「你都玩过了」和「库里只剩你自己的」对玩家是两回事,提示也不一样。
+    """
     solo = await login(client, "device-solo-003")
-    mine = {await upload_and_approve(client, solo, 25.04 + i * 0.3, 102.71 + i * 0.3, f"云南故事{i}")
-            for i in range(3)}
+    for i in range(3):
+        await upload_and_approve(client, solo, 25.04 + i * 0.3, 102.71 + i * 0.3, f"云南故事{i}")
 
-    # 把题库走一遍,一张自己的都不该出现
     r = await client.post("/api/v1/runs", headers=solo, json={})
-    assert r.status_code == 200, r.text
-    seen = set()
-    for _ in range(12):
-        run = (await client.get(f"/api/v1/runs/{r.json()['run_id']}", headers=solo)).json()
-        todo = [x for x in run["rounds"] if not x["finished"]]
-        if not todo or run["status"] != "playing":
-            break
-        for rd in todo:
-            seen.add(rd["photo_url"])
-            await client.post(f"/api/v1/rounds/{rd['round_id']}/guess", headers=solo,
-                              json={"lat": 25.04, "lng": 102.71})
-    assert seen, "一关都没发出来,这个测试就没在测东西"
+    assert r.status_code == 409
+    assert r.json()["detail"] == "only_own_photos"
 
-    # 自己的照片一张都没被发出来,所以「被看见」还是 0
     r = await client.get("/api/v1/auth/me", headers=solo)
     assert r.json()["points"] == 0
-    assert len(mine) == 3
 
 
 @pytest.mark.asyncio

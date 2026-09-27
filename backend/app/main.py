@@ -2,9 +2,9 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import admin, auth, circles, events, feedback, geo, leaderboard, photos, play, regions, users
@@ -64,6 +64,48 @@ def _web_index() -> FileResponse:
     # 不缓存入口页:脚本名带哈希会变,但 index.html 被浏览器缓存住的话,
     # 新版发出去了用户还在跑旧的——排查这事白白花过一轮
     return FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+def _prefers_chinese(accept_language: str) -> bool:
+    """浏览器说它想读什么语言。
+
+    `Accept-Language` 长这样:`zh-CN,zh;q=0.9,en;q=0.8`,按 q 值排优先级,
+    不写 q 就是 1。取最高的那个看是不是中文。
+
+    用它而不是 IP 或时区,是因为要判断的是"他读什么",不是"他人在哪":
+    在巴黎的中国人该看中文,新加坡人该看英文(那儿也是 UTC+8),
+    在上海的法国人该看英文——这三种情况 IP 和时区各只能对一个。
+    顺带还省掉了"收集位置信息"这件要声明的事。
+    """
+    best_zh, best_other = -1.0, -1.0
+    for part in accept_language.split(","):
+        tag, _, params = part.strip().partition(";")
+        if not tag or tag == "*":
+            continue
+        q = 1.0
+        if params.strip().startswith("q="):
+            try:
+                q = float(params.strip()[2:])
+            except ValueError:
+                q = 1.0
+        if tag.lower().startswith("zh"):
+            best_zh = max(best_zh, q)
+        else:
+            best_other = max(best_other, q)
+    return best_zh >= best_other and best_zh >= 0
+
+
+@app.get("/")
+async def web_root(request: Request):
+    """对外只发这一个链接,按浏览器自己报的语言分流。
+
+    他手动切过语言的话,前端会写一个 cookie,这里优先认它——
+    否则他每次点收藏夹都要被送回系统语言那一边,切了等于白切。
+    """
+    picked = request.cookies.get("geogame_lang")
+    if picked not in ("zh", "en"):
+        picked = "zh" if _prefers_chinese(request.headers.get("accept-language", "")) else "en"
+    return RedirectResponse(f"/{picked}/", status_code=302)
 
 
 @app.get("/en/")

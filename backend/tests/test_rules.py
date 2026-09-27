@@ -187,3 +187,32 @@ async def test_chinese_site_stays_chinese(client):
     rid = run["rounds"][0]["round_id"]
     h = (await client.post(f"/api/v1/rounds/{rid}/hints", headers=zh, json={"level": 3})).json()
     assert h["content"].startswith("在")
+
+
+@pytest.mark.asyncio
+async def test_root_sends_you_to_your_own_language(client):
+    """对外只发一个链接,按浏览器自己报的语言分流。
+
+    用 Accept-Language 而不是 IP 或时区:要判断的是"他读什么"不是"他人在哪"。
+    新加坡也是 UTC+8,时区分不出来;在巴黎的中国人该看中文,IP 分不出来。
+    """
+    cases = [
+        ("zh-CN,zh;q=0.9,en;q=0.8", "/zh/"),
+        ("en-US,en;q=0.9", "/en/"),
+        ("en-SG,en;q=0.9,zh-CN;q=0.5", "/en/"),   # 新加坡,时区跟中国一样
+        ("fr-FR,fr;q=0.9,en;q=0.8", "/en/"),      # 在上海的法国人
+        ("en;q=0.8,zh-CN;q=0.9", "/zh/"),         # q 值倒着写
+        ("", "/en/"),
+    ]
+    for header, target in cases:
+        r = await client.get("/", headers={"Accept-Language": header}, follow_redirects=False)
+        assert r.status_code == 302, r.text
+        assert r.headers["location"] == target, f"{header!r} 应该去 {target}"
+
+    # 他手动切过语言就认他的,别再按系统语言把他送回去
+    r = await client.get(
+        "/",
+        headers={"Accept-Language": "en-US,en;q=0.9", "Cookie": "geogame_lang=zh"},
+        follow_redirects=False,
+    )
+    assert r.headers["location"] == "/zh/"
