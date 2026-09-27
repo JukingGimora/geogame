@@ -38,7 +38,8 @@ async def upload_photo(
         if not found:
             # 让人手动标位置是最劝退的一步,所以每次退回手动都要留下"为什么读不到"。
             # 光看结果分不出是微信剥了元数据、还是这张图本来就没定位
-            logger.info("need_location: %s", gps_report(data))
+            # 用 warning:全局没配 logging,root 的级别是 WARNING,info 根本不会出现在日志里
+            logger.warning("need_location: %s", gps_report(data))
             raise HTTPException(422, "need_location")
         lat, lng = found
     if not (-90 <= lat <= 90 and -180 <= lng <= 180):
