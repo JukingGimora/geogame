@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import admin, auth, circles, events, feedback, geo, leaderboard, photos, play, regions, users
@@ -74,13 +74,6 @@ async def web_index_en():
 @app.get("/zh/")
 async def web_index_zh():
     return _web_index()
-
-
-@app.get("/h5test")
-@app.get("/h5test/")
-async def h5_legacy():
-    """旧地址。发出去的链接、二维码不该因为改路径就废掉。"""
-    return RedirectResponse("/en/", status_code=301)
 
 
 for _lang in ("en", "zh"):
