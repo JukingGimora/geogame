@@ -46,17 +46,25 @@ async def create_run(body: RunIn, user: User = Depends(get_current_user), sessio
     unfinished = await session.scalar(
         select(Run).where(Run.user_id == user.id, Run.status == "playing").order_by(Run.id.desc())
     )
-    if unfinished:
-        # 手上有没打完的局时,如果是从"叫朋友猜这张"进来的,不能直接把旧局还回去——
-        # 那样分享指定的照片永远轮不到,点链接的人只会觉得"点了没反应"。
-        # 把那张换进下一个还没猜的关,承诺兑现,进度也不丢。
-        if body.photo_id:
-            await _swap_in_photo(session, unfinished, body.photo_id, user)
-        return await run_state(unfinished.id, user, session)
-
     serious = body.mode != "roam"
+    if unfinished:
+        # 只有"还是同一种局"才接着打。玩家点「去东亚走一圈」,却把上一局没打完的
+        # 漫游还给他,他会以为按钮坏了——上一局是他自己走开不要的,别硬塞回去。
+        same = unfinished.mode == ("serious" if serious else "roam") and (
+            unfinished.chapter or None
+        ) == (body.chapter or None)
+        if same:
+            # 从"叫朋友猜这张"进来的,得把那张换进下一个还没猜的关,
+            # 否则分享指定的照片永远轮不到,点链接的人只会觉得"点了没反应"
+            if body.photo_id:
+                await _swap_in_photo(session, unfinished, body.photo_id, user)
+            return await run_state(unfinished.id, user, session)
+        unfinished.status = "finished"
+        await session.flush()
+
     if serious:
-        # 命按天算,不按局算:死了重开一局就当没事发生的话,失败没有代价
+        # 命按天算,不按局算:死了重开一局就当没事发生的话,失败没有代价。
+        # 接着打旧局也要查:隔夜的局今天可能已经没命了
         if await lives_left(session, user) <= 0:
             raise HTTPException(409, "no_lives")
 
